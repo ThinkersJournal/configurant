@@ -1,0 +1,23 @@
+[project]
+name = "demo"
+version = "0.1.0"
+summary = "An example schema"
+schema_version = 1
+env_prefix = "DEMO_"
+
+[[value]]
+key = "server.port"
+type = "int"
+default = 8080
+min = 1
+max = 65535
+description = "listen port"
+env = "DEMO_PORT"
+flag = "--port"
+
+[[value]]
+key = "db.password"
+type = "string"
+secret = true
+description = "database password (environment only)"
+env = "DEMO_DB_PASSWORD"
