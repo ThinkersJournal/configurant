@@ -2,6 +2,7 @@
 //! Value types and conversion from text (environment, command line) and from TOML (files,
 //! defaults).
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde::Deserialize;
@@ -18,6 +19,10 @@ pub enum ValueType {
     Path,
     Enum,
     List,
+    /// An array of tables (`[[name]]`); declared with `[[table]]`, never as a `[[value]]`.
+    Table,
+    /// A table with arbitrary keys; declared with `[[map]]`, never as a `[[value]]`.
+    Map,
 }
 
 impl ValueType {
@@ -30,9 +35,14 @@ impl ValueType {
             ValueType::Path => "path",
             ValueType::Enum => "enum",
             ValueType::List => "list",
+            ValueType::Table => "table",
+            ValueType::Map => "map",
         }
     }
 }
+
+/// One row of an array of tables: field name to value.
+pub type Row = BTreeMap<String, Value>;
 
 /// A typed configuration value.
 #[derive(Debug, Clone, PartialEq)]
@@ -46,6 +56,10 @@ pub enum Value {
     Enum(String),
     /// A list of strings; from text it is comma-separated.
     List(Vec<String>),
+    /// The rows of an array of tables. Only a configuration file can set it.
+    Rows(Vec<Row>),
+    /// A map with arbitrary string keys. Only a configuration file can set it.
+    Map(BTreeMap<String, Value>),
 }
 
 impl Value {
@@ -58,6 +72,8 @@ impl Value {
             Value::Path(_) => ValueType::Path,
             Value::Enum(_) => ValueType::Enum,
             Value::List(_) => ValueType::List,
+            Value::Rows(_) => ValueType::Table,
+            Value::Map(_) => ValueType::Map,
         }
     }
 
@@ -75,6 +91,7 @@ impl Value {
                 "false" => Value::Bool(false),
                 _ => return None,
             },
+            ValueType::Table | ValueType::Map => return None,
             ValueType::List => Value::List(if text.trim().is_empty() {
                 Vec::new()
             } else {
@@ -114,6 +131,11 @@ impl Value {
             Value::Float(f) => f.to_string(),
             Value::Bool(b) => b.to_string(),
             Value::List(l) => format!("{l:?}"),
+            Value::Rows(rows) => {
+                let rows: Vec<String> = rows.iter().map(shown_map).collect();
+                format!("[{}]", rows.join(", "))
+            }
+            Value::Map(m) => shown_map(m),
         }
     }
 
@@ -127,6 +149,12 @@ impl Value {
             Value::List(l) => {
                 toml::Value::Array(l.iter().cloned().map(toml::Value::String).collect())
             }
+            Value::Rows(rows) => toml::Value::Array(
+                rows.iter()
+                    .map(|r| toml::Value::Table(to_toml_table(r)))
+                    .collect(),
+            ),
+            Value::Map(m) => toml::Value::Table(to_toml_table(m)),
         }
     }
 
@@ -134,6 +162,8 @@ impl Value {
     pub(crate) fn appears_in(&self, text: &str) -> bool {
         let mut forms: Vec<String> = Vec::new();
         match self {
+            Value::Rows(rows) => return rows.iter().flatten().any(|(_, v)| v.appears_in(text)),
+            Value::Map(m) => return m.values().any(|v| v.appears_in(text)),
             Value::String(s) | Value::Enum(s) => forms.push(s.clone()),
             Value::Path(p) => forms.push(p.to_string_lossy().into_owned()),
             Value::List(l) => forms.extend(l.iter().cloned()),
@@ -161,4 +191,16 @@ impl Value {
             _ => None,
         }
     }
+}
+
+fn shown_map(m: &BTreeMap<String, Value>) -> String {
+    let items: Vec<String> = m
+        .iter()
+        .map(|(k, v)| format!("{k}: {}", v.shown()))
+        .collect();
+    format!("{{{}}}", items.join(", "))
+}
+
+fn to_toml_table(m: &BTreeMap<String, Value>) -> toml::Table {
+    m.iter().map(|(k, v)| (k.clone(), v.to_toml())).collect()
 }

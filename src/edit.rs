@@ -107,7 +107,12 @@ impl<'a> Session<'a> {
     pub fn stage(&mut self, key: &str, text: &str) -> Result<(), ConfigError> {
         let schema = self.config.schema();
         let Some(def) = schema.get(key) else {
-            let known = schema.values().iter().map(|d| d.key.as_str());
+            if schema.table(key).is_some() || schema.map(key).is_some() {
+                return Err(ConfigError::FileOnly {
+                    key: key.to_owned(),
+                });
+            }
+            let known = schema.all_keys();
             return Err(ConfigError::UnknownKey {
                 key: key.to_owned(),
                 suggestion: suggestion(key, known),
@@ -283,6 +288,12 @@ fn edit_value(v: &Value) -> EditValue {
         Value::Float(f) => EditValue::from(*f),
         Value::Bool(b) => EditValue::from(*b),
         Value::List(l) => EditValue::Array(l.iter().map(String::as_str).collect::<Array>()),
+        // Never staged (`Session::stage` refuses these keys); kept total rather than a panic.
+        Value::Rows(_) | Value::Map(_) => v
+            .to_toml()
+            .to_string()
+            .parse::<EditValue>()
+            .unwrap_or_else(|_| EditValue::from("")),
     }
 }
 

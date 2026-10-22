@@ -1,8 +1,9 @@
 # ConfigurAnt schema for an AntSpawn job spec (first customer). The schema is data: AntSpawn keeps its own
 # serde types and loads its spec through configurant, with no generated code.
 #
-# NOT EXPRESSIBLE YET (configurant has scalars and string lists only): `[[mount]]` and `[[output]]` (arrays
-# of tables) and `job.env` (a map with arbitrary keys). A spec that uses them is refused as an unknown key.
+# `[[mount]]` and `[[output]]` are arrays of tables and `job.env` is a map: all three come from the job file only
+# (no environment variable or flag). Cross-field rules (a `ro` mount needs a `host`, guest paths stay inside the
+# work dir) are AntSpawn's own checks; the schema checks names, types and choices.
 
 [project]
 name = "antspawn-job"
@@ -84,3 +85,46 @@ key = "needs.prefer"
 type = "list"
 default = []
 description = "launcher ids in order of importance"
+
+[[map]]
+key = "job.env"
+value_type = "string"
+description = "environment variables for the job (names and values; never put a secret here)"
+
+[[table]]
+key = "mount"
+description = "directories the job may see; none are visible unless declared"
+
+[[table.field]]
+key = "host"
+type = "path"
+description = "source on the host (a scratch mount has none)"
+
+[[table.field]]
+key = "guest"
+type = "path"
+required = true
+description = "path inside the environment, relative to the work dir"
+
+[[table.field]]
+key = "mode"
+type = "enum"
+choices = ["ro", "rw", "scratch"]
+required = true
+description = "ro copies in, scratch is empty and discarded, rw is refused by this AntSpawn version"
+
+[[table]]
+key = "output"
+description = "files copied out when the job ends"
+
+[[table.field]]
+key = "guest"
+type = "path"
+required = true
+description = "path inside the environment, relative to the work dir"
+
+[[table.field]]
+key = "name"
+type = "string"
+required = true
+description = "name the result is stored under"

@@ -96,6 +96,10 @@ pub enum ConfigError {
         found: u32,
         current: u32,
     },
+    #[error("map `{key}` from {origin} has an empty key")]
+    EmptyMapKey { key: String, origin: Origin },
+    #[error("`{key}` is an array of tables or a map, which only the configuration file can set")]
+    FileOnly { key: String },
     #[error("the configuration does not fit the target type: {reason}")]
     Deserialize { reason: String },
     #[error("`{key}` from {origin} was rejected by module `{module}`: {reason}")]
