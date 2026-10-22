@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.8
+
+- Design note `docs/TRANSFER-UI.md`: running a transfer from the TUI and GUI (endpoints asked in the UI, URLs
+  only as environment variable names, copy before write, an explicit write-without-copy). Docs only; all three
+  crates move to 0.2.8.
+
 ## 0.2.7
 
 - `PersistantModule::transfer` executes the `DataTransfer` plan: opens both backends through PersistAnt's
