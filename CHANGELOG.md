@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.5
+
+- `configurant-gui`: a window front end on egui (eframe 0.37, OpenGL backend, AccessKit on). A thin view over
+  `edit::Session`, like the TUI: select a value, edit it (a bad value stays in the box with its error), review,
+  confirm, and only then write `<file>.bak` and the file. Secrets are never held or drawn and have no edit box.
+  Keyboard-only operation and accessibility labels are tested through the accessibility tree
+  (`egui_kittest`); `docs/GUI.md` says what egui does and does not give. All three crates move to 0.2.5; the core
+  is unchanged.
+  The minimum Rust version rises from 1.94 to 1.95, which egui 0.37 requires.
+
 ## 0.2.4
 
 - Arrays of tables and maps in the core. A schema declares `[[table]]` (key, description, `required`, `restart`,

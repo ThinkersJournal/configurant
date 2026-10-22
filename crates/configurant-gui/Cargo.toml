@@ -1,0 +1,23 @@
+[package]
+name = "configurant-gui"
+version = "0.2.5"
+edition = "2024"
+rust-version = "1.95"
+description = "Graphical front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ThinkersJournal/configurant"
+readme = "README.md"
+keywords = ["configuration", "gui", "config", "schema"]
+categories = ["config", "gui"]
+
+[[bin]]
+name = "configurant-gui"
+path = "src/main.rs"
+
+[dependencies]
+configurant = { version = "0.2.5", path = "../.." }
+clap = { version = "4.6.7", features = ["derive"] }
+eframe = { version = "0.37.0", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
+
+[dev-dependencies]
+egui_kittest = "0.37.0"
