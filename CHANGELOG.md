@@ -8,6 +8,7 @@
   Keyboard-only operation and accessibility labels are tested through the accessibility tree
   (`egui_kittest`); `docs/GUI.md` says what egui does and does not give. All three crates move to 0.2.5; the core
   is unchanged.
+  The minimum Rust version rises from 1.94 to 1.95, which egui 0.37 requires.
 
 ## 0.2.4
 

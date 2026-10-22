@@ -2,7 +2,7 @@
 name = "configurant-gui"
 version = "0.2.5"
 edition = "2024"
-rust-version = "1.94"
+rust-version = "1.95"
 description = "Graphical front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ThinkersJournal/configurant"
