@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.6
+
+- Design note `docs/TRANSFER.md`: how the PersistAnt module will execute a `DataTransfer` (copy then verify,
+  TTL kept, secret endpoints never printed). Docs only; all three crates move to 0.2.6.
+
 ## 0.2.5
 
 - `configurant-gui`: a window front end on egui (eframe 0.37, OpenGL backend, AccessKit on). A thin view over
