@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+- First customer schema: `examples/antspawn.toml` describes an AntSpawn job spec (job, limits, needs) as data, no
+  generated code; `tests/customer_antspawn.rs` loads real specs and refuses bad ones. Gap found: `[[mount]]`,
+  `[[output]]` (arrays of tables) and `job.env` (a map) cannot be expressed yet and are refused as unknown keys.
+
 ## 0.2.2
 
 - Front-end support in the core: `configurant::edit::Session` stages edits to a loaded `Config`. Each edit

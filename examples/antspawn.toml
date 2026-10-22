@@ -1,0 +1,86 @@
+# ConfigurAnt schema for an AntSpawn job spec (first customer). The schema is data: AntSpawn keeps its own
+# serde types and loads its spec through configurant, with no generated code.
+#
+# NOT EXPRESSIBLE YET (configurant has scalars and string lists only): `[[mount]]` and `[[output]]` (arrays
+# of tables) and `job.env` (a map with arbitrary keys). A spec that uses them is refused as an unknown key.
+
+[project]
+name = "antspawn-job"
+version = "0.1.0"
+summary = "One AntSpawn job: what it runs and what it needs"
+schema_version = 1
+env_prefix = "ANTSPAWN_JOB_"
+
+[[value]]
+key = "job.name"
+type = "string"
+required = true
+description = "job name (not empty)"
+
+[[value]]
+key = "job.cmd"
+type = "list"
+required = true
+description = "program and arguments; the first element is the program"
+
+[[value]]
+key = "job.cwd"
+type = "string"
+description = "working directory inside the environment"
+
+# Names only, never values: a name is not a secret, so this is not `secret = true`.
+[[value]]
+key = "job.secrets"
+type = "list"
+default = []
+description = "secret NAMES resolved at run time (this AntSpawn version refuses a non-empty list)"
+
+[[value]]
+key = "limits.cpu"
+type = "int"
+min = 1
+description = "CPU ceiling; unset means the launcher's default, not unlimited"
+
+[[value]]
+key = "limits.ram_mb"
+type = "int"
+min = 1
+description = "memory ceiling in MB; unset means the launcher's default"
+
+[[value]]
+key = "limits.time_s"
+type = "int"
+min = 1
+description = "time ceiling in seconds; unset means the launcher's default"
+
+[[value]]
+key = "needs.network"
+type = "enum"
+choices = ["off", "on"]
+default = "off"
+description = "network access for the job"
+
+[[value]]
+key = "needs.gpu"
+type = "enum"
+choices = ["none", "cuda", "vulkan"]
+default = "none"
+description = "GPU the job needs"
+
+[[value]]
+key = "needs.tools"
+type = "list"
+default = []
+description = "tools the environment must provide"
+
+[[value]]
+key = "needs.require"
+type = "list"
+default = ["isolation.no-read-outside", "isolation.no-write-outside", "clean-slate-next-run", "kills-runaway-process"]
+description = "capability ids required beyond those network and gpu imply"
+
+[[value]]
+key = "needs.prefer"
+type = "list"
+default = []
+description = "launcher ids in order of importance"
