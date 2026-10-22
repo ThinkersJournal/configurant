@@ -9,6 +9,7 @@ use serde::Deserialize;
 /// The type a schema gives a value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum ValueType {
     String,
     Int,
@@ -35,6 +36,7 @@ impl ValueType {
 
 /// A typed configuration value.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum Value {
     String(String),
     Int(i64),

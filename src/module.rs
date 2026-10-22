@@ -87,6 +87,7 @@ pub trait Module {
 
 /// Why a module could not be registered.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum ModuleError {
     #[error("module `{module}` speaks interface version {got}; this library speaks {want}")]
     InterfaceMismatch { module: String, got: u32, want: u32 },

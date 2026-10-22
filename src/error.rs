@@ -6,6 +6,7 @@ use std::fmt;
 
 /// Where a value (or an offending input) came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Origin {
     Default,
     /// A configuration file, by the name it was given.
@@ -32,6 +33,7 @@ impl fmt::Display for Origin {
 
 /// One refused input.
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[non_exhaustive]
 pub enum ConfigError {
     #[error("unknown key `{key}` from {origin}{}", suggest(.suggestion))]
     UnknownKey {

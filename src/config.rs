@@ -18,6 +18,7 @@ const REDACTED: &str = "<redacted>";
 
 /// A source of values. Later layers in the order override earlier ones.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Layer {
     Default,
     File,
@@ -582,6 +583,7 @@ impl fmt::Debug for Config {
 
 /// One layer that set a key.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ExplainLine {
     pub origin: Origin,
     /// The value as shown (`<redacted>` for a secret).
@@ -591,6 +593,7 @@ pub struct ExplainLine {
 
 /// The history of one value, lowest precedence first.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct Explanation {
     pub key: String,
     pub ty: ValueType,
