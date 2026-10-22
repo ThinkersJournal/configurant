@@ -11,13 +11,20 @@
 //! project whose needs the new backend meets. Which backends exist is decided by the application's own
 //! `persistant` features (`registry-sqlite`, ...); this crate only turns on the base registry.
 //!
-//! The module never opens a backend or copies data: a [`Plan`] is data and the front end executes it
-//! after confirmation. The endpoint (path or URL, possibly a secret) is not this module's business.
+//! A [`Plan`] is data and `on_change` never opens a backend or copies anything; the front end executes it
+//! after confirmation by calling [`PersistantModule::transfer`] (see `docs/TRANSFER.md`), handing it the two
+//! endpoints (path or URL, possibly a secret), which are not this module's business to choose.
+
+mod transfer;
 
 use ::persistant::capability::{CapabilityId, provider::ProviderNeeds};
 use ::persistant::registry;
 
 pub use ::persistant::capability::choose::Durability;
+pub use ::persistant::registry::Endpoint;
+pub use transfer::{
+    NOT_COPIED, TransferEnd, TransferError, TransferOptions, TransferReport, copy_between,
+};
 
 use crate::error::suggestion;
 use crate::module::{Action, ActionKind, Choice, Module, Needs, Plan};

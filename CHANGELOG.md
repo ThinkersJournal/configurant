@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.7
+
+- `PersistantModule::transfer` executes the `DataTransfer` plan: opens both backends through PersistAnt's
+  registry, copies every record with the time to live it has left, then reads both sides back and compares
+  them. The source is never changed, a non-empty target is refused (`TransferOptions::allow_existing` keeps
+  what is there), a source that cannot report expiry is refused, and endpoint URLs and passwords are scrubbed
+  from every error. `copy_between` does the same for two key-value backends you already hold;
+  `transfer_blocking` (new feature `persistant-blocking`, Tokio `rt` only) runs it without a runtime of your
+  own. Leases, blob and relational data are not copied and the report says so. Additive. All three crates move
+  to 0.2.7.
+
 ## 0.2.6
 
 - Design note `docs/TRANSFER.md`: how the PersistAnt module will execute a `DataTransfer` (copy then verify,
