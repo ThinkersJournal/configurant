@@ -17,6 +17,8 @@ pub enum Origin {
     Cli(String),
     /// A lookup by key (`Config::get`, `explain`), not a source of values.
     Lookup,
+    /// A change made by a front end through [`crate::edit::Session`].
+    Edit,
 }
 
 impl fmt::Display for Origin {
@@ -27,6 +29,7 @@ impl fmt::Display for Origin {
             Origin::Env(n) => write!(f, "environment variable `{n}`"),
             Origin::Cli(n) => write!(f, "command-line `{n}`"),
             Origin::Lookup => f.write_str("this lookup"),
+            Origin::Edit => f.write_str("this edit"),
         }
     }
 }

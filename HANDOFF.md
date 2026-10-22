@@ -6,17 +6,18 @@ from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`). Read `C:
 at a time, not stacked; version bump + CHANGELOG entry in each (breaking = second number pre-1.0).
 
 ## State
-- Merged: PR1 0.0.1, PR2a 0.1.0 (#2), PR2b 0.2.0 (#3, migrations; `config_version` reserved).
-- **PR3 0.2.1 sent to the PM as [READY], branch `pr3-persistant`** (local): cargo feature `persistant`
-  (`persistant` 0.9.10 `registry`), `configurant::persistant::PersistantModule` (`list_choices` /
-  `try_list_choices` / `validate` / `on_change` -> `DataTransfer` plan), `tests/known_bad_persistant.rs` (8 tests,
-  7+1 mutations each bite), CI also runs `--all-features`. If the PM holds it, fix on that branch; if it merged,
-  branch from `origin/main` for the next row. Check `gh pr view`, do not wait to be told.
-- Not done and not in PR3: *executing* a `DataTransfer` (needs both endpoints; a front-end job), and a
-  `Needs` field for durability (the module has a setting instead, default `Process`).
+- Merged: PR1 0.0.1, PR2a 0.1.0, PR2b 0.2.0, PR3 0.2.1 (#4, main 1a05e24; feature `persistant`).
+- **PR4 TUI done locally on branch `pr4-tui` (0.2.2, additive; PM allocates the number): pushed by the PM as #5 (0daadaf), at gate. configurant-tui publish waits on the claim queue (PM).**
+  Core `configurant::edit::Session` (stage -> review -> `confirm()` -> `Confirmed::file_text`/`plan`) + new
+  workspace crate `crates/configurant-tui` (ratatui 0.30.2). CI now `--workspace`. Tests: `tests/known_bad_edit.rs`,
+  `crates/configurant-tui/tests/app.rs`; mutations checked.
+- If the gate asks for changes, fix on `pr4-tui`. If merged: pull origin/main, start the GUI crate (next row).
+- Not done: *executing* a `DataTransfer` (front-end job, needs both endpoints; the TUI lists it as NOT DONE); a
+  `Needs` field for durability; the TUI does not pass modules (`Session::new(&config, None)`), so a provider key
+  is refused there until the app wires its modules in.
 
 ## Next (PM queue)
-1. PR4 TUI front end, then GUI (separate crates). Scan assist (LSP) last, suggest-only.
+1. GUI front end (separate crate, on `Session`; spec order lib, TUI, GUI). Start after #5 merges (`gh pr view 5`), cut from origin/main. Scan assist (LSP) last, suggest-only.
 2. Later: secret SOURCE modules (vault-style; today a secret is env-only); compile-time key check (derive macro or
    build script, verifies keys, never writes source); a lossless way to drop a key in a migration.
 

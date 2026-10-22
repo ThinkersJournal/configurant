@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.2
+
+- Front-end support in the core: `configurant::edit::Session` stages edits to a loaded `Config`. Each edit
+  meets the rules a load does (type, range, choices, provider module); a secret is refused
+  (`SecretInForbiddenSource`, new `Origin::Edit`); staging the value already in force is not a change.
+  `Session::review()` shows the changes, the keys that need a restart and the modules' `Plan`; only
+  `Review::confirm()` yields a `Confirmed`, the sole source of new file text (`file_text`, via `toml_edit`:
+  comments and layout kept) and of the plan to execute. Nothing here writes a file or runs a plan.
+- New crate `configurant-tui` (terminal front end, `ratatui` 0.30.2): `configurant-tui <schema> --file <f>`.
+  Edit, review, `y` to confirm; saves `<file>.bak` first (refused if it exists). A `DataTransfer` in the plan
+  is listed as NOT DONE: running one needs both endpoints, which this front end does not open.
+- The repo is now a cargo workspace; CI builds, lints and tests `--workspace`.
+
 ## 0.2.1
 
 - PersistAnt module, behind the new cargo feature `persistant` (off by default, so the core stays light;
