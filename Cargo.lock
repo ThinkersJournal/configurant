@@ -794,7 +794,7 @@ dependencies = [
 
 [[package]]
 name = "configurant"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "clap",
  "persistant",
@@ -806,7 +806,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-gui"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "clap",
  "configurant",
@@ -816,7 +816,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-tui"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "clap",
  "configurant",
