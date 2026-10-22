@@ -12,7 +12,12 @@ configurant describe examples/configurant.toml
 DEMO_PORT=9000 configurant explain examples/configurant.toml server.port -- --port 9100
 ```
 
-Status: 0.0.x. Schema, layering, validation, `explain` and the module interface exist; the TUI/GUI,
-schema migration, serde struct binding and the PersistAnt module are later. Design:
+```rust
+// Opt-in typed view: `server.port` is field `port` of field `server`. Nothing is generated.
+let settings: Settings = config.deserialize()?;
+```
+
+Status: 0.0.x. Schema, layering, validation, `explain`, serde struct binding and the module interface
+exist; the TUI/GUI, schema migration and the PersistAnt module are later. Design:
 [docs/DESIGN.md](docs/DESIGN.md); why not figment/config/clap/confy: [docs/PRIOR-ART.md](docs/PRIOR-ART.md).
 Licence: MIT OR Apache-2.0.

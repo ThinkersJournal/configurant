@@ -486,6 +486,45 @@ impl Config {
         })
     }
 
+    /// Bind the winning values to a struct of the caller's own, by dotted key (`server.port` is the
+    /// field `port` of the field `server`). Opt-in and generates nothing: the schema stays the source of
+    /// truth and the struct is only a typed view. Unset keys are absent, so an `Option` field is `None`.
+    /// An error never carries a secret's value: if serde's message would contain one, it is withheld.
+    pub fn deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, ConfigError> {
+        let mut root = toml::Table::new();
+        let mut secrets = Vec::new();
+        for def in self.schema.values() {
+            let v = self.value(&def.key);
+            if let Some(v) = v.filter(|_| def.secret) {
+                secrets.push(v.clone());
+            }
+            let mut parts: Vec<&str> = def.key.split('.').collect();
+            let leaf = parts.pop().unwrap_or_default();
+            let mut table = &mut root;
+            for part in parts {
+                table = table
+                    .entry(part)
+                    .or_insert_with(|| toml::Value::Table(toml::Table::new()))
+                    .as_table_mut()
+                    .expect("the schema rejects a key that is both a value and a table prefix");
+            }
+            if let Some(v) = v {
+                table.insert(leaf.to_owned(), v.to_toml());
+            }
+        }
+        T::deserialize(toml::Value::Table(root)).map_err(|e| {
+            let reason = e.to_string();
+            let leaks = secrets.iter().any(|s| s.appears_in(&reason));
+            ConfigError::Deserialize {
+                reason: if leaks {
+                    format!("{REDACTED}: the message quoted a secret value")
+                } else {
+                    reason
+                },
+            }
+        })
+    }
+
     /// Where did this value come from, and what did it override? Secrets are redacted.
     pub fn explain(&self, key: &str) -> Result<Explanation, ConfigError> {
         let def = self

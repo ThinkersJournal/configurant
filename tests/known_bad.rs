@@ -433,3 +433,120 @@ fn a_provider_value_needs_its_module_and_is_checked_by_it() {
     );
     assert!(matches!(&errs[0], ConfigError::ModuleRejected { module, .. } if module == "storage"));
 }
+
+// ---- struct binding ----------------------------------------------------------------------------
+
+#[derive(Debug, serde::Deserialize)]
+struct Settings {
+    storage: StorageSettings,
+    server: ServerSettings,
+    db: DbSettings,
+    log: LogSettings,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct StorageSettings {
+    backend: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct ServerSettings {
+    port: u16,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct DbSettings {
+    password: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct LogSettings {
+    verbose: bool,
+}
+
+#[test]
+fn a_config_binds_to_a_struct_with_the_winning_values() {
+    let s = schema();
+    let cfg = Loader::new(&s)
+        .file("a.toml", "[server]\nport = 1\n")
+        .env(env(&[("DEMO_PORT", "2"), ("DEMO_DB_PASSWORD", SECRET)]))
+        .build()
+        .unwrap();
+    let st: Settings = cfg.deserialize().unwrap();
+    assert_eq!(st.server.port, 2);
+    assert_eq!(st.storage.backend, "sqlite");
+    assert!(!st.log.verbose);
+    assert_eq!(st.db.password.as_deref(), Some(SECRET));
+    // An unset key is absent, so an `Option` field is `None`.
+    let none: Settings = Loader::new(&s).build().unwrap().deserialize().unwrap();
+    assert_eq!(none.db.password, None);
+}
+
+#[test]
+fn a_struct_that_does_not_fit_is_refused_by_name() {
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct Wrong {
+        server: WrongServer,
+    }
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct WrongServer {
+        port: String,
+    }
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct Missing {
+        nonesuch: bool,
+    }
+    let s = schema();
+    let cfg = Loader::new(&s).build().unwrap();
+    let e = cfg.deserialize::<Wrong>().expect_err("int into String");
+    assert!(matches!(e, ConfigError::Deserialize { .. }));
+    assert!(e.to_string().contains("string"), "{e}");
+    let e = cfg.deserialize::<Missing>().expect_err("missing field");
+    assert!(e.to_string().contains("nonesuch"), "{e}");
+}
+
+#[test]
+fn binding_never_leaks_a_secret_into_its_error() {
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct Db {
+        db: DbPassword,
+    }
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct DbPassword {
+        password: u16,
+    }
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct Variant {
+        db: VariantPassword,
+    }
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    enum Mode {
+        Other,
+    }
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct VariantPassword {
+        password: Mode,
+    }
+    let s = schema();
+    let cfg = Loader::new(&s)
+        .env(env(&[("DEMO_DB_PASSWORD", SECRET)]))
+        .build()
+        .unwrap();
+    // The secret is a string; the target wants a u16, and serde would quote the string it found.
+    let e = cfg.deserialize::<Db>().expect_err("string into u16");
+    let text = format!("{e} | {e:?}");
+    assert!(!text.contains(SECRET), "leaked: {text}");
+    assert!(matches!(e, ConfigError::Deserialize { .. }));
+    // serde also names an unknown enum variant by its text.
+    let e = cfg.deserialize::<Variant>().expect_err("unknown variant");
+    let text = format!("{e} | {e:?}");
+    assert!(!text.contains(SECRET), "leaked: {text}");
+}

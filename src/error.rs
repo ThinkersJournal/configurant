@@ -75,6 +75,8 @@ pub enum ConfigError {
     FileParse { name: String, reason: String },
     #[error("`{key}` takes its value from module `{module}`, which is not registered")]
     ModuleMissing { key: String, module: String },
+    #[error("the configuration does not fit the target type: {reason}")]
+    Deserialize { reason: String },
     #[error("`{key}` from {origin} was rejected by module `{module}`: {reason}")]
     ModuleRejected {
         key: String,
