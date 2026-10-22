@@ -1,6 +1,6 @@
 # Design note: executing a `DataTransfer` (PersistAnt module)
 
-Status: proposal, for the PM and CireSnave to answer the questions at the end. Nothing here is built.
+Status: decided (see Decisions at the end); nothing here is built yet.
 Facts below were read at configurant `origin/main` 6fb8dd3 and PersistAnt `origin/main` (workspace 0.9.14).
 
 ## Today
@@ -69,14 +69,13 @@ Each is written failing, then the code under it is mutated to confirm it bites.
 - Real round trip memory -> fs and fs -> sqlite (dev-dependency feature `registry-sqlite`), 1,000 keys, binary
   and empty values, a key needing a second page.
 
-## Open questions
+## Decisions (PM, 2026-10-22, all as recommended)
 
-1. **TTL.** `ordered_scan_values` returns no expiry. A copied key that had a TTL would become permanent.
-   Options: (a) read `ttl_remaining` per key and `put` with it, refusing with a named error when the source
-   returns `Unsupported`; (b) refuse a source that declares `kv.ttl` unless the caller acknowledges the loss.
-   Recommend (a).
-2. **Quiescence.** A write to the source during the copy lands after its page was read. Recommend: document that
-   the application must be stopped, and let the verify pass report the difference; we do not lock the source.
-3. **Async wrapper** as in section 5, or require front ends to bring a runtime? Recommend the feature.
-4. **Leases and other kinds** (`kv.lease`, blob, relational): not copied; say so in the report.
-5. Version: additive (new method, new optional feature), so a patch/minor per the PM's allocation.
+1. **TTL:** read `ttl_remaining` per key and `put` with it; a source that returns `Unsupported` is refused with a
+   named error.
+2. **Quiescence:** the application must be stopped; the verify pass reports differences; no locking.
+3. **Async:** `async fn`, plus a `transfer_blocking` wrapper behind feature `persistant-blocking` (current-thread
+   Tokio). The core and default features gain no runtime.
+4. **Leases, blob, relational:** not copied; the report says so.
+5. **Version:** this docs PR is 0.2.6 (after #8 merges at 0.2.5); the implementation is additive, the next patch,
+   allocated by the PM at gate.
