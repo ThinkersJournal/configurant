@@ -33,13 +33,19 @@ jobs:
         run: cargo fmt --check
 
       - name: cargo clippy
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: |
+          cargo clippy --all-targets --locked -- -D warnings
+          cargo clippy --all-targets --all-features --locked -- -D warnings
 
       - name: cargo build
-        run: cargo build --all-targets --locked
+        run: |
+          cargo build --all-targets --locked
+          cargo build --all-targets --all-features --locked
 
       - name: cargo test
-        run: cargo test --locked --no-fail-fast
+        run: |
+          cargo test --locked --no-fail-fast
+          cargo test --locked --no-fail-fast --all-features
 
   msrv:
     name: msrv
@@ -64,6 +70,7 @@ jobs:
         run: |
           rustc --version
           cargo check --all-targets --locked
+          cargo check --all-targets --all-features --locked
 
   deny:
     name: deny

@@ -6,19 +6,18 @@ from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`). Read `C:
 at a time, not stacked; version bump + CHANGELOG entry in each (breaking = second number pre-1.0).
 
 ## State
-- PR1 0.0.1 merged. PR2a 0.1.0 (`Config::deserialize`, `#[non_exhaustive]` enums) merged as #2.
-- **PR2b 0.2.0 sent to the PM as [READY], branch `pr2b-migrations`** (local): `config_version` in files,
-  `[[migration]]` with `rename` / one-to-one `map_value`, `Schema::migrate` / `migrate_back` (toml_edit, comments
-  kept, changes are key names only), loader refuses outdated/newer files, `configurant migrate [--from|--to]
-  [--write]` (`.bak` first). 26 known_bad + 4 cli tests; six mutations each bite. If the PM holds it, fix on that
-  branch; if it merged, branch from `origin/main` for the next row. Check `gh pr view`, do not wait to be told.
-- Version is 0.2.0 at the PM's call: the reserved key `config_version` is a breaking behaviour change.
+- Merged: PR1 0.0.1, PR2a 0.1.0 (#2), PR2b 0.2.0 (#3, migrations; `config_version` reserved).
+- **PR3 0.2.1 sent to the PM as [READY], branch `pr3-persistant`** (local): cargo feature `persistant`
+  (`persistant` 0.9.10 `registry`), `configurant::persistant::PersistantModule` (`list_choices` /
+  `try_list_choices` / `validate` / `on_change` -> `DataTransfer` plan), `tests/known_bad_persistant.rs` (8 tests,
+  7+1 mutations each bite), CI also runs `--all-features`. If the PM holds it, fix on that branch; if it merged,
+  branch from `origin/main` for the next row. Check `gh pr view`, do not wait to be told.
+- Not done and not in PR3: *executing* a `DataTransfer` (needs both endpoints; a front-end job), and a
+  `Needs` field for durability (the module has a setting instead, default `Process`).
 
 ## Next (PM queue)
-1. PR3 PersistAnt module (optional crate/feature): `registry::providers`/`open_named` for `list_choices`; a changed
-   backend id returns a `Plan` with a `DataTransfer`. Synapse's redb->SQLite copy is the first thing to generalise.
-2. PR4 TUI front end, then GUI (separate crates). Scan assist (LSP) last, suggest-only.
-3. Later: secret SOURCE modules (vault-style; today a secret is env-only); compile-time key check (derive macro or
+1. PR4 TUI front end, then GUI (separate crates). Scan assist (LSP) last, suggest-only.
+2. Later: secret SOURCE modules (vault-style; today a secret is env-only); compile-time key check (derive macro or
    build script, verifies keys, never writes source); a lossless way to drop a key in a migration.
 
 ## Known gaps to decide

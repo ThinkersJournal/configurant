@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.1
+
+- PersistAnt module, behind the new cargo feature `persistant` (off by default, so the core stays light;
+  `persistant` 0.9.10 `registry`). `configurant::persistant::PersistantModule`: `list_choices` returns the
+  backends this build offers for the project's needs (`Needs::required` = capability ids that must all hold,
+  `Needs::order` = what matters most), best first, each with PersistAnt's reasons; `try_list_choices` says why
+  when the list is empty; `validate` refuses a backend id nobody offers (with a suggestion) or, if the
+  project's needs are configured, one that no longer meets them; `on_change` returns a `Plan` holding a
+  `DataTransfer` between the old and new backend ids. The module owns no backend list and never opens a
+  backend or copies data. CI now also builds, lints, tests and MSRV-checks with `--all-features`.
+
 ## 0.2.0
 
 - Config-file migrations. A file carries a top-level `config_version`; the schema declares

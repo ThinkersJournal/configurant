@@ -35,4 +35,14 @@
     It edits with `toml_edit`, so comments and layout survive. Dropping a key is deliberately not offered:
     until a lossless form exists, a removed key is migrated by the project's own code.
 
-Later: secret-source modules; the PersistAnt module; scan assist.
+12. **The PersistAnt module** (feature `persistant`, `configurant::persistant`). The five-step contract of
+    PersistAnt's registry seen from configuration: needs in (capability ids that must hold, plus an order of
+    importance), the backends this build offers out (`registry::providers`), the pick stored as the value of
+    a `provider = "persistant"` key, and a changed pick returns a `Plan` with a `DataTransfer { from, to }`.
+    The module owns no backend list (a PersistAnt upgrade reaches every project whose needs a new backend
+    meets) and never opens a backend: the front end executes the plan, with both endpoints, after
+    confirmation. The minimum durability is the module's setting (default `Process`), since `Needs` has no
+    field for it. `Module::list_choices` cannot report an error, so it returns an empty list and
+    `try_list_choices` carries the reason.
+
+Later: secret-source modules; scan assist.
