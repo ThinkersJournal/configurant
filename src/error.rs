@@ -6,6 +6,7 @@ use std::fmt;
 
 /// Where a value (or an offending input) came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Origin {
     Default,
     /// A configuration file, by the name it was given.
@@ -32,6 +33,7 @@ impl fmt::Display for Origin {
 
 /// One refused input.
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[non_exhaustive]
 pub enum ConfigError {
     #[error("unknown key `{key}` from {origin}{}", suggest(.suggestion))]
     UnknownKey {
@@ -75,6 +77,8 @@ pub enum ConfigError {
     FileParse { name: String, reason: String },
     #[error("`{key}` takes its value from module `{module}`, which is not registered")]
     ModuleMissing { key: String, module: String },
+    #[error("the configuration does not fit the target type: {reason}")]
+    Deserialize { reason: String },
     #[error("`{key}` from {origin} was rejected by module `{module}`: {reason}")]
     ModuleRejected {
         key: String,

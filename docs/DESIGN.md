@@ -4,8 +4,9 @@
    `env_prefix`) and `[[value]]` entries (key, type, default, min/max, choices, description, secret, env, flag,
    restart, provider, required). Parsing is strict and the schema checks itself (duplicate keys/env/flags,
    defaults that do not fit, secrets with defaults or flags, enums without choices, key/table conflicts).
-2. **No generated code.** The application reads values through the library (`Config::get::<T>`). A struct
-   binding via serde and an opt-in compile-time key check come later; neither writes source.
+2. **No generated code.** The application reads values through the library (`Config::get::<T>`), or as a
+   typed view of their own struct (`Config::deserialize::<T>`, serde, by dotted key). An opt-in
+   compile-time key check comes later; it does not write source.
 3. **Layers**: default < file < environment < command line. A load takes its inputs as data and returns all
    errors, not the first. `Loader::build_with_order` exists so the precedence test can show it fails when
    the order is inverted.
@@ -25,5 +26,5 @@
 10. **Tests**: known-bad inputs first (`tests/known_bad.rs`): unknown key (file, env, flag), wrong type,
     secret leak (file, flag, positional, type error, every output), precedence inversion.
 
-Later: schema versioning and tested reversible migrations; `serde` struct binding; secret-source modules;
+Later: schema versioning and tested reversible migrations; secret-source modules;
 the PersistAnt module; scan assist.

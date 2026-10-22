@@ -15,6 +15,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// The `[project]` table.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[non_exhaustive]
 pub struct Project {
     pub name: String,
     pub version: String,
@@ -29,6 +30,7 @@ pub struct Project {
 /// One `[[value]]` entry.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[non_exhaustive]
 pub struct ValueDef {
     /// Dotted key, e.g. `storage.backend`.
     pub key: String,
@@ -71,6 +73,7 @@ struct Raw {
 
 /// Why a schema was refused.
 #[derive(Debug, PartialEq, thiserror::Error)]
+#[non_exhaustive]
 pub enum SchemaError {
     #[error("schema is not valid: {0}")]
     Parse(#[from] toml::de::Error),

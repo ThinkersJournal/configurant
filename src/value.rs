@@ -9,6 +9,7 @@ use serde::Deserialize;
 /// The type a schema gives a value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum ValueType {
     String,
     Int,
@@ -35,6 +36,7 @@ impl ValueType {
 
 /// A typed configuration value.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum Value {
     String(String),
     Int(i64),
@@ -113,6 +115,43 @@ impl Value {
             Value::Bool(b) => b.to_string(),
             Value::List(l) => format!("{l:?}"),
         }
+    }
+
+    pub(crate) fn to_toml(&self) -> toml::Value {
+        match self {
+            Value::String(s) | Value::Enum(s) => toml::Value::String(s.clone()),
+            Value::Path(p) => toml::Value::String(p.to_string_lossy().into_owned()),
+            Value::Int(i) => toml::Value::Integer(*i),
+            Value::Float(f) => toml::Value::Float(*f),
+            Value::Bool(b) => toml::Value::Boolean(*b),
+            Value::List(l) => {
+                toml::Value::Array(l.iter().cloned().map(toml::Value::String).collect())
+            }
+        }
+    }
+
+    /// Does `text` contain this value, raw or as `Debug` would quote it? Empty values match nothing.
+    pub(crate) fn appears_in(&self, text: &str) -> bool {
+        let mut forms: Vec<String> = Vec::new();
+        match self {
+            Value::String(s) | Value::Enum(s) => forms.push(s.clone()),
+            Value::Path(p) => forms.push(p.to_string_lossy().into_owned()),
+            Value::List(l) => forms.extend(l.iter().cloned()),
+            Value::Int(i) => forms.push(i.to_string()),
+            Value::Float(f) => forms.push(f.to_string()),
+            Value::Bool(b) => forms.push(b.to_string()),
+        }
+        let escaped: Vec<String> = forms
+            .iter()
+            .map(|f| {
+                let d = format!("{f:?}");
+                d[1..d.len() - 1].to_owned()
+            })
+            .collect();
+        forms
+            .iter()
+            .chain(&escaped)
+            .any(|f| !f.is_empty() && text.contains(f.as_str()))
     }
 
     pub(crate) fn as_f64(&self) -> Option<f64> {
