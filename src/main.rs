@@ -32,6 +32,62 @@ enum Command {
         #[arg(last = true)]
         app_args: Vec<String>,
     },
+    /// Carry a configuration file to the schema's config version (or back, with `--to`). Prints the
+    /// migrated text; changes the file only with `--write`, which first saves `<file>.bak`.
+    Migrate {
+        schema: PathBuf,
+        file: PathBuf,
+        /// The version of a file that has no `config_version` of its own.
+        #[arg(long)]
+        from: Option<u32>,
+        /// Carry the file back down to this version instead.
+        #[arg(long, conflicts_with = "from")]
+        to: Option<u32>,
+        /// Write the result over the file (after saving `<file>.bak`, which must not exist).
+        #[arg(long)]
+        write: bool,
+    },
+}
+
+fn migrate(
+    schema: &PathBuf,
+    file: &PathBuf,
+    from: Option<u32>,
+    to: Option<u32>,
+    write: bool,
+) -> Result<(), String> {
+    let s = load_schema(schema)?;
+    let text = std::fs::read_to_string(file)
+        .map_err(|e| format!("cannot read {}: {e}", file.display()))?;
+    let result = match to {
+        Some(to) => s.migrate_back(&text, to),
+        None => s.migrate(&text, from),
+    }
+    .map_err(|e| format!("{}: {e}", file.display()))?;
+    for c in &result.changes {
+        eprintln!("{c}");
+    }
+    if !write {
+        print!("{}", result.text);
+        return Ok(());
+    }
+    let mut bak = file.clone().into_os_string();
+    bak.push(".bak");
+    let bak = PathBuf::from(bak);
+    if bak.exists() {
+        return Err(format!("{} exists; move it away first", bak.display()));
+    }
+    std::fs::write(&bak, &text).map_err(|e| format!("cannot write {}: {e}", bak.display()))?;
+    std::fs::write(file, &result.text)
+        .map_err(|e| format!("cannot write {}: {e}", file.display()))?;
+    eprintln!(
+        "{}: config version {} -> {} (original saved as {})",
+        file.display(),
+        result.from,
+        result.to,
+        bak.display()
+    );
+    Ok(())
 }
 
 fn fail(msg: impl std::fmt::Display) -> ExitCode {
@@ -64,6 +120,16 @@ fn main() -> ExitCode {
                 print!("{}", s.help());
                 ExitCode::SUCCESS
             }
+            Err(e) => fail(e),
+        },
+        Command::Migrate {
+            schema,
+            file,
+            from,
+            to,
+            write,
+        } => match migrate(&schema, &file, from, to, write) {
+            Ok(()) => ExitCode::SUCCESS,
             Err(e) => fail(e),
         },
         Command::Explain {

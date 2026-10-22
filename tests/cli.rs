@@ -79,3 +79,51 @@ fn bad_input_exits_2_with_a_named_error_and_no_secret() {
     let o = run(&["check", "no-such-file.toml"], &[]);
     assert_eq!(o.status.code(), Some(2));
 }
+
+#[test]
+fn migrate_prints_by_default_and_writes_only_when_told_keeping_a_backup() {
+    let dir = std::env::temp_dir().join(format!("configurant-migrate-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let schema = dir.join("schema.toml");
+    let file = dir.join("app.toml");
+    let old = "# mine\n[server]\nlisten = 9000\n";
+    std::fs::write(
+        &schema,
+        std::fs::read_to_string(SCHEMA).unwrap().replace(
+            "env_prefix = \"DEMO_\"",
+            "env_prefix = \"DEMO_\"\nconfig_version = 2",
+        ) + "\n[[migration]]\nfrom = 1\nto = 2\nops = [{ op = \"rename\", from = \"server.listen\", to = \"server.port\" }]\n",
+    )
+    .unwrap();
+    std::fs::write(&file, old).unwrap();
+    let (s, f) = (schema.to_str().unwrap(), file.to_str().unwrap());
+
+    let o = run(&["migrate", s, f, "--from", "1"], &[]);
+    assert!(o.status.success(), "{}", text(&o));
+    let t = text(&o);
+    assert!(t.contains("port = 9000") && t.contains("# mine"), "{t}");
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        old,
+        "printing must not write"
+    );
+
+    let o = run(&["migrate", s, f, "--from", "1", "--write"], &[]);
+    assert!(o.status.success(), "{}", text(&o));
+    let new = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        new.contains("port = 9000") && new.contains("config_version = 2"),
+        "{new}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("app.toml.bak")).unwrap(),
+        old
+    );
+
+    // Without a version in the file or `--from`, it is refused with a named error.
+    std::fs::write(&file, old).unwrap();
+    let o = run(&["migrate", s, f], &[]);
+    assert_eq!(o.status.code(), Some(2));
+    assert!(text(&o).contains("--from"), "{}", text(&o));
+    std::fs::remove_dir_all(&dir).ok();
+}

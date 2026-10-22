@@ -5,8 +5,8 @@
 use std::collections::BTreeMap;
 
 use configurant::{
-    Choice, ChoiceList, Config, ConfigError, DEFAULT_ORDER, Errors, Layer, Loader, Modules, Origin,
-    Schema, SchemaError,
+    Choice, ChoiceList, Config, ConfigError, DEFAULT_ORDER, Errors, Layer, Loader, MigrateError,
+    Modules, Origin, Schema, SchemaError,
 };
 
 const SCHEMA: &str = r#"
@@ -549,4 +549,254 @@ fn binding_never_leaks_a_secret_into_its_error() {
     let e = cfg.deserialize::<Variant>().expect_err("unknown variant");
     let text = format!("{e} | {e:?}");
     assert!(!text.contains(SECRET), "leaked: {text}");
+}
+
+// ---- migrations ----------------------------------------------------------------------------------
+
+fn migration_schema_text(config_version: u32, migrations: &str) -> String {
+    format!(
+        "{}{migrations}",
+        SCHEMA.replace(
+            "env_prefix = \"DEMO_\"",
+            &format!("env_prefix = \"DEMO_\"\nconfig_version = {config_version}")
+        )
+    )
+}
+
+const MIGRATIONS: &str = r#"
+[[migration]]
+from = 1
+to = 2
+ops = [{ op = "rename", from = "server.listen", to = "server.port" }]
+
+[[migration]]
+from = 2
+to = 3
+ops = [{ op = "map_value", key = "storage.backend", map = { embedded = "sqlite", pure = "redb" } }]
+"#;
+
+fn mig() -> Schema {
+    Schema::parse(&migration_schema_text(3, MIGRATIONS)).expect("the migrating schema is valid")
+}
+
+const OLD_FILE: &str =
+    "# my settings\n[server]\nlisten = 9000 # the port\n\n[storage]\nbackend = \"embedded\"\n";
+
+fn table(text: &str) -> toml::Table {
+    text.parse().expect("valid toml")
+}
+
+#[test]
+fn a_file_is_migrated_up_keeping_comments_and_then_loads() {
+    let s = mig();
+    let m = s.migrate(OLD_FILE, Some(1)).unwrap();
+    assert_eq!((m.from, m.to), (1, 3));
+    assert!(m.text.contains("# my settings") && m.text.contains("# the port"));
+    assert!(m.text.contains("port = 9000") && !m.text.contains("listen"));
+    assert!(m.text.contains("backend = \"sqlite\""), "{}", m.text);
+    assert!(m.text.contains("config_version = 3"), "{}", m.text);
+    let changes = m.changes.join("\n");
+    for key in ["server.listen", "server.port", "storage.backend"] {
+        assert!(changes.contains(key), "{changes}");
+    }
+    assert!(
+        !changes.contains("9000") && !changes.contains("embedded"),
+        "{changes}"
+    );
+    let cfg = Loader::new(&s).file("a.toml", &m.text).build().unwrap();
+    assert_eq!(cfg.get::<i64>("server.port").unwrap(), 9000);
+    assert_eq!(cfg.get::<String>("storage.backend").unwrap(), "sqlite");
+}
+
+#[test]
+fn a_migrated_file_carries_back_to_what_it_was() {
+    let s = mig();
+    let up = s.migrate(OLD_FILE, Some(1)).unwrap();
+    let back = s.migrate_back(&up.text, 1).unwrap();
+    assert_eq!((back.from, back.to), (3, 1));
+    let mut got = table(&back.text);
+    assert_eq!(got.remove("config_version"), Some(toml::Value::Integer(1)));
+    assert_eq!(got, table(OLD_FILE));
+    assert!(back.text.contains("# my settings") && back.text.contains("# the port"));
+    // One step down, then up again, is where it started.
+    let mid = s.migrate_back(&up.text, 2).unwrap();
+    assert!(mid.text.contains("backend = \"embedded\"") && mid.text.contains("port = 9000"));
+    assert_eq!(
+        table(&s.migrate(&mid.text, None).unwrap().text),
+        table(&up.text)
+    );
+}
+
+#[test]
+fn the_loader_refuses_a_file_at_another_config_version_by_name() {
+    let s = mig();
+    let load = |text: &str| Loader::new(&s).file("a.toml", text).build();
+    let old = errors_of(load("config_version = 1\n[server]\nlisten = 1\n"));
+    assert!(matches!(
+        &old[0],
+        ConfigError::FileOutdated {
+            found: 1,
+            current: 3,
+            ..
+        }
+    ));
+    assert!(old[0].to_string().contains("migrate"));
+    let new = errors_of(load("config_version = 9\n"));
+    assert!(matches!(
+        &new[0],
+        ConfigError::FileNewer {
+            found: 9,
+            current: 3,
+            ..
+        }
+    ));
+    // The current version, and no version at all, load.
+    assert!(load("config_version = 3\n[server]\nport = 5\n").is_ok());
+    assert!(load("[server]\nport = 5\n").is_ok());
+    // A version that is not an integer is a wrong type, not a silent pass.
+    let bad = errors_of(load("config_version = \"3\"\n"));
+    assert!(matches!(&bad[0], ConfigError::WrongType { key, .. } if key == "config_version"));
+}
+
+#[test]
+fn version_edges_are_named_errors() {
+    let s = mig();
+    assert!(matches!(
+        s.migrate(OLD_FILE, None),
+        Err(MigrateError::VersionMissing)
+    ));
+    assert!(matches!(
+        s.migrate("config_version = 9\n", None),
+        Err(MigrateError::Newer {
+            found: 9,
+            current: 3
+        })
+    ));
+    assert!(matches!(
+        s.migrate("config_version = 0\n", None),
+        Err(MigrateError::BadVersion)
+    ));
+    assert!(matches!(
+        s.migrate("config_version = \"2\"\n", None),
+        Err(MigrateError::BadVersion)
+    ));
+    assert!(matches!(
+        s.migrate_back(OLD_FILE, 1),
+        Err(MigrateError::VersionMissing)
+    ));
+    assert!(matches!(
+        s.migrate_back("config_version = 3\n", 7),
+        Err(MigrateError::BadTarget { target: 7, .. })
+    ));
+    assert!(matches!(
+        s.migrate("[server\nport=", Some(1)),
+        Err(MigrateError::FileParse { .. })
+    ));
+    // Already current: nothing to do, text untouched.
+    let cur = "config_version = 3\n[server]\nport = 1\n";
+    let m = s.migrate(cur, None).unwrap();
+    assert!(m.changes.is_empty() && m.text == cur);
+}
+
+#[test]
+fn collisions_and_ambiguity_are_refused_and_no_error_shows_a_value() {
+    let s = mig();
+    let both = format!("[server]\nlisten = \"{SECRET}\"\nport = \"other-{SECRET}\"\n");
+    let e = s
+        .migrate(&both, Some(1))
+        .expect_err("rename onto an existing key");
+    assert!(matches!(&e, MigrateError::DestinationExists { key } if key == "server.port"));
+    assert!(!format!("{e} | {e:?}").contains(SECRET));
+    // A value the map already produces cannot be told from a migrated one.
+    let amb = s.migrate(
+        "config_version = 2\n[storage]\nbackend = \"sqlite\"\n",
+        None,
+    );
+    assert!(
+        matches!(&amb, Err(MigrateError::Ambiguous { key }) if key == "storage.backend"),
+        "{amb:?}"
+    );
+    // A non-string under a string map.
+    let wrong = s
+        .migrate("config_version = 2\n[storage]\nbackend = 7\n", None)
+        .unwrap_err();
+    assert!(
+        matches!(
+            &wrong,
+            MigrateError::WrongType {
+                found: "integer",
+                ..
+            }
+        ),
+        "{wrong:?}"
+    );
+    // A value outside the map passes through untouched, both ways.
+    let m = s
+        .migrate("config_version = 2\n[storage]\nbackend = \"weird\"\n", None)
+        .unwrap();
+    assert!(m.text.contains("backend = \"weird\""));
+    let b = s.migrate_back(&m.text, 2).unwrap();
+    assert!(b.text.contains("backend = \"weird\""));
+    // A file that does not parse: the error never quotes the file.
+    let broken = format!("[server]\nlisten = {SECRET} oops\n");
+    let e = s.migrate(&broken, Some(1)).unwrap_err();
+    assert!(matches!(e, MigrateError::FileParse { .. }), "{e:?}");
+    assert!(!format!("{e} | {e:?}").contains(SECRET), "{e}");
+}
+
+#[test]
+fn bad_migrations_in_a_schema_are_refused() {
+    let parse =
+        |cv: u32, m: &str| Schema::parse(&migration_schema_text(cv, m)).expect_err("refused");
+    let step = |ops: &str| format!("[[migration]]\nfrom = 1\nto = 2\nops = [{ops}]\n");
+    let one = step("{ op = \"rename\", from = \"a\", to = \"b\" }");
+    // A gap: config_version 3 but only one step.
+    assert!(matches!(parse(3, &one), SchemaError::MigrationChain { .. }));
+    // Steps without a version bump, and a version of zero.
+    assert!(matches!(parse(1, &one), SchemaError::MigrationChain { .. }));
+    assert!(matches!(parse(0, ""), SchemaError::MigrationChain { .. }));
+    // Not consecutive.
+    let skip = "[[migration]]\nfrom = 1\nto = 3\nops = []\n";
+    assert!(matches!(parse(3, skip), SchemaError::BadMigration { .. }));
+    // A map that is not one-to-one cannot be carried back.
+    let dup = step("{ op = \"map_value\", key = \"a\", map = { x = \"z\", y = \"z\" } }");
+    assert!(matches!(parse(2, &dup), SchemaError::BadMigration { .. }));
+    let empty = step("{ op = \"map_value\", key = \"a\", map = {} }");
+    assert!(matches!(parse(2, &empty), SchemaError::BadMigration { .. }));
+    let same = step("{ op = \"rename\", from = \"a\", to = \"a\" }");
+    assert!(matches!(parse(2, &same), SchemaError::BadMigration { .. }));
+    let badkey = step("{ op = \"rename\", from = \"a..b\", to = \"c\" }");
+    assert!(matches!(parse(2, &badkey), SchemaError::BadKey(_)));
+    // An operation that loses information is not offered at all.
+    let drop = step("{ op = \"drop\", key = \"a\" }");
+    assert!(matches!(parse(2, &drop), SchemaError::Parse(_)));
+    // The version key is the loader's.
+    let reserved = format!(
+        "{SCHEMA}\n[[value]]\nkey = \"config_version\"\ntype = \"int\"\ndescription = \"d\"\n"
+    );
+    assert!(matches!(
+        Schema::parse(&reserved),
+        Err(SchemaError::ReservedKey(_))
+    ));
+}
+
+#[test]
+fn a_step_with_several_operations_is_undone_in_reverse_order() {
+    // a -> b, then b -> c: forward the value ends at c; back it must undo c -> b first, then b -> a.
+    let ops = "[[migration]]\nfrom = 1\nto = 2\nops = [{ op = \"rename\", from = \"x.a\", to = \"x.b\" }, { op = \"rename\", from = \"x.b\", to = \"y.c\" }]\n";
+    let s = Schema::parse(&migration_schema_text(2, ops)).unwrap();
+    let up = s.migrate("[x]\na = 1\n", Some(1)).unwrap();
+    assert_eq!(
+        table(&up.text),
+        table("config_version = 2\n[y]\nc = 1\n"),
+        "{}",
+        up.text
+    );
+    let back = s.migrate_back(&up.text, 1).unwrap();
+    assert_eq!(
+        table(&back.text),
+        table("config_version = 1\n[x]\na = 1\n"),
+        "{}",
+        back.text
+    );
 }

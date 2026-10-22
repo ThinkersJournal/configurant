@@ -6,15 +6,17 @@
 
 pub mod config;
 pub mod error;
+pub mod migrate;
 pub mod module;
 pub mod schema;
 pub mod value;
 
 pub use config::{Config, DEFAULT_ORDER, ExplainLine, Explanation, FromValue, Layer, Loader};
 pub use error::{ConfigError, Errors, Origin};
+pub use migrate::{MigrateError, Migrated};
 pub use module::{
     Action, ActionKind, Choice, ChoiceList, INTERFACE_VERSION, Module, ModuleError, Modules, Needs,
     Plan,
 };
-pub use schema::{Project, Schema, SchemaError, ValueDef};
+pub use schema::{Migration, Op, Project, Schema, SchemaError, ValueDef};
 pub use value::{Value, ValueType};

@@ -22,9 +22,17 @@
    absent, defaults still load and any other value is refused naming the module.
 8. **A `Plan` is data.** A module never acts. The **front end** (CLI, TUI, GUI) shows the plan and executes
    it only after the user confirms. The PersistAnt module's data transfer will be a `Plan`.
-9. **CLI**: `configurant check|describe|explain`. Front ends beyond that (TUI, GUI) are separate crates, later.
+9. **CLI**: `configurant check|describe|explain|migrate`. Front ends beyond that (TUI, GUI) are separate crates, later.
 10. **Tests**: known-bad inputs first (`tests/known_bad.rs`): unknown key (file, env, flag), wrong type,
     secret leak (file, flag, positional, type error, every output), precedence inversion.
 
-Later: schema versioning and tested reversible migrations; secret-source modules;
-the PersistAnt module; scan assist.
+11. **Migrations of config files.** A file says which version of the project's file format it is in
+    (`config_version`, absent = current). The schema lists one `[[migration]]` per step, 1->2, 2->3, ...,
+    up to `[project] config_version`. Steps are made of `rename` and one-to-one `map_value` only, because a
+    migrated file must be carriable back and an operation that drops or invents data cannot promise that
+    (a value outside a map passes through; one the map *produces* is refused as ambiguous). The library
+    returns text and a key-names-only change list; a front end writes (`migrate --write` keeps `.bak`).
+    It edits with `toml_edit`, so comments and layout survive. Dropping a key is deliberately not offered:
+    until a lossless form exists, a removed key is migrated by the project's own code.
+
+Later: secret-source modules; the PersistAnt module; scan assist.
