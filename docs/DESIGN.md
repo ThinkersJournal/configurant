@@ -22,7 +22,7 @@
    absent, defaults still load and any other value is refused naming the module.
 8. **A `Plan` is data.** A module never acts. The **front end** (CLI, TUI, GUI) shows the plan and executes
    it only after the user confirms. The PersistAnt module's data transfer will be a `Plan`.
-9. **CLI**: `configurant check|describe|explain|migrate`. Front ends beyond that (TUI, GUI) are separate crates, later.
+9. **CLI**: `configurant check|describe|explain|migrate`. Front ends beyond that are separate crates: `configurant-tui` exists; the GUI is later.
 10. **Tests**: known-bad inputs first (`tests/known_bad.rs`): unknown key (file, env, flag), wrong type,
     secret leak (file, flag, positional, type error, every output), precedence inversion.
 
@@ -44,5 +44,10 @@
     confirmation. The minimum durability is the module's setting (default `Process`), since `Needs` has no
     field for it. `Module::list_choices` cannot report an error, so it returns an empty list and
     `try_list_choices` carries the reason.
+
+13. **Front ends** (`configurant::edit`). A `Session` stages edits against a loaded `Config`, through the same
+    checks as a load; a secret is never editable. `review()` is display only; `Review::confirm()` is the one
+    way to a `Confirmed`, which alone yields new file text and the plan to execute. A front end (the
+    `configurant-tui` crate; a GUI later) draws, asks, writes and executes; the library decides what is valid.
 
 Later: secret-source modules; scan assist.

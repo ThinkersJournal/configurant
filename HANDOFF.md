@@ -6,13 +6,18 @@ from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`). Read `C:
 at a time, not stacked; version bump + CHANGELOG entry in each (breaking = second number pre-1.0).
 
 ## State
-- Merged: PR1 0.0.1, PR2a 0.1.0, PR2b 0.2.0, **PR3 0.2.1 (#4, main 1a05e24; feature `persistant`)**.
-- Local branch `pr4-tui` cut from origin/main 1a05e24, empty. **TASK: PR4 TUI front end** (PM: from origin/main, no stacking).
-  Design it behind a clean interface (front end executes a `Plan` only after confirmation); read `docs/DESIGN.md`.
-- Not done: *executing* a `DataTransfer` (front-end job, needs both endpoints); a `Needs` field for durability.
+- Merged: PR1 0.0.1, PR2a 0.1.0, PR2b 0.2.0, PR3 0.2.1 (#4, main 1a05e24; feature `persistant`).
+- **PR4 TUI done locally on branch `pr4-tui` (0.2.2, additive; PM allocates the number): SHA sent to the PM, awaiting push/gate.**
+  Core `configurant::edit::Session` (stage -> review -> `confirm()` -> `Confirmed::file_text`/`plan`) + new
+  workspace crate `crates/configurant-tui` (ratatui 0.30.2). CI now `--workspace`. Tests: `tests/known_bad_edit.rs`,
+  `crates/configurant-tui/tests/app.rs`; mutations checked.
+- If the gate asks for changes, fix on `pr4-tui`. If merged: pull origin/main, start the GUI crate (next row).
+- Not done: *executing* a `DataTransfer` (front-end job, needs both endpoints; the TUI lists it as NOT DONE); a
+  `Needs` field for durability; the TUI does not pass modules (`Session::new(&config, None)`), so a provider key
+  is refused there until the app wires its modules in.
 
 ## Next (PM queue)
-1. PR4 TUI front end (in progress), then GUI (separate crates). Scan assist (LSP) last, suggest-only.
+1. GUI front end (separate crate, on `Session`). Scan assist (LSP) last, suggest-only.
 2. Later: secret SOURCE modules (vault-style; today a secret is env-only); compile-time key check (derive macro or
    build script, verifies keys, never writes source); a lossless way to drop a key in a migration.
 

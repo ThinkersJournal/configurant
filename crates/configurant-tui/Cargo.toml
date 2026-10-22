@@ -1,0 +1,20 @@
+[package]
+name = "configurant-tui"
+version = "0.2.2"
+edition = "2024"
+rust-version = "1.94"
+description = "Terminal front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ThinkersJournal/configurant"
+readme = "README.md"
+keywords = ["configuration", "tui", "config", "schema"]
+categories = ["config", "command-line-utilities"]
+
+[[bin]]
+name = "configurant-tui"
+path = "src/main.rs"
+
+[dependencies]
+configurant = { version = "0.2.2", path = "../.." }
+clap = { version = "4.6.7", features = ["derive"] }
+ratatui = "0.30.2"

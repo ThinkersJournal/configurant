@@ -5,6 +5,7 @@
 //! code, and a value marked `secret` is never printed. See `README.md` and `docs/DESIGN.md`.
 
 pub mod config;
+pub mod edit;
 pub mod error;
 pub mod migrate;
 pub mod module;

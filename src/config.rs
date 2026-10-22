@@ -352,62 +352,14 @@ impl<'a> Loader<'a> {
         out: &mut Vec<Candidate>,
         errors: &mut Vec<ConfigError>,
     ) {
-        let found = || {
-            if def.secret {
-                REDACTED.to_owned()
-            } else {
-                value.shown()
-            }
-        };
-        match def.violation(&value) {
-            Some(Violation::OutOfRange) => {
-                errors.push(ConfigError::OutOfRange {
-                    key: def.key.clone(),
-                    found: found(),
-                    min: def.min,
-                    max: def.max,
-                    origin,
-                });
-                return;
-            }
-            Some(Violation::NotAllowed) => {
-                errors.push(ConfigError::NotAllowed {
-                    key: def.key.clone(),
-                    found: found(),
-                    choices: def.choices.clone(),
-                    origin,
-                });
-                return;
-            }
-            None => {}
+        match check_value(def, &value, self.modules, &origin) {
+            Ok(()) => out.push(Candidate {
+                key: def.key.clone(),
+                origin,
+                value,
+            }),
+            Err(e) => errors.push(e),
         }
-        if let Some(module) = &def.provider {
-            match self.modules.and_then(|m| m.get(module)) {
-                None => {
-                    errors.push(ConfigError::ModuleMissing {
-                        key: def.key.clone(),
-                        module: module.clone(),
-                    });
-                    return;
-                }
-                Some(m) => {
-                    if let Err(reason) = m.validate(&value) {
-                        errors.push(ConfigError::ModuleRejected {
-                            key: def.key.clone(),
-                            module: module.clone(),
-                            reason: if def.secret { REDACTED.into() } else { reason },
-                            origin,
-                        });
-                        return;
-                    }
-                }
-            }
-        }
-        out.push(Candidate {
-            key: def.key.clone(),
-            origin,
-            value,
-        });
     }
 
     fn unknown(&self, key: String, origin: Origin) -> ConfigError {
@@ -418,6 +370,64 @@ impl<'a> Loader<'a> {
             origin,
         }
     }
+}
+
+/// Check a typed value against its definition and, if the key has a provider, that module. Shared by
+/// the loader and by [`crate::edit::Session`] so an edit meets exactly the rules a load does.
+pub(crate) fn check_value(
+    def: &ValueDef,
+    value: &Value,
+    modules: Option<&Modules>,
+    origin: &Origin,
+) -> Result<(), ConfigError> {
+    let found = || {
+        if def.secret {
+            REDACTED.to_owned()
+        } else {
+            value.shown()
+        }
+    };
+    match def.violation(value) {
+        Some(Violation::OutOfRange) => {
+            return Err(ConfigError::OutOfRange {
+                key: def.key.clone(),
+                found: found(),
+                min: def.min,
+                max: def.max,
+                origin: origin.clone(),
+            });
+        }
+        Some(Violation::NotAllowed) => {
+            return Err(ConfigError::NotAllowed {
+                key: def.key.clone(),
+                found: found(),
+                choices: def.choices.clone(),
+                origin: origin.clone(),
+            });
+        }
+        None => {}
+    }
+    if let Some(module) = &def.provider {
+        match modules.and_then(|m| m.get(module)) {
+            None => {
+                return Err(ConfigError::ModuleMissing {
+                    key: def.key.clone(),
+                    module: module.clone(),
+                });
+            }
+            Some(m) => {
+                if let Err(reason) = m.validate(value) {
+                    return Err(ConfigError::ModuleRejected {
+                        key: def.key.clone(),
+                        module: module.clone(),
+                        reason: if def.secret { REDACTED.into() } else { reason },
+                        origin: origin.clone(),
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// A type that can be read out of a [`Value`].
