@@ -7,7 +7,7 @@ at a time, not stacked; version bump + CHANGELOG entry in each (breaking = secon
 
 ## State
 - Merged: PR1 0.0.1, PR2a 0.1.0, PR2b 0.2.0, PR3 0.2.1 (#4, main 1a05e24; feature `persistant`).
-- **PR4 TUI done locally on branch `pr4-tui` (0.2.2, additive; PM allocates the number): SHA sent to the PM, awaiting push/gate.**
+- **PR4 TUI done locally on branch `pr4-tui` (0.2.2, additive; PM allocates the number): pushed by the PM as #5 (0daadaf), at gate. configurant-tui publish waits on the claim queue (PM).**
   Core `configurant::edit::Session` (stage -> review -> `confirm()` -> `Confirmed::file_text`/`plan`) + new
   workspace crate `crates/configurant-tui` (ratatui 0.30.2). CI now `--workspace`. Tests: `tests/known_bad_edit.rs`,
   `crates/configurant-tui/tests/app.rs`; mutations checked.
@@ -17,7 +17,7 @@ at a time, not stacked; version bump + CHANGELOG entry in each (breaking = secon
   is refused there until the app wires its modules in.
 
 ## Next (PM queue)
-1. GUI front end (separate crate, on `Session`). Scan assist (LSP) last, suggest-only.
+1. GUI front end (separate crate, on `Session`; spec order lib, TUI, GUI). Start after #5 merges (`gh pr view 5`), cut from origin/main. Scan assist (LSP) last, suggest-only.
 2. Later: secret SOURCE modules (vault-style; today a secret is env-only); compile-time key check (derive macro or
    build script, verifies keys, never writes source); a lossless way to drop a key in a migration.
 
