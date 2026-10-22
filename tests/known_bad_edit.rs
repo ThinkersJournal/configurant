@@ -144,7 +144,7 @@ fn a_secret_cannot_be_staged_and_never_appears() {
     let confirmed = review.confirm();
     seen += &format!("{confirmed:?} {}", confirmed.file_text(FILE).unwrap());
     for secret in ["typed-secret-xyz", "hunter2-secret"] {
-        assert!(!seen.contains(secret), "leaked {secret}");
+        assert!(!seen.contains(secret), "a secret value leaked into output");
     }
     let f = session
         .fields()
