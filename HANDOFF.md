@@ -6,17 +6,13 @@ from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`). Read `C:
 at a time, not stacked; version bump + CHANGELOG entry in each (breaking = second number pre-1.0).
 
 ## State
-- Merged: PR1 0.0.1, PR2a 0.1.0 (#2), PR2b 0.2.0 (#3, migrations; `config_version` reserved).
-- **PR3 0.2.1 sent to the PM as [READY], branch `pr3-persistant`** (local): cargo feature `persistant`
-  (`persistant` 0.9.10 `registry`), `configurant::persistant::PersistantModule` (`list_choices` /
-  `try_list_choices` / `validate` / `on_change` -> `DataTransfer` plan), `tests/known_bad_persistant.rs` (8 tests,
-  7+1 mutations each bite), CI also runs `--all-features`. If the PM holds it, fix on that branch; if it merged,
-  branch from `origin/main` for the next row. Check `gh pr view`, do not wait to be told.
-- Not done and not in PR3: *executing* a `DataTransfer` (needs both endpoints; a front-end job), and a
-  `Needs` field for durability (the module has a setting instead, default `Process`).
+- Merged: PR1 0.0.1, PR2a 0.1.0, PR2b 0.2.0, **PR3 0.2.1 (#4, main 1a05e24; feature `persistant`)**.
+- Local branch `pr4-tui` cut from origin/main 1a05e24, empty. **TASK: PR4 TUI front end** (PM: from origin/main, no stacking).
+  Design it behind a clean interface (front end executes a `Plan` only after confirmation); read `docs/DESIGN.md`.
+- Not done: *executing* a `DataTransfer` (front-end job, needs both endpoints); a `Needs` field for durability.
 
 ## Next (PM queue)
-1. PR4 TUI front end, then GUI (separate crates). Scan assist (LSP) last, suggest-only.
+1. PR4 TUI front end (in progress), then GUI (separate crates). Scan assist (LSP) last, suggest-only.
 2. Later: secret SOURCE modules (vault-style; today a secret is env-only); compile-time key check (derive macro or
    build script, verifies keys, never writes source); a lossless way to drop a key in a migration.
 
