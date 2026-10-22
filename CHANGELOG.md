@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.4
+
+- Arrays of tables and maps in the core. A schema declares `[[table]]` (key, description, `required`, `restart`,
+  and `[[table.field]]` entries that are `[[value]]`s with a single-name key and no `env`, `flag`, `provider` or
+  `secret`) and `[[map]]` (key, `value_type` of string, int, float, bool or path). A file sets them as `[[name]]`
+  rows and as a table. Every row is checked (unknown key with suggestion, type, range, choices, required, field
+  defaults) and errors name the row (`mount[1].guest`); a bad row means nothing of the array loads. They come from
+  the file only: a secret is refused in a row or map by the schema, and no environment variable or flag reaches
+  them. New: `Config::rows`, `Config::map`, `Schema::{tables, maps, table, map, all_keys}`, `Value::{Rows, Map}`,
+  `ValueType::{Table, Map}` (both refused as a `[[value]]` type), `ConfigError::{EmptyMapKey, FileOnly}`;
+  `explain`, `help` and `Config::deserialize` cover them. `edit::Session` refuses to stage them (`FileOnly`) and
+  keeps them in the file untouched. Additive (the new enum variants are on `#[non_exhaustive]` types).
+- `examples/antspawn.toml` now covers `[[mount]]`, `[[output]]` and `job.env`.
+
 ## 0.2.3
 
 - First customer schema: `examples/antspawn.toml` describes an AntSpawn job spec (job, limits, needs) as data, no

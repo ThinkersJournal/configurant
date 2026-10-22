@@ -63,14 +63,88 @@ fn bad_enum_and_out_of_range_are_refused() {
 }
 
 #[test]
-fn mounts_and_outputs_are_not_expressible_yet_and_say_so() {
-    // The recorded gap: arrays of tables are refused as unknown keys, never silently dropped.
-    let base = "[job]\nname = \"x\"\ncmd = [\"a\"]\n";
+fn mounts_outputs_and_env_load() {
+    let c = load(
+        "[job]
+name = \"x\"
+cmd = [\"a\"]
+[job.env]
+RUST_LOG = \"info\"
+         [[mount]]
+host = \"C:/src\"
+guest = \"src\"
+mode = \"ro\"
+         [[mount]]
+guest = \"tmp\"
+mode = \"scratch\"
+         [[output]]
+guest = \"out/r.json\"
+name = \"result\"
+",
+    )
+    .unwrap();
+    assert_eq!(c.rows("mount").unwrap().len(), 2);
+    assert_eq!(c.rows("output").unwrap()[0]["name"].shown(), "\"result\"");
+    assert_eq!(c.map("job.env").unwrap().unwrap().len(), 1);
+    assert!(
+        load(
+            "[job]
+name = \"x\"
+cmd = [\"a\"]
+"
+        )
+        .unwrap()
+        .rows("mount")
+        .unwrap()
+        .is_empty()
+    );
+}
+
+#[test]
+fn bad_mounts_outputs_and_env_are_refused() {
+    let base = "[job]
+name = \"x\"
+cmd = [\"a\"]
+";
+    // Unknown key in a row, with a suggestion; missing required field; bad mode; wrong env type.
+    let e = refused(&format!(
+        "{base}[[mount]]
+gest = \"/s\"
+mode = \"ro\"
+"
+    ));
+    assert!(format!("{e:?}").contains("guest"), "{e:?}");
     assert!(
         !refused(&format!(
-            "{base}[[mount]]\nguest = \"/s\"\nmode = \"scratch\"\n"
+            "{base}[[mount]]
+guest = \"s\"
+"
         ))
         .is_empty()
     );
-    assert!(!refused(&format!("{base}[[output]]\nguest = \"/o\"\nname = \"o\"\n")).is_empty());
+    assert!(
+        !refused(&format!(
+            "{base}[[mount]]
+guest = \"s\"
+mode = \"bind\"
+"
+        ))
+        .is_empty()
+    );
+    assert!(
+        !refused(&format!(
+            "{base}[[output]]
+guest = \"o\"
+"
+        ))
+        .is_empty()
+    );
+    assert!(
+        !refused(&format!(
+            "{base}[job.env]
+N = 1
+"
+        ))
+        .is_empty()
+    );
 }

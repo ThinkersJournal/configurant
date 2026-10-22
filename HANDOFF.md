@@ -6,20 +6,17 @@ from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`). Read `C:
 at a time, not stacked; version bump + CHANGELOG entry in each (breaking = second number pre-1.0).
 
 ## State
-- Merged: PR1 0.0.1, PR2a 0.1.0, PR2b 0.2.0, PR3 0.2.1 (#4, main 1a05e24; feature `persistant`).
-- **PR4 TUI done locally on branch `pr4-tui` (0.2.2, additive; PM allocates the number): pushed by the PM as #5 (0daadaf), at gate. configurant-tui publish waits on the claim queue (PM).**
-  Core `configurant::edit::Session` (stage -> review -> `confirm()` -> `Confirmed::file_text`/`plan`) + new
-  workspace crate `crates/configurant-tui` (ratatui 0.30.2). CI now `--workspace`. Tests: `tests/known_bad_edit.rs`,
-  `crates/configurant-tui/tests/app.rs`; mutations checked.
-- If the gate asks for changes, fix on `pr4-tui`. If merged: pull origin/main, start the GUI crate (next row).
-- Not done: *executing* a `DataTransfer` (front-end job, needs both endpoints; the TUI lists it as NOT DONE); a
-  `Needs` field for durability; the TUI does not pass modules (`Session::new(&config, None)`), so a provider key
-  is refused there until the app wires its modules in.
+- Merged: PR1 0.0.1, PR2a 0.1.0, PR2b 0.2.0, PR3 0.2.1, PR4 0.2.2 (#5), AntSpawn schema 0.2.3 (#6, main 6d31b90).
+- **Arrays of tables + maps (0.2.4) = branch `core-tables-maps`, worktree `C:\Projects\configurant-tables`, to be
+  sent to the PM as a SHA for the gate.** Known-bad tests in `tests/known_bad_tables.rs` (mutation-checked: secret
+  field, value echo, unknown row key each fail their test); `examples/antspawn.toml` now has mount/output/job.env.
+  If the gate asks for changes, fix in that worktree. Local `pr4-tui` here is merged: delete it when this tree is idle.
+- Not done: executing a `DataTransfer`; a `Needs` field; the TUI passes no modules; tables/maps are file-only (not
+  editable in `edit::Session`, no env/flag); no `min_rows`/`max_rows`; a higher layer would replace a whole array.
 
-## Next (PM queue)
-1. GUI front end (separate crate, on `Session`; spec order lib, TUI, GUI). Start after #5 merges (`gh pr view 5`), cut from origin/main. Scan assist (LSP) last, suggest-only.
-2. Later: secret SOURCE modules (vault-style; today a secret is env-only); compile-time key check (derive macro or
-   build script, verifies keys, never writes source); a lossless way to drop a key in a migration.
+## Next
+1. After the gate: re-express AntSpawn's own spec loading through configurant (AntSpawn lane's call).
+2. GUI front end later. Scan assist (LSP) last. Secret SOURCE modules; compile-time key check; lossless key drop.
 
 ## Known gaps to decide
 - Env/CLI lists are comma-separated; a list item containing a comma cannot be expressed there.

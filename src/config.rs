@@ -11,8 +11,8 @@ use std::path::PathBuf;
 
 use crate::error::{ConfigError, Errors, Origin, suggestion};
 use crate::module::Modules;
-use crate::schema::{Schema, ValueDef, Violation};
-use crate::value::{Value, ValueType};
+use crate::schema::{MapDef, Schema, TableDef, ValueDef, Violation};
+use crate::value::{Row, Value, ValueType};
 
 const REDACTED: &str = "<redacted>";
 
@@ -114,6 +114,24 @@ impl<'a> Loader<'a> {
                 errors.push(ConfigError::MissingRequired { key: d.key.clone() });
             }
         }
+        for key in self
+            .schema
+            .tables()
+            .iter()
+            .filter(|t| t.required)
+            .map(|t| &t.key)
+            .chain(
+                self.schema
+                    .maps()
+                    .iter()
+                    .filter(|m| m.required)
+                    .map(|m| &m.key),
+            )
+        {
+            if !chains.contains_key(key) {
+                errors.push(ConfigError::MissingRequired { key: key.clone() });
+            }
+        }
         if !errors.is_empty() {
             return Err(Errors(errors));
         }
@@ -210,6 +228,14 @@ impl<'a> Loader<'a> {
             } else {
                 format!("{prefix}.{k}")
             };
+            if let Some(t) = self.schema.table(&path) {
+                self.accept_rows(t, v, file, out, errors);
+                continue;
+            }
+            if let Some(m) = self.schema.map(&path) {
+                self.accept_map(m, v, file, out, errors);
+                continue;
+            }
             let def = self.schema.get(&path);
             match (v, def) {
                 (toml::Value::Table(_), Some(d)) => errors.push(ConfigError::WrongType {
@@ -236,6 +262,141 @@ impl<'a> Loader<'a> {
                     Ok(value) => self.accept(d, value, origin.clone(), out, errors),
                 },
             }
+        }
+    }
+
+    /// An array of tables from a file: every row is checked against the table's fields, and the whole
+    /// array is kept only if every row is clean. Offending values are never echoed, only their type.
+    fn accept_rows(
+        &self,
+        t: &TableDef,
+        v: &toml::Value,
+        file: &str,
+        out: &mut Vec<Candidate>,
+        errors: &mut Vec<ConfigError>,
+    ) {
+        let origin = Origin::File(file.to_owned());
+        let wrong = |found: &str| ConfigError::WrongType {
+            key: t.key.clone(),
+            expected: "array of tables",
+            found: found.into(),
+            origin: origin.clone(),
+        };
+        let toml::Value::Array(items) = v else {
+            errors.push(wrong(v.type_str()));
+            return;
+        };
+        let before = errors.len();
+        let mut rows = Vec::new();
+        for (i, item) in items.iter().enumerate() {
+            let toml::Value::Table(table) = item else {
+                errors.push(wrong(item.type_str()));
+                continue;
+            };
+            let at = format!("{}[{i}]", t.key);
+            let mut row = Row::new();
+            for (name, fv) in table {
+                let path = format!("{at}.{name}");
+                let Some(f) = t.field(name) else {
+                    let known = t.fields.iter().map(|f| f.key.as_str());
+                    errors.push(ConfigError::UnknownKey {
+                        key: path,
+                        suggestion: suggestion(name, known),
+                        origin: origin.clone(),
+                    });
+                    continue;
+                };
+                match Value::from_toml(f.ty, fv) {
+                    Err(found) => errors.push(ConfigError::WrongType {
+                        key: path,
+                        expected: f.ty.name(),
+                        found: found.into(),
+                        origin: origin.clone(),
+                    }),
+                    Ok(value) => {
+                        let mut shown_as = f.clone();
+                        shown_as.key = path;
+                        match check_value(&shown_as, &value, None, &origin) {
+                            Ok(()) => {
+                                row.insert(name.clone(), value);
+                            }
+                            Err(e) => errors.push(e),
+                        }
+                    }
+                }
+            }
+            for f in &t.fields {
+                if table.contains_key(&f.key) {
+                    continue;
+                }
+                match t.default_of(&f.key) {
+                    Some(d) => {
+                        row.insert(f.key.clone(), d.clone());
+                    }
+                    None if f.required => errors.push(ConfigError::MissingRequired {
+                        key: format!("{at}.{}", f.key),
+                    }),
+                    None => {}
+                }
+            }
+            rows.push(row);
+        }
+        if errors.len() == before {
+            out.push(Candidate {
+                key: t.key.clone(),
+                origin,
+                value: Value::Rows(rows),
+            });
+        }
+    }
+
+    /// A map from a file: arbitrary non-empty keys, every value of the map's type.
+    fn accept_map(
+        &self,
+        m: &MapDef,
+        v: &toml::Value,
+        file: &str,
+        out: &mut Vec<Candidate>,
+        errors: &mut Vec<ConfigError>,
+    ) {
+        let origin = Origin::File(file.to_owned());
+        let toml::Value::Table(table) = v else {
+            errors.push(ConfigError::WrongType {
+                key: m.key.clone(),
+                expected: "map",
+                found: v.type_str().into(),
+                origin,
+            });
+            return;
+        };
+        let before = errors.len();
+        let mut map = BTreeMap::new();
+        for (k, ev) in table {
+            if k.is_empty() {
+                errors.push(ConfigError::EmptyMapKey {
+                    key: m.key.clone(),
+                    origin: origin.clone(),
+                });
+                continue;
+            }
+            match Value::from_toml(m.value_type, ev) {
+                Ok(value) => {
+                    map.insert(k.clone(), value);
+                }
+                Err(found) => errors.push(ConfigError::WrongType {
+                    key: format!("{}.{k}", m.key),
+                    expected: m.value_type.name(),
+                    found: found.into(),
+                    origin: origin.clone(),
+                }),
+            }
+        }
+        if errors.len() == before {
+            out.push(Candidate {
+                key: m.key.clone(),
+                origin,
+                value: Value::Map(map),
+            });
         }
     }
 
@@ -363,7 +524,7 @@ impl<'a> Loader<'a> {
     }
 
     fn unknown(&self, key: String, origin: Origin) -> ConfigError {
-        let known = self.schema.values().iter().map(|d| d.key.as_str());
+        let known = self.schema.all_keys();
         ConfigError::UnknownKey {
             suggestion: suggestion(&key, known),
             key,
@@ -509,6 +670,28 @@ impl Config {
         self.chains.get(key).and_then(|c| c.last()).map(|(_, v)| v)
     }
 
+    /// The rows of the array of tables `key`: empty if the file did not set it.
+    pub fn rows(&self, key: &str) -> Result<&[Row], ConfigError> {
+        if self.schema.table(key).is_none() {
+            return Err(self.unknown_lookup(key));
+        }
+        match self.value(key) {
+            Some(Value::Rows(rows)) => Ok(rows),
+            _ => Ok(&[]),
+        }
+    }
+
+    /// The entries of the map `key`: `None` if the file did not set it.
+    pub fn map(&self, key: &str) -> Result<Option<&BTreeMap<String, Value>>, ConfigError> {
+        if self.schema.map(key).is_none() {
+            return Err(self.unknown_lookup(key));
+        }
+        Ok(match self.value(key) {
+            Some(Value::Map(m)) => Some(m),
+            _ => None,
+        })
+    }
+
     /// Typed access. An unknown key, an unset key and a wrong type are all named errors.
     pub fn get<T: FromValue>(&self, key: &str) -> Result<T, ConfigError> {
         if self.schema.get(key).is_none() {
@@ -534,12 +717,12 @@ impl Config {
     pub fn deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, ConfigError> {
         let mut root = toml::Table::new();
         let mut secrets = Vec::new();
-        for def in self.schema.values() {
-            let v = self.value(&def.key);
-            if let Some(v) = v.filter(|_| def.secret) {
+        for key in self.schema.all_keys() {
+            let v = self.value(key);
+            if let Some(v) = v.filter(|_| self.schema.get(key).is_some_and(|d| d.secret)) {
                 secrets.push(v.clone());
             }
-            let mut parts: Vec<&str> = def.key.split('.').collect();
+            let mut parts: Vec<&str> = key.split('.').collect();
             let leaf = parts.pop().unwrap_or_default();
             let mut table = &mut root;
             for part in parts {
@@ -568,27 +751,28 @@ impl Config {
 
     /// Where did this value come from, and what did it override? Secrets are redacted.
     pub fn explain(&self, key: &str) -> Result<Explanation, ConfigError> {
-        let def = self
-            .schema
-            .get(key)
-            .ok_or_else(|| self.unknown_lookup(key))?;
+        let (ty, description, secret, restart) = if let Some(d) = self.schema.get(key) {
+            (d.ty, &d.description, d.secret, d.restart)
+        } else if let Some(t) = self.schema.table(key) {
+            (ValueType::Table, &t.description, false, t.restart)
+        } else if let Some(m) = self.schema.map(key) {
+            (ValueType::Map, &m.description, false, m.restart)
+        } else {
+            return Err(self.unknown_lookup(key));
+        };
         let chain = self.chains.get(key).map(Vec::as_slice).unwrap_or_default();
         Ok(Explanation {
             key: key.to_owned(),
-            ty: def.ty,
-            description: def.description.clone(),
-            secret: def.secret,
-            restart: def.restart,
+            ty,
+            description: description.clone(),
+            secret,
+            restart,
             chain: chain
                 .iter()
                 .enumerate()
                 .map(|(i, (origin, v))| ExplainLine {
                     origin: origin.clone(),
-                    shown: if def.secret {
-                        REDACTED.into()
-                    } else {
-                        v.shown()
-                    },
+                    shown: if secret { REDACTED.into() } else { v.shown() },
                     wins: i + 1 == chain.len(),
                 })
                 .collect(),
@@ -596,7 +780,7 @@ impl Config {
     }
 
     fn unknown_lookup(&self, key: &str) -> ConfigError {
-        let known = self.schema.values().iter().map(|d| d.key.as_str());
+        let known = self.schema.all_keys();
         ConfigError::UnknownKey {
             key: key.to_owned(),
             suggestion: suggestion(key, known),
