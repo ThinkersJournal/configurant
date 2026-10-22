@@ -1,6 +1,6 @@
 [package]
 name = "configurant"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.94"
 description = "Schema-first configuration: declare values in a TOML schema, layer defaults, file, environment and command line, validate with named errors, explain where each value came from. No generated code; secrets never printed."
@@ -14,7 +14,13 @@ categories = ["config", "command-line-utilities"]
 name = "configurant"
 path = "src/main.rs"
 
+[features]
+# PersistAnt as a module: choice lists and data-transfer plans from its backend registry. Off by default
+# so the core stays light; the application chooses which backends exist by enabling persistant's own features.
+persistant = ["dep:persistant"]
+
 [dependencies]
+persistant = { version = "0.9.10", optional = true, default-features = false, features = ["registry"] }
 clap = { version = "4.6.7", features = ["derive"] }
 serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"

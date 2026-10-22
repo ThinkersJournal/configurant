@@ -8,6 +8,8 @@ pub mod config;
 pub mod error;
 pub mod migrate;
 pub mod module;
+#[cfg(feature = "persistant")]
+pub mod persistant;
 pub mod schema;
 pub mod value;
 
