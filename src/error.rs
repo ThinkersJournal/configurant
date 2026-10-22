@@ -77,6 +77,22 @@ pub enum ConfigError {
     FileParse { name: String, reason: String },
     #[error("`{key}` takes its value from module `{module}`, which is not registered")]
     ModuleMissing { key: String, module: String },
+    #[error(
+        "configuration file `{name}` is at config version {found}, this schema is at {current}; run `configurant migrate`"
+    )]
+    FileOutdated {
+        name: String,
+        found: u32,
+        current: u32,
+    },
+    #[error(
+        "configuration file `{name}` is at config version {found}, newer than this schema's {current}"
+    )]
+    FileNewer {
+        name: String,
+        found: u32,
+        current: u32,
+    },
     #[error("the configuration does not fit the target type: {reason}")]
     Deserialize { reason: String },
     #[error("`{key}` from {origin} was rejected by module `{module}`: {reason}")]

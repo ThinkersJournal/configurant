@@ -141,7 +141,7 @@ impl<'a> Loader<'a> {
         let Some((name, text)) = &self.file else {
             return Vec::new();
         };
-        let table: toml::Table = match toml::from_str(text) {
+        let mut table: toml::Table = match toml::from_str(text) {
             Ok(t) => t,
             Err(e) => {
                 let line = e
@@ -160,6 +160,36 @@ impl<'a> Loader<'a> {
                 return Vec::new();
             }
         };
+        // `config_version` belongs to the loader, not to the schema's values.
+        if let Some(v) = table.remove("config_version") {
+            let current = self.schema.project.config_version;
+            let origin = Origin::File(name.clone());
+            match v {
+                toml::Value::Integer(n) if n == i64::from(current) => {}
+                toml::Value::Integer(n) if (1..i64::from(current)).contains(&n) => {
+                    errors.push(ConfigError::FileOutdated {
+                        name: name.clone(),
+                        found: n as u32,
+                        current,
+                    });
+                    return Vec::new();
+                }
+                toml::Value::Integer(n) if n > i64::from(current) && n <= i64::from(u32::MAX) => {
+                    errors.push(ConfigError::FileNewer {
+                        name: name.clone(),
+                        found: n as u32,
+                        current,
+                    });
+                    return Vec::new();
+                }
+                other => errors.push(ConfigError::WrongType {
+                    key: "config_version".into(),
+                    expected: "a positive int no newer than the schema's",
+                    found: other.type_str().into(),
+                    origin,
+                }),
+            }
+        }
         let mut out = Vec::new();
         self.flatten("", &table, name, &mut out, errors);
         out

@@ -25,6 +25,39 @@ pub struct Project {
     /// Environment variables starting with this that the schema does not declare are errors.
     #[serde(default)]
     pub env_prefix: Option<String>,
+    /// The format version of this project's configuration files (a top-level `config_version` in a
+    /// file). `[[migration]]` steps carry older files up to it.
+    #[serde(default = "first_config_version")]
+    pub config_version: u32,
+}
+
+fn first_config_version() -> u32 {
+    1
+}
+
+/// One `[[migration]]`: the step from config version `from` to `to` (always `from + 1`).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Migration {
+    pub from: u32,
+    pub to: u32,
+    #[serde(default)]
+    pub ops: Vec<Op>,
+}
+
+/// One step of a migration. Every operation is reversible by construction, so a migrated file can
+/// be carried back; an operation that drops information is deliberately not offered.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+#[non_exhaustive]
+pub enum Op {
+    /// Move the value at dotted key `from` to `to`.
+    Rename { from: String, to: String },
+    /// Replace the string value at `key` by `map[value]`. The map must be one-to-one.
+    MapValue {
+        key: String,
+        map: std::collections::BTreeMap<String, String>,
+    },
 }
 
 /// One `[[value]]` entry.
@@ -69,6 +102,8 @@ struct Raw {
     project: Project,
     #[serde(default, rename = "value")]
     values: Vec<ValueDef>,
+    #[serde(default, rename = "migration")]
+    migrations: Vec<Migration>,
 }
 
 /// Why a schema was refused.
@@ -105,6 +140,12 @@ pub enum SchemaError {
     BadRange(String),
     #[error("default of `{key}`: {reason}")]
     BadDefault { key: String, reason: String },
+    #[error("`{0}` is reserved for the configuration file's version and cannot be a value key")]
+    ReservedKey(String),
+    #[error("migrations do not form a chain to config_version {current}: {reason}")]
+    MigrationChain { current: u32, reason: String },
+    #[error("migration {from} -> {to}: {reason}")]
+    BadMigration { from: u32, to: u32, reason: String },
 }
 
 /// A parsed, self-consistent schema.
@@ -113,6 +154,7 @@ pub struct Schema {
     pub project: Project,
     values: Vec<ValueDef>,
     defaults: BTreeMap<String, Value>,
+    migrations: Vec<Migration>,
 }
 
 /// A value that broke a constraint of its definition.
@@ -133,6 +175,9 @@ impl Schema {
         let mut defaults = BTreeMap::new();
         for d in &raw.values {
             check_key(&d.key)?;
+            if d.key == "config_version" || d.key.starts_with("config_version.") {
+                return Err(SchemaError::ReservedKey(d.key.clone()));
+            }
             if !keys.insert(d.key.clone()) {
                 return Err(SchemaError::DuplicateKey(d.key.clone()));
             }
@@ -190,6 +235,7 @@ impl Schema {
                 defaults.insert(d.key.clone(), v);
             }
         }
+        check_migrations(raw.project.config_version, &raw.migrations)?;
         for a in &keys {
             if let Some(b) = keys.iter().find(|b| {
                 b.len() > a.len() && b.starts_with(a.as_str()) && b.as_bytes()[a.len()] == b'.'
@@ -204,12 +250,18 @@ impl Schema {
             project: raw.project,
             values: raw.values,
             defaults,
+            migrations: raw.migrations,
         })
     }
 
     /// Every declared value, in schema order.
     pub fn values(&self) -> &[ValueDef] {
         &self.values
+    }
+
+    /// The declared migrations, oldest first.
+    pub fn migrations(&self) -> &[Migration] {
+        &self.migrations
     }
 
     pub fn get(&self, key: &str) -> Option<&ValueDef> {
@@ -261,6 +313,63 @@ impl ValueDef {
         }
         None
     }
+}
+
+/// The migrations must be exactly the steps 1->2, 2->3, ... up to `config_version`, each made of
+/// operations that can be undone.
+fn check_migrations(current: u32, migrations: &[Migration]) -> Result<(), SchemaError> {
+    let chain = |reason: String| SchemaError::MigrationChain { current, reason };
+    if current == 0 {
+        return Err(chain("config_version starts at 1".into()));
+    }
+    for m in migrations {
+        let bad = |reason: &str| SchemaError::BadMigration {
+            from: m.from,
+            to: m.to,
+            reason: reason.into(),
+        };
+        if m.from.checked_add(1) != Some(m.to) {
+            return Err(bad("a migration goes from one version to the next"));
+        }
+        for op in &m.ops {
+            match op {
+                Op::Rename { from, to } => {
+                    check_key(from)?;
+                    check_key(to)?;
+                    if from == to {
+                        return Err(bad("a rename must change the key"));
+                    }
+                }
+                Op::MapValue { key, map } => {
+                    check_key(key)?;
+                    if map.is_empty() {
+                        return Err(bad("a map_value needs a non-empty map"));
+                    }
+                    let outputs: BTreeSet<&String> = map.values().collect();
+                    if outputs.len() != map.len() {
+                        return Err(bad("a map_value must be one-to-one to be carried back"));
+                    }
+                }
+            }
+        }
+    }
+    let expected = usize::try_from(current - 1).unwrap_or(usize::MAX);
+    if migrations.len() != expected {
+        return Err(chain(format!(
+            "{} steps declared, {expected} needed",
+            migrations.len()
+        )));
+    }
+    for (i, m) in migrations.iter().enumerate() {
+        if usize::try_from(m.from).ok() != Some(i + 1) {
+            return Err(chain(format!(
+                "step {} should start at version {}",
+                i + 1,
+                i + 1
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn check_key(key: &str) -> Result<(), SchemaError> {

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.1
+
+- Config-file migrations. A file carries a top-level `config_version`; the schema declares
+  `[project] config_version = N` and `[[migration]]` steps (`from`, `to = from + 1`, `ops`). Operations are
+  `rename` and a one-to-one `map_value`: every one is reversible, and nothing that drops information is
+  offered. `Schema::migrate` / `Schema::migrate_back` return the new text (comments and layout kept) and
+  the changes as key names only; they never write a file. Collisions and ambiguous values are named errors.
+- `configurant migrate <schema> <file> [--from N | --to N] [--write]`: prints by default; `--write`
+  saves `<file>.bak` first and refuses if it exists.
+- The loader refuses a file whose `config_version` is older (`ConfigError::FileOutdated`, says to run
+  `migrate`) or newer (`FileNewer`); a file with no version loads as before.
+- `config_version` is now reserved: a schema value with that key is refused (`SchemaError::ReservedKey`).
+  New variants and `Project::config_version` are additive (the types are `#[non_exhaustive]`).
+
 ## 0.1.0
 
 - **Breaking:** new variant `ConfigError::Deserialize`; and `ConfigError`, `Origin`, `Layer`, `ValueType`,
