@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1
+## 0.2.0
 
 - Config-file migrations. A file carries a top-level `config_version`; the schema declares
   `[project] config_version = N` and `[[migration]]` steps (`from`, `to = from + 1`, `ops`). Operations are
@@ -11,8 +11,11 @@
   saves `<file>.bak` first and refuses if it exists.
 - The loader refuses a file whose `config_version` is older (`ConfigError::FileOutdated`, says to run
   `migrate`) or newer (`FileNewer`); a file with no version loads as before.
-- `config_version` is now reserved: a schema value with that key is refused (`SchemaError::ReservedKey`).
-  New variants and `Project::config_version` are additive (the types are `#[non_exhaustive]`).
+- **Breaking:** `config_version` is now reserved. A schema that declares an ordinary value with the key
+  `config_version` (or `config_version.*`) no longer parses (`SchemaError::ReservedKey`), and a config file's
+  top-level `config_version` is read as the file's version. Fix: rename that value in the schema (and in
+  your files), e.g. `app_config_version`. The new variants and `Project::config_version` are additive (the
+  types are `#[non_exhaustive]`).
 
 ## 0.1.0
 

@@ -7,13 +7,12 @@ at a time, not stacked; version bump + CHANGELOG entry in each (breaking = secon
 
 ## State
 - PR1 0.0.1 merged. PR2a 0.1.0 (`Config::deserialize`, `#[non_exhaustive]` enums) merged as #2.
-- **PR2b 0.1.1 sent to the PM as [READY], branch `pr2b-migrations`** (local): `config_version` in files,
+- **PR2b 0.2.0 sent to the PM as [READY], branch `pr2b-migrations`** (local): `config_version` in files,
   `[[migration]]` with `rename` / one-to-one `map_value`, `Schema::migrate` / `migrate_back` (toml_edit, comments
   kept, changes are key names only), loader refuses outdated/newer files, `configurant migrate [--from|--to]
   [--write]` (`.bak` first). 26 known_bad + 4 cli tests; six mutations each bite. If the PM holds it, fix on that
   branch; if it merged, branch from `origin/main` for the next row. Check `gh pr view`, do not wait to be told.
-- Open question for the PM: 0.1.1 (additive) was my call; the new reserved key `config_version` is the only
-  behaviour change for an existing schema.
+- Version is 0.2.0 at the PM's call: the reserved key `config_version` is a breaking behaviour change.
 
 ## Next (PM queue)
 1. PR3 PersistAnt module (optional crate/feature): `registry::providers`/`open_named` for `list_choices`; a changed
