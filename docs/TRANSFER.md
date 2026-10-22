@@ -32,8 +32,9 @@ them. The module still never reads a config file or chooses an endpoint.
 1. Open both ends with `open_named`. Either failure stops with nothing touched.
 2. Refuse a non-empty target (a count, never contents), unless the caller passes `allow_existing`, in which case
    a key already present is kept and counted as `skipped`.
-3. Page the source with `ordered_scan_values` (page size 256), write each page to the target with `batch`
-   (`BatchOp::put`), falling back to `put` per key where `batch` is `Unsupported`.
+3. Page the source (page size 256) and `put` each record into the target one by one, with the time to live it has
+   left. (Built: `BatchOp::put` carries no TTL, so `batch` is not used.) `ordered_scan_values` is used where the
+   backend has it; `memory` and `fs` (blob-based) scan keys only, so there each value is read with `get`.
 4. Verify: a second scan of both sides compares key sets and values byte for byte; the report holds counts and
    the first differing *keys* (a key is not a secret; a value is never reported).
 5. The source is never modified or deleted. The operator removes it by hand after the new backend has run.
@@ -79,3 +80,9 @@ Each is written failing, then the code under it is mutated to confirm it bites.
 4. **Leases, blob, relational:** not copied; the report says so.
 5. **Version:** this docs PR is 0.2.6 (after #8 merges at 0.2.5); the implementation is additive, the next patch,
    allocated by the PM at gate.
+
+## As built (0.2.7)
+
+`PersistantModule::transfer` / `transfer_blocking`, `copy_between` for two backends you already hold, and
+`TransferEnd`, `TransferOptions`, `TransferReport`, `TransferError`. Tests: `tests/known_bad_transfer.rs`, each
+mutation-checked. Not done: wiring into the TUI/GUI (they pass no modules yet) and a `configurant transfer` command.

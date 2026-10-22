@@ -3,7 +3,7 @@ members = ["crates/configurant-tui", "crates/configurant-gui"]
 
 [package]
 name = "configurant"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2024"
 rust-version = "1.95"
 description = "Schema-first configuration: declare values in a TOML schema, layer defaults, file, environment and command line, validate with named errors, explain where each value came from. No generated code; secrets never printed."
@@ -21,11 +21,17 @@ path = "src/main.rs"
 # PersistAnt as a module: choice lists and data-transfer plans from its backend registry. Off by default
 # so the core stays light; the application chooses which backends exist by enabling persistant's own features.
 persistant = ["dep:persistant"]
+# `PersistantModule::transfer_blocking`: runs the async transfer on a current-thread Tokio runtime of its own.
+persistant-blocking = ["persistant", "dep:tokio"]
 
 [dependencies]
 persistant = { version = "0.9.10", optional = true, default-features = false, features = ["registry"] }
+tokio = { version = "1.54.1", optional = true, default-features = false, features = ["rt"] }
 clap = { version = "4.6.7", features = ["derive"] }
 serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
 toml = "1.1.8"
 toml_edit = "0.25.17"
+
+[dev-dependencies]
+tokio = { version = "1.54.1", default-features = false, features = ["rt"] }

@@ -794,19 +794,20 @@ dependencies = [
 
 [[package]]
 name = "configurant"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "clap",
  "persistant",
  "serde",
  "thiserror 2.0.21",
+ "tokio",
  "toml",
  "toml_edit",
 ]
 
 [[package]]
 name = "configurant-gui"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "clap",
  "configurant",
@@ -816,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-tui"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "clap",
  "configurant",
