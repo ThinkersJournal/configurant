@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.23
+
+- Docs only: `docs/SECRET-SOURCES.md`, the design for secret-source modules (what a source is, how it composes with
+  the vault, SecretAnt and PersistAnt, ten rules each with a negative control, the four decisions taken); the
+  README states the key check's known limits, including a key read through a helper function. All crates move to
+  0.2.23.
+
 ## 0.2.22
 
 - The compile-time key check: `configurant::keycheck` (`check_source`, `check_dir`, `Report`, `UnknownKey`) and the

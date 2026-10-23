@@ -18,6 +18,14 @@ DEMO_PORT=9000 configurant explain examples/configurant.toml server.port -- --po
 let settings: Settings = config.deserialize()?;
 ```
 
+Key check (`configurant keys examples/configurant.toml src`, or `configurant::keycheck` from a `build.rs`): finds
+Rust code that asks for a key the schema does not define. Known limits: it matches source text, so it sees only
+`.get::<T>("k")`, `.value("k")`, `.rows("k")` and `.explain("k")` with a plain string literal; a key read through a
+helper function (`fn setting(c: &Config, k: &str) { c.get::<u16>(k) }`, called as `setting(c, "server.prot")`) is
+a computed name at the call inside the helper, so it is counted and not checked, and its callers are not followed;
+a key built with `format!` or held in a variable is the same; another type's method named `value`, `rows` or
+`explain` with a string argument is reported as if it were ours.
+
 Status: 0.0.x. Schema, layering, validation, `explain`, serde struct binding, config-file migrations and the module
 interface exist, and the PersistAnt module is behind the `persistant` feature; the TUI/GUI are later. Design:
 [docs/DESIGN.md](docs/DESIGN.md); why not figment/config/clap/confy: [docs/PRIOR-ART.md](docs/PRIOR-ART.md).
