@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.19
+
+- CI: an advisory `portfolio` job (the CodeRipper portfolio check, pinned by commit). It is not a required check.
+  No code change. All crates move to 0.2.19.
+
 ## 0.2.18
 
 - Migrations gain a lossless `drop`: `{ op = "drop", key = "legacy.mode", value = "compat" }` removes the key only
