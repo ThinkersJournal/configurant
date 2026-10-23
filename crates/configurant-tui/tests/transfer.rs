@@ -11,6 +11,7 @@ use configurant::persistant::{Durability, PersistantModule, TransferError};
 use configurant::{Loader, Modules, Needs, Schema};
 use configurant_tui::{App, Effect, TransferSetup};
 use persistant::capability::provider::ProviderNeeds;
+use persistant::kv::KvBackend;
 use persistant::registry::{self, Endpoint};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
@@ -106,7 +107,10 @@ fn scratch_dir(tag: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .subsec_nanos();
-    std::env::temp_dir().join(format!("configurant-tui-{tag}-{}-{nanos}", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "configurant-tui-{tag}-{}-{nanos}",
+        std::process::id()
+    ))
 }
 
 #[test]
@@ -142,8 +146,14 @@ fn a_typed_url_is_refused_and_leaves_no_trace_on_screen() {
         let effect = press(app, KeyCode::Enter); // try to start
         assert!(matches!(effect, Effect::None), "{effect:?}");
         let s = screen(app);
-        assert!(s.contains("source endpoint: this backend opens from a path"), "{s}");
-        assert!(!s.contains("hunter2") && !s.contains("db.internal"), "leaked: {s}");
+        assert!(
+            s.contains("source endpoint: this backend opens from a path"),
+            "{s}"
+        );
+        assert!(
+            !s.contains("hunter2") && !s.contains("db.internal"),
+            "leaked: {s}"
+        );
     });
 }
 
@@ -158,14 +168,25 @@ fn a_failed_copy_writes_nothing_and_keeps_the_staged_edit() {
             panic!("expected a transfer to start");
         };
         assert_eq!((job.from_id(), job.to_id()), ("fs", "memory"));
-        assert!(screen(app).contains("Copying `fs` -> `memory`"), "{}", screen(app));
+        assert!(
+            screen(app).contains("Copying `fs` -> `memory`"),
+            "{}",
+            screen(app)
+        );
 
         let effect = app.transferred(Err(TransferError::TargetNotEmpty));
-        assert!(matches!(effect, Effect::None), "no write after a failed copy: {effect:?}");
+        assert!(
+            matches!(effect, Effect::None),
+            "no write after a failed copy: {effect:?}"
+        );
         assert!(screen(app).contains("copy failed"), "{}", screen(app));
         // The edit is still staged: review is available again.
         press(app, KeyCode::Char('r'));
-        assert!(screen(app).contains("fs -> memory"), "{}", screen(app));
+        assert!(
+            screen(app).contains(r#""fs" -> "memory""#),
+            "{}",
+            screen(app)
+        );
     });
 }
 
@@ -177,7 +198,11 @@ fn writing_without_copying_takes_a_deliberate_key_and_a_yes() {
         assert!(matches!(press(app, KeyCode::Char('w')), Effect::None));
         press(app, KeyCode::Backspace);
         assert!(matches!(ctrl(app, 'w'), Effect::None));
-        assert!(screen(app).contains("Write the file WITHOUT copying?"), "{}", screen(app));
+        assert!(
+            screen(app).contains("Write the file WITHOUT copying?"),
+            "{}",
+            screen(app)
+        );
         // `n` goes back to the questions.
         press(app, KeyCode::Char('n'));
         assert!(screen(app).contains("Move the data"), "{}", screen(app));
@@ -199,40 +224,68 @@ fn keys_do_nothing_while_the_copy_runs() {
         confirm_the_switch(app);
         press(app, KeyCode::Enter);
         assert!(matches!(press(app, KeyCode::Enter), Effect::Transfer(_)));
-        for code in [KeyCode::Char('y'), KeyCode::Enter, KeyCode::Esc, KeyCode::Char('q')] {
+        for code in [
+            KeyCode::Char('y'),
+            KeyCode::Enter,
+            KeyCode::Esc,
+            KeyCode::Char('q'),
+        ] {
             assert!(matches!(press(app, code), Effect::None));
         }
         assert!(screen(app).contains("Copying"), "{}", screen(app));
-        assert!(matches!(ctrl(app, 'c'), Effect::Quit), "Ctrl-C still leaves");
+        assert!(
+            matches!(ctrl(app, 'c'), Effect::Quit),
+            "Ctrl-C still leaves"
+        );
     });
 }
 
 #[test]
 fn the_needs_reach_the_choice_list() {
-    // At process durability `memory` (forgets on exit) is not offered, so Tab can only reach `fs`.
-    let process = PersistantModule::new().min_durability(Durability::Process);
-    let mut s = setup(&[]);
-    s.module = process.clone();
-    with_app(Some(s), process, |app| {
+    // Control: with no needs, Tab walks on to `memory` (the module's floor is volatile).
+    let mut seen = String::new();
+    with_app(Some(setup(&[])), module(), |app| {
         press(app, KeyCode::Enter);
-        press(app, KeyCode::Tab);
-        assert!(screen(app).contains("new value> fs"), "{}", screen(app));
-        press(app, KeyCode::Tab);
-        assert!(screen(app).contains("new value> fs"), "{}", screen(app));
+        for _ in 0..3 {
+            press(app, KeyCode::Tab);
+            seen.push_str(&screen(app));
+        }
     });
+    assert!(seen.contains("new value> memory"), "{seen}");
+
+    // A need no backend meets empties the list, so Tab can reach nothing.
+    let mut s = setup(&[]);
+    s.needs = Needs {
+        required: vec!["kv.no_such_capability".into()],
+        order: Vec::new(),
+    };
+    let mut seen = String::new();
+    with_app(Some(s), module(), |app| {
+        press(app, KeyCode::Enter);
+        for _ in 0..3 {
+            press(app, KeyCode::Tab);
+            seen.push_str(&screen(app));
+        }
+    });
+    assert!(!seen.contains("new value> memory"), "{seen}");
 }
 
 #[test]
 fn a_real_copy_runs_before_the_write_and_the_result_says_what_was_copied() {
     let dir = scratch_dir("real");
-    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
     rt.block_on(async {
         let gate = ProviderNeeds::new(Vec::new(), Durability::Volatile);
         let h = registry::open_named("fs", &Endpoint::path(&dir), &gate)
             .await
             .unwrap();
         for i in 0..3u8 {
-            h.kv().put(&format!("k{i}"), vec![i, 255], None).await.unwrap();
+            h.kv()
+                .put(&format!("k{i}"), vec![i, 255], None)
+                .await
+                .unwrap();
         }
     });
     let answer = dir.display().to_string();

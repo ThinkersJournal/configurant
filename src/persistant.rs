@@ -21,6 +21,7 @@ use ::persistant::capability::{CapabilityId, provider::ProviderNeeds};
 use ::persistant::registry;
 
 pub use ::persistant::capability::choose::Durability;
+pub use ::persistant::capability::provider::EndpointSpec;
 pub use ::persistant::registry::Endpoint;
 #[cfg(feature = "persistant-blocking")]
 pub use transfer::TransferJob;
@@ -28,7 +29,6 @@ pub use transfer::{
     NOT_COPIED, TransferEnd, TransferError, TransferOptions, TransferReport, copy_between,
     parse_endpoint,
 };
-pub use ::persistant::capability::provider::EndpointSpec;
 
 use crate::error::suggestion;
 use crate::module::{Action, ActionKind, Choice, Module, Needs, Plan};

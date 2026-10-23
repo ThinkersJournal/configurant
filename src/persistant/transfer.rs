@@ -54,11 +54,14 @@ pub fn parse_endpoint(text: &str, spec: &EndpointSpec) -> Result<Endpoint, Strin
                 }
             } else if looks_like_url {
                 Err(format!(
-                    "a connection URL is a secret and is never typed here; put it in an environment                      variable and answer `env:NAME` (schemes: {})",
+                    "a connection URL is a secret and is never typed here; put it in an environment variable and answer `env:NAME` (schemes: {})",
                     schemes.join(", ")
                 ))
             } else {
-                Err("answer `env:NAME`, the environment variable that holds the connection URL".to_owned())
+                Err(
+                    "answer `env:NAME`, the environment variable that holds the connection URL"
+                        .to_owned(),
+                )
             }
         }
         _ => Err("this build does not know how to ask for that kind of endpoint".to_owned()),
@@ -498,7 +501,10 @@ mod tests {
         };
         let typed = "postgres://appuser:hunter2@db.internal/prod";
         let err = parse_endpoint(typed, &spec).unwrap_err();
-        assert!(!err.contains("hunter2") && !err.contains("db.internal"), "{err}");
+        assert!(
+            !err.contains("hunter2") && !err.contains("db.internal"),
+            "{err}"
+        );
         assert_eq!(
             parse_endpoint("env:APP_DB_URL", &spec),
             Ok(Endpoint::url_env("APP_DB_URL"))
@@ -517,7 +523,10 @@ mod tests {
         assert!(parse_endpoint("", &EndpointSpec::Path).is_err());
         assert!(parse_endpoint("sqlite://x", &EndpointSpec::Path).is_err());
         assert_eq!(parse_endpoint("", &EndpointSpec::None), Ok(Endpoint::None));
-        assert_eq!(parse_endpoint("none", &EndpointSpec::None), Ok(Endpoint::None));
+        assert_eq!(
+            parse_endpoint("none", &EndpointSpec::None),
+            Ok(Endpoint::None)
+        );
         assert!(parse_endpoint("/x", &EndpointSpec::None).is_err());
     }
 

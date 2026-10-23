@@ -350,6 +350,7 @@ impl<'a> App<'a> {
         };
         let labels = ["source", "target"];
         let mut ends = Vec::new();
+        #[allow(clippy::needless_range_loop)] // `i` indexes ids, answers and labels together
         for i in 0..2 {
             let id = &ask.ids[i];
             let parsed = setup
@@ -407,11 +408,7 @@ impl<'a> App<'a> {
     }
 
     fn endpoints_text(&self, ask: &Ask) -> String {
-        let hint = |id: &str| match self
-            .setup
-            .as_ref()
-            .and_then(|s| s.module.endpoint_spec(id))
-        {
+        let hint = |id: &str| match self.setup.as_ref().and_then(|s| s.module.endpoint_spec(id)) {
             Some(EndpointSpec::Path) => "a directory or file path".to_owned(),
             Some(EndpointSpec::None) => "nothing: leave it empty".to_owned(),
             Some(EndpointSpec::Url { .. }) => {
