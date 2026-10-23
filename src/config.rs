@@ -806,6 +806,7 @@ impl Config {
             description: description.clone(),
             secret,
             restart,
+            source: self.schema.get(key).and_then(|d| d.source.clone()),
             chain: chain
                 .iter()
                 .enumerate()
@@ -863,6 +864,8 @@ pub struct Explanation {
     pub description: String,
     pub secret: bool,
     pub restart: bool,
+    /// The `<source>:<reference>` a secret declares (a reference, not a value).
+    pub source: Option<String>,
     pub chain: Vec<ExplainLine>,
 }
 
@@ -871,6 +874,9 @@ impl fmt::Display for Explanation {
         write!(f, "{} ({}): {}", self.key, self.ty.name(), self.description)?;
         if self.secret {
             write!(f, " [secret]")?;
+            if let Some(src) = &self.source {
+                write!(f, " [source: {src}]")?;
+            }
         }
         if self.restart {
             write!(f, " [restart needed]")?;

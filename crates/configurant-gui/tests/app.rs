@@ -183,3 +183,25 @@ fn it_can_be_driven_from_the_keyboard_alone() {
     h.run();
     assert!(h.query_by_label_contains("8080 -> 9002").is_some());
 }
+
+#[test]
+fn a_secret_with_a_source_shows_its_reference_and_still_is_not_editable() {
+    let text = SCHEMA.replace(
+        "env = \"DEMO_DB_PASSWORD\"",
+        "env = \"DEMO_DB_PASSWORD\"\nsource = \"vault:DB_ENTRY\"",
+    );
+    let schema = Schema::parse(&text).unwrap();
+    let config = Loader::new(&schema)
+        .resolved(BTreeMap::from([("db.password".into(), SECRET.into())]))
+        .build()
+        .unwrap();
+    let mut h = harness(&config);
+    h.get_by_label_contains("db.password").click();
+    h.run();
+    assert!(
+        h.query_by_label_contains("Secret source: vault:DB_ENTRY")
+            .is_some()
+    );
+    assert!(h.query_by_label_contains(SECRET).is_none());
+    assert!(h.get_by_label("Edit").accesskit_node().is_disabled());
+}

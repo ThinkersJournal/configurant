@@ -424,6 +424,9 @@ impl Schema {
             }
             if d.secret {
                 out.push_str("  [secret]");
+                if let Some(src) = &d.source {
+                    let _ = write!(out, "  [source: {src}]");
+                }
             } else if let Some(v) = self.defaults.get(&d.key) {
                 let _ = write!(out, "  [default: {}]", v.shown());
             }

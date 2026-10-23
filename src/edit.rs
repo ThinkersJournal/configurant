@@ -28,6 +28,8 @@ pub struct Field {
     pub ty: ValueType,
     pub description: String,
     pub secret: bool,
+    /// The `<source>:<reference>` a secret declares: a name, never the secret.
+    pub source: Option<String>,
     pub restart: bool,
     pub editable: bool,
     /// The schema's `choices` (empty unless it is an enum). A provider's list is [`Session::choices`].
@@ -76,6 +78,7 @@ impl<'a> Session<'a> {
                 ty: d.ty,
                 description: d.description.clone(),
                 secret: d.secret,
+                source: d.source.clone(),
                 restart: d.restart,
                 editable: !d.secret,
                 choices: d.choices.clone(),

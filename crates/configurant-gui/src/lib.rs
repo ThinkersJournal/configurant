@@ -312,8 +312,11 @@ impl<'a> App<'a> {
                 match self.fields.get(self.selected) {
                     Some(f) if !f.editable => {
                         self.message = Some(format!(
-                            "`{}` is a secret: it comes only from its environment variable",
-                            f.key
+                            "`{}` is a secret: it comes only from its environment variable{}",
+                            f.key,
+                            f.source.as_ref().map_or_else(String::new, |s| format!(
+                                " or its secret source `{s}`"
+                            ))
                         ));
                     }
                     Some(_) => {
@@ -560,6 +563,9 @@ impl<'a> App<'a> {
             }
             if f.secret {
                 ui.label("Secret: set only through its environment variable.");
+                if let Some(src) = &f.source {
+                    ui.label(format!("Secret source: {src}"));
+                }
             }
             if !f.choices.is_empty() {
                 ui.label(format!("Choices: {}", f.choices.join(", ")));

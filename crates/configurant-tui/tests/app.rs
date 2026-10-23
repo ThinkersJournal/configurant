@@ -113,3 +113,26 @@ fn a_secret_is_not_editable_and_never_drawn() {
         "a secret must not open the editor"
     );
 }
+
+#[test]
+fn a_secret_with_a_source_shows_its_reference_and_still_is_not_editable() {
+    let text = SCHEMA.replace(
+        "env = \"DEMO_DB_PASSWORD\"",
+        "env = \"DEMO_DB_PASSWORD\"\nsource = \"vault:DB_ENTRY\"",
+    );
+    let schema = Schema::parse(&text).unwrap();
+    let config = Loader::new(&schema)
+        .resolved(BTreeMap::from([(
+            "db.password".into(),
+            "hunter2-secret".into(),
+        )]))
+        .build()
+        .unwrap();
+    let mut app = App::new(Session::new(&config, None));
+    press(&mut app, KeyCode::Down);
+    assert!(screen(&app).contains("[source: vault:DB_ENTRY]"));
+    press(&mut app, KeyCode::Enter);
+    let s = screen(&app);
+    assert!(s.contains("secret source `vault:DB_ENTRY`"), "{s}");
+    assert!(!s.contains("hunter2-secret") && !s.contains("new value>"));
+}

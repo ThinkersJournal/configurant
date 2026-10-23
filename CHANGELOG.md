@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.25
+
+- Secret sources, slice 2: a secret's `source` reference (never the value) is shown where the secret is described.
+  `describe`/`help` adds `[source: vault:ENTRY]`; `Explanation::source` and its text add the same; `edit::Field::source`
+  carries it, and the TUI and GUI show it and say a secret comes only from its environment variable or its secret
+  source; `configurant check` lists each secret that names a source and says this binary has none built in. All
+  crates move to 0.2.25.
+
 ## 0.2.24
 
 - Secret sources, slice 1 (design: `docs/SECRET-SOURCES.md`). New crate `configurant-secrets`: the `SecretSource`

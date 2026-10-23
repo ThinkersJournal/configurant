@@ -114,6 +114,14 @@ fn main() -> ExitCode {
                     s.project.version,
                     s.values().len()
                 );
+                // This binary has no secret source built in; say which ones the schema names.
+                for d in s.values().iter().filter(|d| d.source.is_some()) {
+                    println!(
+                        "  `{}` names secret source `{}`: not built into this binary, so it comes only from the environment here",
+                        d.key,
+                        d.source.as_deref().unwrap_or_default()
+                    );
+                }
                 ExitCode::SUCCESS
             }
             Err(e) => fail(e),
