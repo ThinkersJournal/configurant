@@ -5,8 +5,12 @@
    restart, provider, required). Parsing is strict and the schema checks itself (duplicate keys/env/flags,
    defaults that do not fit, secrets with defaults or flags, enums without choices, key/table conflicts).
 2. **No generated code.** The application reads values through the library (`Config::get::<T>`), or as a
-   typed view of their own struct (`Config::deserialize::<T>`, serde, by dotted key). An opt-in
-   compile-time key check comes later; it does not write source.
+   typed view of their own struct (`Config::deserialize::<T>`, serde, by dotted key). The opt-in key check
+   (`configurant::keycheck`, `configurant keys <schema> <src dir>`, or from a `build.rs`) reads source text and
+   reports every `.get::<T>("k")`, `.value("k")`, `.rows("k")` or `.explain("k")` whose literal key the schema
+   does not define, with a suggestion; it does not write source. It is a text match, not type-aware: a computed
+   name is counted and never guessed, and another type's method of the same name with a string argument is
+   reported too (spell that key as a variable).
 3. **Layers**: default < file < environment < command line. A load takes its inputs as data and returns all
    errors, not the first. `Loader::build_with_order` exists so the precedence test can show it fails when
    the order is inverted.

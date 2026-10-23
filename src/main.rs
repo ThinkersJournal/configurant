@@ -32,6 +32,9 @@ enum Command {
         #[arg(last = true)]
         app_args: Vec<String>,
     },
+    /// Find the places in Rust source (a directory, e.g. `src`) that ask for a key the schema does not
+    /// define. Exits 1 if there are any. Writes nothing.
+    Keys { schema: PathBuf, dir: PathBuf },
     /// Carry a configuration file to the schema's config version (or back, with `--to`). Prints the
     /// migrated text; changes the file only with `--write`, which first saves `<file>.bak`.
     Migrate {
@@ -115,6 +118,27 @@ fn main() -> ExitCode {
             }
             Err(e) => fail(e),
         },
+        Command::Keys { schema, dir } => {
+            let s = match load_schema(&schema) {
+                Ok(s) => s,
+                Err(e) => return fail(e),
+            };
+            match configurant::keycheck::check_dir(&s, &dir) {
+                Ok(r) if r.unknown.is_empty() => {
+                    println!(
+                        "{} key(s) asked for, all in the schema ({} computed name(s) not checked)",
+                        r.checked, r.dynamic
+                    );
+                    ExitCode::SUCCESS
+                }
+                Ok(r) => {
+                    print!("{}", r.render());
+                    println!("{} unknown key(s)", r.unknown.len());
+                    ExitCode::from(1)
+                }
+                Err(e) => fail(e),
+            }
+        }
         Command::Describe { schema } => match load_schema(&schema) {
             Ok(s) => {
                 print!("{}", s.help());
