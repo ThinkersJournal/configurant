@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.22
+
+- The compile-time key check: `configurant::keycheck` (`check_source`, `check_dir`, `Report`, `UnknownKey`) and the
+  `configurant keys <schema> <dir>` subcommand find Rust code that asks for a key the schema does not define
+  (`.get::<T>("k")`, `.value("k")`, `.rows("k")`, `.explain("k")`), with file, line and a did-you-mean. It reads
+  source text and writes nothing; computed names are counted, not guessed; comments and `target/` are skipped;
+  exit 1 on an unknown key. Usable from a `build.rs` (call `check_dir`, panic on `!report.unknown.is_empty()`).
+  All crates move to 0.2.22.
+
 ## 0.2.21
 
 - CI: the advisory `portfolio` job moves to coderipper commit 789b012 (Windows runner bash fix). `ROADMAP.md`: the
