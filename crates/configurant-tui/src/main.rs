@@ -11,6 +11,8 @@ use clap::{Parser, ValueEnum};
 use configurant::edit::{Confirmed, Session};
 use configurant::persistant::{Durability, PersistantModule, parse_endpoint};
 use configurant::{Loader, Modules, Needs, Schema};
+#[cfg(feature = "scan")]
+use configurant_tui::ScanSetup;
 use configurant_tui::{App, Effect, TransferSetup};
 use ratatui::crossterm::event;
 
@@ -45,6 +47,18 @@ struct Cli {
     /// (the variable that holds a connection URL; a URL itself is refused). Repeatable.
     #[arg(long = "endpoint", value_name = "ID=ANSWER")]
     endpoint: Vec<String>,
+    /// Offer "Add from scan" (key `a`): the Rust project whose environment reads become schema proposals.
+    #[cfg(feature = "scan")]
+    #[arg(long, value_name = "DIR")]
+    scan: Option<PathBuf>,
+    /// The language server command for `--scan`.
+    #[cfg(feature = "scan")]
+    #[arg(long, default_value = "rust-analyzer")]
+    scan_server: String,
+    /// How long the server may take to load the project and answer, in seconds.
+    #[cfg(feature = "scan")]
+    #[arg(long, default_value_t = 120)]
+    scan_wait: u64,
 }
 
 fn fail(msg: impl std::fmt::Display) -> ExitCode {
@@ -55,6 +69,11 @@ fn fail(msg: impl std::fmt::Display) -> ExitCode {
 /// Write the confirmed file text, saving `<file>.bak` first when the file exists (refused if the backup does).
 fn write(file: &Path, existing: &str, confirmed: &Confirmed) -> Result<(), String> {
     let text = confirmed.file_text(existing).map_err(|e| e.to_string())?;
+    save(file, existing, &text)
+}
+
+/// Write `text` over `file`, saving `existing` to `<file>.bak` first when the file exists (refused if the backup does).
+fn save(file: &Path, existing: &str, text: &str) -> Result<(), String> {
     if file.exists() {
         let mut bak = file.to_path_buf().into_os_string();
         bak.push(".bak");
@@ -143,7 +162,19 @@ fn main() -> ExitCode {
         needs,
         endpoints,
     });
+    #[cfg(feature = "scan")]
+    if let Some(root) = &cli.scan {
+        app = app.with_scan(ScanSetup {
+            schema_path: cli.schema.clone(),
+            schema_text: schema_text.clone(),
+            root: root.clone(),
+            server: cli.scan_server.clone(),
+            wait: Duration::from_secs(cli.scan_wait),
+        });
+    }
     let (tx, rx) = mpsc::channel();
+    #[cfg(feature = "scan")]
+    let (scan_tx, scan_rx) = mpsc::channel();
     let mut terminal = ratatui::init();
     let outcome = loop {
         if let Err(e) = terminal.draw(|f| app.draw(f)) {
@@ -163,12 +194,29 @@ fn main() -> ExitCode {
         if let Ok(result) = rx.try_recv() {
             effect = app.transferred(result);
         }
+        #[cfg(feature = "scan")]
+        if let Ok(result) = scan_rx.try_recv() {
+            app.scanned(result);
+        }
         match effect {
             Effect::None => {}
             Effect::Quit => break Ok(()),
             Effect::Write(confirmed) => {
                 let result = write(&cli.file, &existing, &confirmed);
                 app.wrote(result, &confirmed);
+            }
+            #[cfg(feature = "scan")]
+            Effect::Scan(job) => {
+                // The server loads the project here, off the screen's thread, so the spinner keeps turning.
+                let scan_tx = scan_tx.clone();
+                std::thread::spawn(move || {
+                    let _ = scan_tx.send(job.run());
+                });
+            }
+            #[cfg(feature = "scan")]
+            Effect::WriteSchema(text) => {
+                let result = save(&cli.schema, &schema_text, &text);
+                app.schema_written(result);
             }
             Effect::Transfer(job) => {
                 // The copy runs here, off the screen's thread, so the spinner keeps turning.

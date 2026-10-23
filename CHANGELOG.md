@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.15
+
+- `configurant-tui` "Add from scan" (scan assist slice 3, TUI first), behind the new Cargo feature `scan`
+  (off by default; the GUI follows). Build with `--features scan` and run
+  `configurant-tui <schema> --file <config> --scan <project dir>` (`--scan-server`, `--scan-wait`): key `a` runs
+  the scan on a worker thread, lists the proposals with a PARTIAL banner when the language server could not
+  resolve every call, Space ticks, Enter shows the entries to be added, and `y` writes the schema after saving
+  `<schema>.bak`. A failed scan is shown and changes nothing; a secret is proposed with no default and none is
+  ever drawn; the key is refused while edits are staged. The session keeps the old schema, so it asks for a
+  restart to edit the new values. Library: `App::with_scan`, `App::scanned`, `App::schema_written`,
+  `Effect::Scan`, `Effect::WriteSchema`, `ScanSetup`, `ScanJob`. All crates move to 0.2.15.
+
 ## 0.2.14
 
 - `configurant-scan --server-arg ARG` (repeatable) passes arguments to the language server command. The

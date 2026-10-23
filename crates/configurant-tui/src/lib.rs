@@ -17,6 +17,11 @@ use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph, Wrap};
 
+#[cfg(feature = "scan")]
+mod scan_ui;
+#[cfg(feature = "scan")]
+pub use scan_ui::{ScanJob, ScanSetup};
+
 /// What the caller must do after a key press.
 #[derive(Debug)]
 pub enum Effect {
@@ -28,6 +33,14 @@ pub enum Effect {
     /// result to [`App::transferred`], which says whether to write. Keep drawing and calling
     /// [`App::tick`] meanwhile.
     Transfer(TransferJob),
+    /// Run the scan on a worker thread (`ScanJob::run`) and hand the result to [`App::scanned`]. Keep
+    /// drawing and calling [`App::tick`] meanwhile.
+    #[cfg(feature = "scan")]
+    Scan(ScanJob),
+    /// The user confirmed the schema change: write this text over the schema (saving a backup first) and
+    /// report the result with [`App::schema_written`].
+    #[cfg(feature = "scan")]
+    WriteSchema(String),
 }
 
 /// What running a data transfer needs from the caller: the PersistAnt module (a clone of the registered
@@ -57,6 +70,13 @@ enum Mode {
     /// The copy is running on the caller's worker thread.
     Copying(Confirmed, [String; 2]),
     Done(Vec<String>),
+    /// The scan is running on the caller's worker thread.
+    #[cfg(feature = "scan")]
+    Scanning,
+    #[cfg(feature = "scan")]
+    Pick(Box<scan_ui::Pick>),
+    #[cfg(feature = "scan")]
+    SchemaReview(Box<scan_ui::SchemaReview>),
 }
 
 pub struct App<'a> {
@@ -69,6 +89,8 @@ pub struct App<'a> {
     report: Option<String>,
     skipped_copy: bool,
     ticks: usize,
+    #[cfg(feature = "scan")]
+    scan: Option<ScanSetup>,
 }
 
 impl<'a> App<'a> {
@@ -84,6 +106,56 @@ impl<'a> App<'a> {
             report: None,
             skipped_copy: false,
             ticks: 0,
+            #[cfg(feature = "scan")]
+            scan: None,
+        }
+    }
+
+    /// Offer "Add from scan" (key `a`): propose schema entries for the environment variables the project reads.
+    #[cfg(feature = "scan")]
+    #[must_use]
+    pub fn with_scan(mut self, setup: ScanSetup) -> Self {
+        self.scan = Some(setup);
+        self
+    }
+
+    /// The scan finished (or failed). A failure is shown and changes nothing.
+    #[cfg(feature = "scan")]
+    pub fn scanned(&mut self, result: Result<configurant_scan::Proposals, String>) {
+        if !matches!(self.mode, Mode::Scanning) {
+            return;
+        }
+        match result {
+            Ok(found) => self.mode = Mode::Pick(Box::new(scan_ui::Pick::new(found))),
+            Err(e) => {
+                self.mode = Mode::List;
+                self.message = Some(format!("scan failed, nothing was changed: {e}"));
+            }
+        }
+    }
+
+    /// The caller wrote (or failed to write) the schema for an [`Effect::WriteSchema`].
+    #[cfg(feature = "scan")]
+    pub fn schema_written(&mut self, result: Result<(), String>) {
+        let Mode::SchemaReview(r) = std::mem::replace(&mut self.mode, Mode::List) else {
+            return;
+        };
+        match result {
+            Err(e) => {
+                self.message = Some(format!("schema not written: {e}"));
+                self.mode = Mode::SchemaReview(r);
+            }
+            Ok(()) => {
+                let path = self
+                    .scan
+                    .as_ref()
+                    .map_or_else(String::new, |s| s.schema_path.display().to_string());
+                self.mode = Mode::Done(vec![
+                    format!("{} entries added to {path}: {}.", r.envs.len(), r.envs.join(", ")),
+                    "This session still has the old schema: start configurant-tui again to edit the new values.".into(),
+                    "Press any key to leave.".into(),
+                ]);
+            }
         }
     }
 
@@ -192,6 +264,93 @@ impl<'a> App<'a> {
             // Nothing to answer while the copy runs; Ctrl-C (above) still leaves.
             Mode::Copying(..) => Effect::None,
             Mode::Done(_) => Effect::Quit,
+            #[cfg(feature = "scan")]
+            Mode::Scanning => Effect::None,
+            #[cfg(feature = "scan")]
+            Mode::Pick(_) => self.pick_key(key.code),
+            #[cfg(feature = "scan")]
+            Mode::SchemaReview(_) => self.schema_review_key(key.code),
+        }
+    }
+
+    #[cfg(feature = "scan")]
+    fn start_scan(&mut self) -> Effect {
+        let Some(setup) = &self.scan else {
+            return Effect::None;
+        };
+        // The new schema is only read on the next start: staged edits would be lost with it.
+        if !self.session.review().is_empty() {
+            self.message = Some("review or unstage your changes before adding from a scan".into());
+            return Effect::None;
+        }
+        let job = ScanJob::new(setup);
+        self.mode = Mode::Scanning;
+        Effect::Scan(job)
+    }
+
+    #[cfg(feature = "scan")]
+    fn pick_key(&mut self, code: KeyCode) -> Effect {
+        let Mode::Pick(pick) = &mut self.mode else {
+            return Effect::None;
+        };
+        match code {
+            KeyCode::Down | KeyCode::Char('j') => {
+                pick.cursor = (pick.cursor + 1).min(pick.checked.len().saturating_sub(1));
+            }
+            KeyCode::Up | KeyCode::Char('k') => pick.cursor = pick.cursor.saturating_sub(1),
+            KeyCode::Char(' ') => {
+                self.message = None;
+                if let Some(c) = pick.checked.get_mut(pick.cursor) {
+                    *c = !*c;
+                }
+            }
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.mode = Mode::List;
+                self.message = None;
+            }
+            KeyCode::Enter => {
+                let envs = pick.envs();
+                if envs.is_empty() {
+                    self.message = Some("tick at least one proposal with Space".into());
+                    return Effect::None;
+                }
+                let Some(setup) = &self.scan else {
+                    return Effect::None;
+                };
+                match pick.found.accept(&setup.schema_text, &envs) {
+                    Ok(new_text) => {
+                        if let Mode::Pick(pick) = std::mem::replace(&mut self.mode, Mode::List) {
+                            self.message = None;
+                            self.mode = Mode::SchemaReview(Box::new(scan_ui::SchemaReview {
+                                pick: *pick,
+                                new_text,
+                                envs,
+                            }));
+                        }
+                    }
+                    Err(e) => self.message = Some(e.to_string()),
+                }
+            }
+            _ => {}
+        }
+        Effect::None
+    }
+
+    #[cfg(feature = "scan")]
+    fn schema_review_key(&mut self, code: KeyCode) -> Effect {
+        match code {
+            KeyCode::Char('y') => match &self.mode {
+                Mode::SchemaReview(r) => Effect::WriteSchema(r.new_text.clone()),
+                _ => Effect::None,
+            },
+            KeyCode::Char('n') | KeyCode::Esc => {
+                if let Mode::SchemaReview(r) = std::mem::replace(&mut self.mode, Mode::List) {
+                    self.message = None;
+                    self.mode = Mode::Pick(Box::new(r.pick));
+                }
+                Effect::None
+            }
+            _ => Effect::None,
         }
     }
 
@@ -226,6 +385,8 @@ impl<'a> App<'a> {
                     self.mode = Mode::Review(review);
                 }
             }
+            #[cfg(feature = "scan")]
+            KeyCode::Char('a') => return self.start_scan(),
             KeyCode::Char('q') | KeyCode::Esc => return Effect::Quit,
             _ => {}
         }
@@ -478,6 +639,51 @@ impl<'a> App<'a> {
                 Paragraph::new(lines.join("\n")).wrap(Wrap { trim: false }),
                 frame.area(),
             ),
+            #[cfg(feature = "scan")]
+            Mode::Scanning => {
+                let spin = ["|", "/", "-", "\\"][self.ticks % 4];
+                let root = self
+                    .scan
+                    .as_ref()
+                    .map_or_else(String::new, |s| s.root.display().to_string());
+                frame.render_widget(
+                    Paragraph::new(format!(
+                        "Scanning `{root}` {spin}\n\nThe language server loads the project first, which can take a minute. Nothing is changed. Ctrl-C abandons the scan."
+                    ))
+                    .wrap(Wrap { trim: false }),
+                    frame.area(),
+                );
+            }
+            #[cfg(feature = "scan")]
+            Mode::Pick(pick) => self.draw_pick(frame, pick),
+            #[cfg(feature = "scan")]
+            Mode::SchemaReview(r) => {
+                let mut lines = vec![
+                    "Review: the schema is not changed until you confirm.".to_owned(),
+                    String::new(),
+                ];
+                let ticked = r.pick.lines();
+                for (l, c) in ticked.iter().zip(&r.pick.checked) {
+                    if *c {
+                        lines.push(format!("  add {}", l.trim_start_matches("[x] ")));
+                    }
+                }
+                if let Some(s) = &self.scan {
+                    lines.push(format!(
+                        "\n{} is saved to {}.bak first, then rewritten.",
+                        s.schema_path.display(),
+                        s.schema_path.display()
+                    ));
+                }
+                if let Some(m) = &self.message {
+                    lines.push(format!("\n{m}"));
+                }
+                lines.push("\ny write the schema   n / Esc go back".into());
+                frame.render_widget(
+                    Paragraph::new(lines.join("\n")).wrap(Wrap { trim: false }),
+                    frame.area(),
+                );
+            }
             _ => {
                 let items: Vec<ListItem> = self
                     .fields
@@ -500,6 +706,34 @@ impl<'a> App<'a> {
                 frame.render_widget(Paragraph::new(self.hint()), footer);
             }
         }
+    }
+
+    #[cfg(feature = "scan")]
+    fn draw_pick(&self, frame: &mut Frame, pick: &scan_ui::Pick) {
+        let header = pick.header();
+        let [head, body, footer] = Layout::vertical([
+            Constraint::Length(u16::try_from(header.len() + 1).unwrap_or(5)),
+            Constraint::Min(3),
+            Constraint::Length(2),
+        ])
+        .areas(frame.area());
+        frame.render_widget(
+            Paragraph::new(header.join("\n")).wrap(Wrap { trim: false }),
+            head,
+        );
+        let items: Vec<ListItem> = pick.lines().into_iter().map(ListItem::new).collect();
+        let list = List::new(items)
+            .block(Block::bordered().title("proposed entries"))
+            .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
+        let mut state = ListState::default().with_selected(Some(pick.cursor));
+        frame.render_stateful_widget(list, body, &mut state);
+        let msg = self.message.as_deref().unwrap_or("");
+        frame.render_widget(
+            Paragraph::new(format!(
+                "{msg}\nUp/Down select   Space tick   Enter review   Esc back"
+            )),
+            footer,
+        );
     }
 
     fn detail(&self) -> Paragraph<'_> {
@@ -530,6 +764,10 @@ impl<'a> App<'a> {
     fn hint(&self) -> &'static str {
         match self.mode {
             Mode::Edit(_) => "Enter stage   Tab next choice   Esc cancel",
+            #[cfg(feature = "scan")]
+            _ if self.scan.is_some() => {
+                "Up/Down select   Enter edit   u unstage   r review & confirm   a add from scan   q quit"
+            }
             _ => "Up/Down select   Enter edit   u unstage   r review & confirm   q quit",
         }
     }
