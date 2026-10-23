@@ -57,4 +57,4 @@
     way to a `Confirmed`, which alone yields new file text and the plan to execute. A front end (the
     `configurant-tui` crate; a GUI later) draws, asks, writes and executes; the library decides what is valid.
 
-Later: secret-source modules; scan assist.
+Later: secret-source modules (proposal: [SECRET-SOURCES.md](SECRET-SOURCES.md)); scan assist.
