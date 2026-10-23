@@ -8,4 +8,9 @@ Candidates are found in the source text; a language server (rust-analyzer) confi
 `std::env`. A call the server cannot resolve is counted as unresolved and the result is marked partial, never
 presented as complete. A name that looks like a secret is proposed as `secret = true` with no default.
 
+    configurant-scan configurant.toml --root .
+    configurant-scan configurant.toml --root . --accept APP_HOST --write
+
+Exit code 0 complete, 2 partial (the server could not resolve every call), 1 error.
+
 Licensed under MIT OR Apache-2.0.

@@ -89,7 +89,8 @@ installed on the runner with `rustup component add rust-analyzer rust-src`. 4. `
 ## Built in slice 1
 
 `configurant-scan` with `Resolver` (trait; `LspResolver` over `lsp-bridge`), `scan`, `Proposals`;
-`configurant::schema_edit::add_value`. Not built: the `configurant scan` subcommand and TUI/GUI "Add from scan".
+`configurant::schema_edit::add_value`. Slice 2 (0.2.13): the `configurant-scan` binary (not a `configurant scan` subcommand: the scan crate depends on
+`configurant`, so the core binary cannot depend on it). Not built: TUI/GUI "Add from scan".
 `lsp-bridge` 0.2 sent `rootUri = "file://" + path`, which is not a URI for a Windows path, so rust-analyzer never
 loaded the workspace; fixed in 0.4.0 (which this crate requires), along with a typed `ContentModified` error that
 `LspResolver` retries.

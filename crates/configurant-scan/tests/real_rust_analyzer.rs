@@ -55,3 +55,53 @@ fn rust_analyzer_confirms_std_env_and_rejects_a_look_alike() {
     assert_eq!(host.default_seen.as_deref(), Some("localhost"));
     assert!(p.proposals[1].secret);
 }
+
+#[test]
+fn the_binary_reports_and_accepts_against_a_real_server() {
+    let dir = std::env::temp_dir().join(format!("cfg-scan-real-cli-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    std::fs::write(
+        dir.join("Cargo.toml"),
+        "[package]
+name = \"fixture\"
+version = \"0.1.0\"
+edition = \"2021\"
+",
+    )
+    .unwrap();
+    std::fs::write(dir.join("src/main.rs"), MAIN).unwrap();
+    let schema = dir.join("configurant.toml");
+    std::fs::write(&schema, SCHEMA).unwrap();
+    let bin = env!("CARGO_BIN_EXE_configurant-scan");
+    let base = [
+        schema.to_str().unwrap(),
+        "--root",
+        dir.to_str().unwrap(),
+        "--wait",
+        "180",
+    ];
+
+    let out = std::process::Command::new(bin).args(base).output().unwrap();
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    let ok = out.status.code() == Some(0)
+        && text.contains("REAL_HOST -> real.host")
+        && text.contains("REAL_TOKEN -> real.token")
+        && !text.contains("PARTIAL");
+    assert!(ok, "report run failed with code {:?}", out.status.code());
+
+    let out = std::process::Command::new(bin)
+        .args(base)
+        .args(["--accept", "REAL_HOST", "--write"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(0));
+    let written = std::fs::read_to_string(&schema).unwrap();
+    let s = Schema::parse(&written).unwrap();
+    assert!(s.get("real.host").is_some() && s.get("real.token").is_none());
+    assert_eq!(
+        std::fs::read_to_string(dir.join("configurant.toml.bak")).unwrap(),
+        SCHEMA
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

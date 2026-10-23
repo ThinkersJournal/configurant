@@ -61,6 +61,29 @@ pub struct Proposal {
 }
 
 impl Proposal {
+    /// The type and default a value of this name would get, from the literal seen beside the read.
+    fn typed(&self) -> (ValueType, Option<toml::Value>) {
+        match self.default_seen.as_deref() {
+            Some("true") => (ValueType::Bool, Some(toml::Value::Boolean(true))),
+            Some("false") => (ValueType::Bool, Some(toml::Value::Boolean(false))),
+            Some(s) => match s.parse::<i64>() {
+                Ok(i) => (ValueType::Int, Some(toml::Value::Integer(i))),
+                Err(_) => (ValueType::String, Some(toml::Value::String(s.to_owned()))),
+            },
+            None => (ValueType::String, None),
+        }
+    }
+
+    /// The schema type name of the proposal, for the report.
+    pub fn type_name(&self) -> &'static str {
+        self.typed().0.name()
+    }
+
+    /// What the report appends to a proposal that must not hold a default.
+    pub fn mark(&self) -> &'static str {
+        if self.secret { " (no default)" } else { "" }
+    }
+
     /// The value to hand to `schema_edit::add_value` once a human has accepted it.
     pub fn to_new_value(&self) -> NewValue {
         let first = &self.sites[0];
@@ -70,15 +93,7 @@ impl Proposal {
             first.file.display().to_string().replace('\\', "/"),
             first.line
         );
-        let (ty, default) = match self.default_seen.as_deref() {
-            Some("true") => (ValueType::Bool, Some(toml::Value::Boolean(true))),
-            Some("false") => (ValueType::Bool, Some(toml::Value::Boolean(false))),
-            Some(s) => match s.parse::<i64>() {
-                Ok(i) => (ValueType::Int, Some(toml::Value::Integer(i))),
-                Err(_) => (ValueType::String, Some(toml::Value::String(s.to_owned()))),
-            },
-            None => (ValueType::String, None),
-        };
+        let (ty, default) = self.typed();
         let mut n = NewValue::new(&self.key, ty, &desc);
         n.env = Some(self.env.clone());
         n.default = default;
@@ -213,4 +228,98 @@ pub fn scan(
         }
     }
     Ok(out)
+}
+
+/// Why accepting proposals failed. No variant carries a default.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum AcceptError {
+    #[error("no proposal for `{env}`; proposed: {}", known.join(", "))]
+    Unknown { env: String, known: Vec<String> },
+    #[error(transparent)]
+    Edit(#[from] configurant::schema_edit::SchemaEditError),
+}
+
+impl Proposals {
+    /// The schema text with the proposals for `envs` added; the caller writes it.
+    pub fn accept(&self, schema_text: &str, envs: &[String]) -> Result<String, AcceptError> {
+        let mut text = schema_text.to_owned();
+        for env in envs {
+            let p = self
+                .proposals
+                .iter()
+                .find(|p| &p.env == env)
+                .ok_or_else(|| AcceptError::Unknown {
+                    env: env.clone(),
+                    known: self.proposals.iter().map(|p| p.env.clone()).collect(),
+                })?;
+            text = configurant::schema_edit::add_value(&text, &p.to_new_value())?;
+        }
+        Ok(text)
+    }
+
+    /// A plain-text report. A default is shown only for a proposal that is not secret (a secret holds none).
+    pub fn report(&self) -> String {
+        use std::fmt::Write as _;
+        let mut o = String::new();
+        let at = |s: &Site| {
+            format!(
+                "{}:{}",
+                s.file.display().to_string().replace('\\', "/"),
+                s.line
+            )
+        };
+        let _ = writeln!(
+            o,
+            "scanned {} files, {} candidate reads: {} proposed, {} already in the schema",
+            self.files,
+            self.candidates,
+            self.proposals.len(),
+            self.known
+        );
+        for p in &self.proposals {
+            let _ = write!(
+                o,
+                "  {} -> {} ({}){}",
+                p.env,
+                p.key,
+                p.type_name(),
+                p.mark()
+            );
+            if let Some(d) = &p.default_seen {
+                let _ = write!(o, " default {d}");
+            }
+            let sites: Vec<_> = p.sites.iter().map(at).collect();
+            let _ = writeln!(o, " at {}", sites.join(", "));
+        }
+        for env in &self.conflicts {
+            let _ = writeln!(
+                o,
+                "  {env}: its guessed key is already used for another variable; decide by hand"
+            );
+        }
+        if !self.dynamic.is_empty() {
+            let sites: Vec<_> = self.dynamic.iter().map(at).collect();
+            let _ = writeln!(
+                o,
+                "reads with a computed name (not proposed): {}",
+                sites.join(", ")
+            );
+        }
+        if self.rejected > 0 {
+            let _ = writeln!(
+                o,
+                "{} calls resolve to the project's own `env::var`, not std (skipped)",
+                self.rejected
+            );
+        }
+        if self.is_partial() {
+            let _ = writeln!(
+                o,
+                "PARTIAL: the language server could not resolve {} calls, so this list may be missing variables",
+                self.unresolved
+            );
+        }
+        o
+    }
 }

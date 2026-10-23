@@ -269,3 +269,63 @@ fn a_target_directory_and_dot_directories_are_not_scanned() {
     let p = scan(&t.0, &schema(), &mut std_env()).unwrap();
     assert_eq!((p.files, p.candidates), (1, 0));
 }
+
+#[test]
+fn accepting_an_unknown_variable_names_what_was_proposed() {
+    let t = Tree::new(
+        "accept-unknown",
+        &[(
+            "src/main.rs",
+            "fn f() { let _ = std::env::var(\"APP_HOST\"); }\n",
+        )],
+    );
+    let p = scan(&t.0, &schema(), &mut std_env()).unwrap();
+    let err = p.accept(SCHEMA, &["APP_HOTS".to_owned()]).unwrap_err();
+    let shown = err.to_string();
+    assert!(shown.contains("APP_HOTS") && shown.contains("APP_HOST"));
+}
+
+#[test]
+fn accepting_adds_only_what_was_named() {
+    let t = Tree::new(
+        "accept-some",
+        &[(
+            "src/main.rs",
+            "fn f() { let _ = std::env::var(\"APP_HOST\"); let _ = std::env::var(\"APP_MODE\"); }\n",
+        )],
+    );
+    let p = scan(&t.0, &schema(), &mut std_env()).unwrap();
+    let out = p.accept(SCHEMA, &["APP_MODE".to_owned()]).unwrap();
+    let s = Schema::parse(&out).unwrap();
+    assert!(s.get("app.mode").is_some() && s.get("app.host").is_none());
+}
+
+#[test]
+fn the_report_names_partial_and_never_carries_a_secret_default() {
+    let t = Tree::new(
+        "report",
+        &[(
+            "src/main.rs",
+            "fn f() {\n let _ = std::env::var(\"DB_PASSWORD\").unwrap_or(\"hunter2-canary\".into());\n let _ = std::env::var(\"LOST_ONE\");\n}\n",
+        )],
+    );
+    // Resolve the first call, fail the second: one proposal and a partial result.
+    struct Alternate(bool);
+    impl Resolver for Alternate {
+        fn definition(
+            &mut self,
+            _: &Path,
+            _: &str,
+            _: u32,
+            _: u32,
+        ) -> Result<Option<String>, ScanError> {
+            self.0 = !self.0;
+            Ok(self.0.then(|| STD_ENV.to_owned()))
+        }
+    }
+    let p = scan(&t.0, &schema(), &mut Alternate(false)).unwrap();
+    let r = p.report();
+    assert!(r.contains("PARTIAL"));
+    assert!(r.contains("DB_PASSWORD") && r.contains("(no default)"));
+    assert!(!r.contains("hunter2-canary"));
+}
