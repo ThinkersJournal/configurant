@@ -26,6 +26,9 @@ struct Cli {
     /// The language server command.
     #[arg(long, default_value = "rust-analyzer")]
     server: String,
+    /// An argument for the language server command (repeatable).
+    #[arg(long = "server-arg", value_name = "ARG", allow_hyphen_values = true)]
+    server_arg: Vec<String>,
     /// How long the server may take to load the project and answer, in seconds.
     #[arg(long, default_value_t = 120)]
     wait: u64,
@@ -53,11 +56,15 @@ fn main() -> ExitCode {
         Ok(s) => s,
         Err(e) => return fail(format!("{}: {e}", cli.schema.display())),
     };
-    let mut server =
-        match LspResolver::start(&cli.server, &[], &cli.root, Duration::from_secs(cli.wait)) {
-            Ok(s) => s,
-            Err(e) => return fail(e),
-        };
+    let mut server = match LspResolver::start(
+        &cli.server,
+        &cli.server_arg,
+        &cli.root,
+        Duration::from_secs(cli.wait),
+    ) {
+        Ok(s) => s,
+        Err(e) => return fail(e),
+    };
     let found = match scan(&cli.root, &schema, &mut server) {
         Ok(p) => p,
         Err(e) => return fail(e),
