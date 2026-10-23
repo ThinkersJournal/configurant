@@ -14,7 +14,7 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use ::persistant::capability::provider::ProviderNeeds;
+use ::persistant::capability::provider::{EndpointSpec, ProviderNeeds};
 use ::persistant::kv::{KvBackend, KvError};
 use ::persistant::registry::{self, Endpoint};
 
@@ -23,6 +23,50 @@ use crate::module::Needs;
 
 /// What the report says is left alone.
 pub const NOT_COPIED: &str = "leases, blob and relational data are not copied";
+
+/// Turn what a person typed into the endpoint a backend opens from. `spec` is what the backend asks for
+/// (`PersistantModule::endpoint_spec`). A connection URL is a secret, so it is **never typed**: a URL-kind
+/// backend takes `env:NAME`, the name of an environment variable holding the URL, and a typed URL is refused
+/// without being echoed. A path backend takes a path; a backend that needs nothing takes empty or `none`.
+pub fn parse_endpoint(text: &str, spec: &EndpointSpec) -> Result<Endpoint, String> {
+    let text = text.trim();
+    let looks_like_url = text.contains("://");
+    match spec {
+        EndpointSpec::None => match text {
+            "" | "none" => Ok(Endpoint::None),
+            _ => Err("this backend needs no endpoint: leave it empty".to_owned()),
+        },
+        EndpointSpec::Path => {
+            if looks_like_url {
+                Err("this backend opens from a path, not a URL".to_owned())
+            } else if text.is_empty() {
+                Err("give the path (a directory or file)".to_owned())
+            } else {
+                Ok(Endpoint::path(text))
+            }
+        }
+        EndpointSpec::Url { schemes } => {
+            if let Some(name) = text.strip_prefix("env:") {
+                if !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                    Ok(Endpoint::url_env(name))
+                } else {
+                    Err("after `env:` give a variable name (letters, digits, `_`)".to_owned())
+                }
+            } else if looks_like_url {
+                Err(format!(
+                    "a connection URL is a secret and is never typed here; put it in an environment variable and answer `env:NAME` (schemes: {})",
+                    schemes.join(", ")
+                ))
+            } else {
+                Err(
+                    "answer `env:NAME`, the environment variable that holds the connection URL"
+                        .to_owned(),
+                )
+            }
+        }
+        _ => Err("this build does not know how to ask for that kind of endpoint".to_owned()),
+    }
+}
 
 /// One end of a transfer: a backend id and where to open it. `Debug` shows the id and the *kind* of
 /// endpoint only, never a path or URL.
@@ -197,6 +241,16 @@ fn secrets_of(endpoint: &Endpoint) -> Vec<String> {
 }
 
 impl PersistantModule {
+    /// What the backend `id` opens from, or `None` if this build does not offer it.
+    pub fn endpoint_spec(&self, id: &str) -> Option<EndpointSpec> {
+        let any = ProviderNeeds::new(Vec::new(), Durability::Volatile);
+        registry::providers(&any)
+            .ok()?
+            .into_iter()
+            .find(|l| l.id == id)
+            .map(|l| l.endpoint)
+    }
+
     /// Copy every record of the backend `from` into the backend `to`, then verify the copy. `needs` gate
     /// the *target* (the backend the project is moving to); the source is opened with no requirement, so a
     /// backend that no longer meets the needs can still be read. The source is never modified.
@@ -441,7 +495,89 @@ mod tests {
     }
 
     #[test]
+    fn a_typed_url_is_refused_without_being_echoed_and_env_name_is_accepted() {
+        let spec = EndpointSpec::Url {
+            schemes: vec!["postgres".to_owned()],
+        };
+        let typed = "postgres://appuser:hunter2@db.internal/prod";
+        let err = parse_endpoint(typed, &spec).unwrap_err();
+        assert!(
+            !err.contains("hunter2") && !err.contains("db.internal"),
+            "{err}"
+        );
+        assert_eq!(
+            parse_endpoint("env:APP_DB_URL", &spec),
+            Ok(Endpoint::url_env("APP_DB_URL"))
+        );
+        assert!(parse_endpoint("env:", &spec).is_err());
+        assert!(parse_endpoint("env:a b", &spec).is_err());
+        assert!(parse_endpoint("just words", &spec).is_err());
+    }
+
+    #[test]
+    fn path_and_none_specs_take_a_path_and_nothing() {
+        assert_eq!(
+            parse_endpoint(" /data/x ", &EndpointSpec::Path),
+            Ok(Endpoint::path("/data/x"))
+        );
+        assert!(parse_endpoint("", &EndpointSpec::Path).is_err());
+        assert!(parse_endpoint("sqlite://x", &EndpointSpec::Path).is_err());
+        assert_eq!(parse_endpoint("", &EndpointSpec::None), Ok(Endpoint::None));
+        assert_eq!(
+            parse_endpoint("none", &EndpointSpec::None),
+            Ok(Endpoint::None)
+        );
+        assert!(parse_endpoint("/x", &EndpointSpec::None).is_err());
+    }
+
+    #[test]
     fn a_path_endpoint_hides_nothing() {
         assert!(secrets_of(&Endpoint::path("/data/x")).is_empty());
+    }
+}
+
+/// A transfer ready to run off the UI thread (feature `persistant-blocking`): the module, the two ends, the
+/// needs and the options, owned. A front end returns one from its event handling, runs [`Self::run`] on a
+/// worker thread, and hands the result back.
+#[cfg(feature = "persistant-blocking")]
+#[derive(Debug)]
+pub struct TransferJob {
+    module: PersistantModule,
+    from: TransferEnd,
+    to: TransferEnd,
+    needs: Needs,
+    options: TransferOptions,
+}
+
+#[cfg(feature = "persistant-blocking")]
+impl TransferJob {
+    pub fn new(
+        module: PersistantModule,
+        from: TransferEnd,
+        to: TransferEnd,
+        needs: Needs,
+        options: TransferOptions,
+    ) -> Self {
+        TransferJob {
+            module,
+            from,
+            to,
+            needs,
+            options,
+        }
+    }
+
+    pub fn from_id(&self) -> &str {
+        &self.from.id
+    }
+
+    pub fn to_id(&self) -> &str {
+        &self.to.id
+    }
+
+    /// Run it, blocking the calling thread until it finishes.
+    pub fn run(self) -> Result<TransferReport, TransferError> {
+        self.module
+            .transfer_blocking(&self.from, &self.to, &self.needs, &self.options)
     }
 }

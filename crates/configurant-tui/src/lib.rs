@@ -3,7 +3,13 @@
 //! turns key presses into staged edits, shows a review, and asks for a confirmation; it never writes
 //! a file itself. A confirmed change leaves as [`Effect::Write`], which the caller carries out.
 
+use std::collections::BTreeMap;
+
 use configurant::edit::{Confirmed, Field, Review, Session};
+use configurant::persistant::{
+    EndpointSpec, PersistantModule, TransferEnd, TransferError, TransferJob, TransferOptions,
+    TransferReport, parse_endpoint,
+};
 use configurant::{ActionKind, Needs};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -18,12 +24,38 @@ pub enum Effect {
     Quit,
     /// The user confirmed: write `Confirmed::file_text` and report the result with [`App::wrote`].
     Write(Confirmed),
+    /// The file must not be written yet: run the job on a worker thread (`TransferJob::run`) and hand the
+    /// result to [`App::transferred`], which says whether to write. Keep drawing and calling
+    /// [`App::tick`] meanwhile.
+    Transfer(TransferJob),
+}
+
+/// What running a data transfer needs from the caller: the PersistAnt module (a clone of the registered
+/// one), the project's needs, and endpoint answers given up front (`id` -> `path` or `env:NAME`).
+pub struct TransferSetup {
+    pub module: PersistantModule,
+    pub needs: Needs,
+    pub endpoints: BTreeMap<String, String>,
+}
+
+/// The two endpoint questions of one transfer.
+struct Ask {
+    confirmed: Confirmed,
+    ids: [String; 2],
+    answers: [String; 2],
+    active: usize,
 }
 
 enum Mode {
     List,
     Edit(String),
     Review(Review),
+    /// Asking for the source and target endpoints of a data transfer.
+    Endpoints(Box<Ask>),
+    /// Asking whether to write the file without copying (the answer is never the default).
+    SkipCopy(Box<Ask>),
+    /// The copy is running on the caller's worker thread.
+    Copying(Confirmed, [String; 2]),
     Done(Vec<String>),
 }
 
@@ -33,6 +65,10 @@ pub struct App<'a> {
     selected: usize,
     mode: Mode,
     message: Option<String>,
+    setup: Option<TransferSetup>,
+    report: Option<String>,
+    skipped_copy: bool,
+    ticks: usize,
 }
 
 impl<'a> App<'a> {
@@ -44,6 +80,61 @@ impl<'a> App<'a> {
             selected: 0,
             mode: Mode::List,
             message: None,
+            setup: None,
+            report: None,
+            skipped_copy: false,
+            ticks: 0,
+        }
+    }
+
+    /// Let this front end run the data transfer in a plan (without this it only lists it).
+    #[must_use]
+    pub fn with_transfer(mut self, setup: TransferSetup) -> Self {
+        self.setup = Some(setup);
+        self
+    }
+
+    /// Advance the spinner shown while a copy runs; call it on every loop turn.
+    pub fn tick(&mut self) {
+        self.ticks = self.ticks.wrapping_add(1);
+    }
+
+    fn needs(&self) -> Needs {
+        self.setup
+            .as_ref()
+            .map_or_else(Needs::default, |s| s.needs.clone())
+    }
+
+    /// The one data transfer in a confirmed plan, if this front end can run it.
+    fn transfer_pair(&self, confirmed: &Confirmed) -> Option<[String; 2]> {
+        self.setup.as_ref()?;
+        let mut pairs = confirmed
+            .plan()
+            .actions
+            .iter()
+            .filter_map(|a| match &a.kind {
+                ActionKind::DataTransfer { from, to } => Some([from.clone(), to.clone()]),
+                _ => None,
+            });
+        let first = pairs.next()?;
+        pairs.next().is_none().then_some(first)
+    }
+
+    /// The copy finished (or failed). `Ok` yields the write that was waiting for it; an error writes
+    /// nothing, shows why, and leaves the staged edits for another try.
+    pub fn transferred(&mut self, result: Result<TransferReport, TransferError>) -> Effect {
+        let Mode::Copying(confirmed, _) = std::mem::replace(&mut self.mode, Mode::List) else {
+            return Effect::None;
+        };
+        match result {
+            Ok(report) => {
+                self.report = Some(report.to_string());
+                Effect::Write(confirmed)
+            }
+            Err(e) => {
+                self.message = Some(format!("copy failed, nothing was written: {e}"));
+                Effect::None
+            }
         }
     }
 
@@ -51,8 +142,8 @@ impl<'a> App<'a> {
         self.fields = self.session.fields();
     }
 
-    /// The caller wrote (or failed to write) the file for an [`Effect::Write`]. The plan is listed, not
-    /// executed: this front end has no way to open both endpoints of a data transfer.
+    /// The caller wrote (or failed to write) the file for an [`Effect::Write`]. A data transfer was run
+    /// before this if the app has a [`TransferSetup`]; otherwise the plan is only listed.
     pub fn wrote(&mut self, result: Result<(), String>, confirmed: &Confirmed) {
         match result {
             Err(e) => {
@@ -62,8 +153,14 @@ impl<'a> App<'a> {
             Ok(()) => {
                 let mut lines = vec![format!("{} change(s) written.", confirmed.changes().len())];
                 for a in &confirmed.plan().actions {
-                    lines.push(match &a.kind {
-                        ActionKind::DataTransfer { from, to } => format!(
+                    lines.push(match (&a.kind, &self.report) {
+                        (ActionKind::DataTransfer { from, to }, Some(report)) => {
+                            format!("Copied `{from}` -> `{to}`: {report}")
+                        }
+                        (ActionKind::DataTransfer { from, to }, None) if self.skipped_copy => format!(
+                            "NOT COPIED (you chose to write without copying): the data stays in `{from}`; `{to}` starts empty"
+                        ),
+                        (ActionKind::DataTransfer { from, to }, None) => format!(
                             "NOT DONE: {} (copy `{from}` -> `{to}`; this front end cannot run data transfers)",
                             a.description
                         ),
@@ -90,6 +187,10 @@ impl<'a> App<'a> {
                 Effect::None
             }
             Mode::Review(_) => self.review_key(key.code),
+            Mode::Endpoints(_) => self.endpoints_key(key),
+            Mode::SkipCopy(_) => self.skip_key(key.code),
+            // Nothing to answer while the copy runs; Ctrl-C (above) still leaves.
+            Mode::Copying(..) => Effect::None,
             Mode::Done(_) => Effect::Quit,
         }
     }
@@ -132,6 +233,7 @@ impl<'a> App<'a> {
     }
 
     fn edit_key(&mut self, code: KeyCode) {
+        let needs = self.needs();
         let Mode::Edit(input) = &mut self.mode else {
             return;
         };
@@ -149,7 +251,7 @@ impl<'a> App<'a> {
                 if let Some(f) = self.fields.get(self.selected) {
                     let ids: Vec<String> = self
                         .session
-                        .choices(&f.key, &Needs::default())
+                        .choices(&f.key, &needs)
                         .into_iter()
                         .map(|c| c.id)
                         .collect();
@@ -182,7 +284,27 @@ impl<'a> App<'a> {
                 let Mode::Review(review) = std::mem::replace(&mut self.mode, Mode::List) else {
                     return Effect::None;
                 };
-                Effect::Write(review.confirm())
+                let confirmed = review.confirm();
+                match self.transfer_pair(&confirmed) {
+                    Some(ids) => {
+                        let prefilled = |id: &String| {
+                            self.setup
+                                .as_ref()
+                                .and_then(|s| s.endpoints.get(id).cloned())
+                                .unwrap_or_default()
+                        };
+                        let answers = [prefilled(&ids[0]), prefilled(&ids[1])];
+                        self.message = None;
+                        self.mode = Mode::Endpoints(Box::new(Ask {
+                            confirmed,
+                            ids,
+                            answers,
+                            active: 0,
+                        }));
+                        Effect::None
+                    }
+                    None => Effect::Write(confirmed),
+                }
             }
             KeyCode::Char('n') | KeyCode::Esc => {
                 self.mode = Mode::List;
@@ -190,6 +312,131 @@ impl<'a> App<'a> {
             }
             _ => Effect::None,
         }
+    }
+
+    fn endpoints_key(&mut self, key: KeyEvent) -> Effect {
+        let Mode::Endpoints(ask) = &mut self.mode else {
+            return Effect::None;
+        };
+        if key.modifiers.contains(KeyModifiers::CONTROL) {
+            if key.code == KeyCode::Char('w')
+                && let Mode::Endpoints(ask) = std::mem::replace(&mut self.mode, Mode::List)
+            {
+                self.mode = Mode::SkipCopy(ask);
+            }
+            return Effect::None;
+        }
+        match key.code {
+            KeyCode::Esc => {
+                self.mode = Mode::List;
+                self.message = Some("transfer cancelled: nothing was copied or written".into());
+            }
+            KeyCode::Backspace => {
+                ask.answers[ask.active].pop();
+            }
+            KeyCode::Char(c) => ask.answers[ask.active].push(c),
+            KeyCode::Tab => ask.active = 1 - ask.active,
+            KeyCode::Enter if ask.active == 0 => ask.active = 1,
+            KeyCode::Enter => return self.start_copy(),
+            _ => {}
+        }
+        Effect::None
+    }
+
+    /// Check both answers; on success hand the caller the job to run.
+    fn start_copy(&mut self) -> Effect {
+        let (Some(setup), Mode::Endpoints(ask)) = (&self.setup, &mut self.mode) else {
+            return Effect::None;
+        };
+        let labels = ["source", "target"];
+        let mut ends = Vec::new();
+        #[allow(clippy::needless_range_loop)] // `i` indexes ids, answers and labels together
+        for i in 0..2 {
+            let id = &ask.ids[i];
+            let parsed = setup
+                .module
+                .endpoint_spec(id)
+                .ok_or_else(|| format!("backend `{id}` is not offered by this build"))
+                .and_then(|spec: EndpointSpec| parse_endpoint(&ask.answers[i], &spec));
+            match parsed {
+                Ok(endpoint) => ends.push(TransferEnd::new(id, endpoint)),
+                Err(e) => {
+                    // A typed URL may hold a password: do not leave it on screen.
+                    if ask.answers[i].contains("://") {
+                        ask.answers[i].clear();
+                    }
+                    ask.active = i;
+                    self.message = Some(format!("{} endpoint: {e}", labels[i]));
+                    return Effect::None;
+                }
+            }
+        }
+        let (to, from) = (ends.pop(), ends.pop());
+        let (Some(from), Some(to)) = (from, to) else {
+            return Effect::None;
+        };
+        let job = TransferJob::new(
+            setup.module.clone(),
+            from,
+            to,
+            setup.needs.clone(),
+            TransferOptions::default(),
+        );
+        let (confirmed, ids) = (ask.confirmed.clone(), ask.ids.clone());
+        self.message = None;
+        self.mode = Mode::Copying(confirmed, ids);
+        Effect::Transfer(job)
+    }
+
+    fn skip_key(&mut self, code: KeyCode) -> Effect {
+        match code {
+            KeyCode::Char('y') => {
+                let Mode::SkipCopy(ask) = std::mem::replace(&mut self.mode, Mode::List) else {
+                    return Effect::None;
+                };
+                self.skipped_copy = true;
+                Effect::Write(ask.confirmed)
+            }
+            KeyCode::Char('n') | KeyCode::Esc => {
+                if let Mode::SkipCopy(ask) = std::mem::replace(&mut self.mode, Mode::List) {
+                    self.mode = Mode::Endpoints(ask);
+                }
+                Effect::None
+            }
+            _ => Effect::None,
+        }
+    }
+
+    fn endpoints_text(&self, ask: &Ask) -> String {
+        let hint = |id: &str| match self.setup.as_ref().and_then(|s| s.module.endpoint_spec(id)) {
+            Some(EndpointSpec::Path) => "a directory or file path".to_owned(),
+            Some(EndpointSpec::None) => "nothing: leave it empty".to_owned(),
+            Some(EndpointSpec::Url { .. }) => {
+                "env:NAME, the variable that holds the URL (a URL is never typed)".to_owned()
+            }
+            _ => "not offered by this build".to_owned(),
+        };
+        let line = |i: usize, label: &str| {
+            let cursor = if ask.active == i { "_" } else { "" };
+            format!(
+                "{} {label} `{}`: {}{cursor}\n    ({})",
+                if ask.active == i { ">" } else { " " },
+                ask.ids[i],
+                ask.answers[i],
+                hint(&ask.ids[i])
+            )
+        };
+        let mut text = format!(
+            "Move the data: copy `{}` -> `{}`.\nThe file is written only after the copy has finished and read back equal.\n\n{}\n{}\n",
+            ask.ids[0],
+            ask.ids[1],
+            line(0, "source endpoint of"),
+            line(1, "target endpoint of"),
+        );
+        if let Some(m) = &self.message {
+            text += &format!("\n{m}\n");
+        }
+        text + "\nEnter next / copy   Tab switch   Ctrl-W write without copying   Esc cancel"
     }
 
     pub fn draw(&self, frame: &mut Frame) {
@@ -200,7 +447,33 @@ impl<'a> App<'a> {
         ])
         .areas(frame.area());
         match &self.mode {
-            Mode::Review(r) => frame.render_widget(review_text(r), frame.area()),
+            Mode::Review(r) => {
+                frame.render_widget(review_text(r, self.setup.is_some()), frame.area());
+            }
+            Mode::Endpoints(ask) => frame.render_widget(
+                Paragraph::new(self.endpoints_text(ask)).wrap(Wrap { trim: false }),
+                frame.area(),
+            ),
+            Mode::SkipCopy(ask) => frame.render_widget(
+                Paragraph::new(format!(
+                    "Write the file WITHOUT copying?\n\nThe configuration will name `{to}` while all the stored data stays in `{from}`; `{to}` starts empty.\n\ny write without copying   n / Esc go back",
+                    from = ask.ids[0],
+                    to = ask.ids[1]
+                ))
+                .wrap(Wrap { trim: false }),
+                frame.area(),
+            ),
+            Mode::Copying(_, ids) => {
+                let spin = ["|", "/", "-", "\\"][self.ticks % 4];
+                frame.render_widget(
+                    Paragraph::new(format!(
+                        "Copying `{}` -> `{}` {spin}\n\nNothing is written yet. Ctrl-C abandons the copy and leaves the file as it is.",
+                        ids[0], ids[1]
+                    ))
+                    .wrap(Wrap { trim: false }),
+                    frame.area(),
+                );
+            }
             Mode::Done(lines) => frame.render_widget(
                 Paragraph::new(lines.join("\n")).wrap(Wrap { trim: false }),
                 frame.area(),
@@ -262,7 +535,7 @@ impl<'a> App<'a> {
     }
 }
 
-fn review_text(r: &Review) -> Paragraph<'static> {
+fn review_text(r: &Review, runs_transfer: bool) -> Paragraph<'static> {
     let mut lines = vec![
         "Review: nothing is written until you confirm.".to_owned(),
         String::new(),
@@ -282,7 +555,11 @@ fn review_text(r: &Review) -> Paragraph<'static> {
         ));
     }
     if !r.plan().actions.is_empty() {
-        lines.push("\nPlan (shown, not run by this front end):".into());
+        lines.push(if runs_transfer {
+            "\nPlan (a data transfer runs first, then the file is written):".into()
+        } else {
+            "\nPlan (shown, not run by this front end):".into()
+        });
         for a in &r.plan().actions {
             lines.push(format!("  - {}", a.description));
         }

@@ -21,9 +21,13 @@ use ::persistant::capability::{CapabilityId, provider::ProviderNeeds};
 use ::persistant::registry;
 
 pub use ::persistant::capability::choose::Durability;
+pub use ::persistant::capability::provider::EndpointSpec;
 pub use ::persistant::registry::Endpoint;
+#[cfg(feature = "persistant-blocking")]
+pub use transfer::TransferJob;
 pub use transfer::{
     NOT_COPIED, TransferEnd, TransferError, TransferOptions, TransferReport, copy_between,
+    parse_endpoint,
 };
 
 use crate::error::suggestion;
@@ -43,6 +47,7 @@ pub enum PersistantError {
 }
 
 /// The PersistAnt module.
+#[derive(Debug, Clone)]
 pub struct PersistantModule {
     name: String,
     min_durability: Durability,

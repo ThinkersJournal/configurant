@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.9
+
+- `configurant-tui` runs the data transfer in a plan. After the review's `y`, if the plan holds one
+  `DataTransfer`, it asks for the source and target endpoints (a path, `env:NAME` for a URL, nothing for
+  `memory`), copies on a worker thread with a spinner, and writes the file only after the copy has read back
+  equal. A failed copy writes nothing and keeps the staged edit. `Ctrl-W` then `y` writes without copying
+  (the result says `NOT COPIED`). New flags: `--require`, `--prefer`, `--min-durability` (the project's needs)
+  and `--endpoint ID=ANSWER` (prefill; a URL is refused and never echoed).
+- Core: `persistant::parse_endpoint` (a typed URL is refused without being echoed; a URL backend takes
+  `env:NAME`), `PersistantModule::endpoint_spec`, `TransferJob` (feature `persistant-blocking`), and
+  `PersistantModule` is now `Clone` + `Debug`. Additive. The GUI is the next PR. All three crates move to 0.2.9.
+
 ## 0.2.8
 
 - Design note `docs/TRANSFER-UI.md`: running a transfer from the TUI and GUI (endpoints asked in the UI, URLs
