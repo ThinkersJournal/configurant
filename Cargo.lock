@@ -655,9 +655,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "877bf67ac8e52449eb2f9e98a344ea163beb70dd1f9eebe3cc5357dcfeaee4df"
+checksum = "86e055fa6e3e40ad6187ba25b6855eeb635d5271f8e0f0e1e9a5826b8d75bea0"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -739,9 +739,9 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "clipboard-win"
-version = "5.4.1"
+version = "5.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bde03770d3df201d4fb868f2c9c59e66a3e4e2bd06692a0fe701e7103c7e84d4"
+checksum = "052af7878466feccda12ba7a6a67d019d712f296809559b47c12c8cc196d3a9a"
 dependencies = [
  "error-code",
 ]
@@ -805,7 +805,7 @@ dependencies = [
 
 [[package]]
 name = "configurant"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clap",
  "persistant",
@@ -818,7 +818,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-gui"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clap",
  "configurant",
@@ -830,7 +830,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-scan"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clap",
  "configurant",
@@ -844,7 +844,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-tui"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "clap",
  "configurant",
@@ -1970,9 +1970,9 @@ dependencies = [
 
 [[package]]
 name = "icu_collections"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa68d21081c4a05d5a901a1c62add574c77048b6a1c67be3b50ce0b60d4ca513"
+checksum = "fe090a42a0d3140fed8c63263ed1fecc02422cb2f4bfe55cd8de2de1b8e105dd"
 dependencies = [
  "displaydoc",
  "potential_utf",
@@ -1984,9 +1984,9 @@ dependencies = [
 
 [[package]]
 name = "icu_locale_core"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d56e28588da92eee5c3201a6eff33fabdd49b62269c8938d4ff050ce4d900deb"
+checksum = "25d29b57c17c6528d0dc4c2141cfa2d08200465acb537a3909c8b9b8a4a984c0"
 dependencies = [
  "displaydoc",
  "litemap",
@@ -1997,9 +1997,9 @@ dependencies = [
 
 [[package]]
 name = "icu_normalizer"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12f9cf5f235641ed274641dd81c3f28d870e276763d0797aeeab72317b1c646f"
+checksum = "404a3b8c486f205c87fe7f23ab6894d84a4ad76d6e4671ae1981ba7def87c599"
 dependencies = [
  "icu_collections",
  "icu_normalizer_data",
@@ -2011,15 +2011,15 @@ dependencies = [
 
 [[package]]
 name = "icu_normalizer_data"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1563da1ed3e0b3bf3d74c9b85917ac9c56464d2f57242270c09c9e752f8021a0"
+checksum = "20f0088bfb7441f7a37fa0c9e20cb1e9cba1cac6b9ce8cd2a6dc44294f8e8cbc"
 
 [[package]]
 name = "icu_properties"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e7ca276ad3145661a65914e6daf131ca5120cd3dcee8f8f3214b8875184a148"
+checksum = "2ea83d991c56158f7cf898bf86436c1dfe7c07ee82fe88951f2695c9f37a379f"
 dependencies = [
  "displaydoc",
  "icu_collections",
@@ -2032,15 +2032,15 @@ dependencies = [
 
 [[package]]
 name = "icu_properties_data"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e590f038c1464a96894fd6d10127e90a8be4509f56ff7ecef851b15cee0b7caa"
+checksum = "b98f29af82d02b163fe50161388350e743bb3107cc8e8c2f7314cb505faddfcf"
 
 [[package]]
 name = "icu_provider"
-version = "2.3.1"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d27bbb9d3abbefac45d55f647c9de1d44aafcd1186eb91879afef17c396c3e73"
+checksum = "413099315636c588ee8f011190b329b971a09a8fae9d157e01dcae8379468514"
 dependencies = [
  "displaydoc",
  "icu_locale_core",
@@ -3239,9 +3239,9 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "persistant"
-version = "0.9.10"
+version = "0.9.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b8796b790e8298889d27638dccbfbb4d6f695e5dbe8c81b213d71647d53d632"
+checksum = "7bc6ea3d8607b814bc63c6a8a20d127b7a570c494ee13226fd4aea54be8d7949"
 dependencies = [
  "futures-util",
  "opendal",
@@ -3257,24 +3257,24 @@ dependencies = [
 
 [[package]]
 name = "persistant-blob"
-version = "0.9.10"
+version = "0.9.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b09d0be968d705ea5789875c26070ffaea80929f64354fb90dd33bbf62bff8b"
+checksum = "3147d77dc05f2280acad187a91e725f03b835f3761a545b45160a6e0cf47dd39"
 dependencies = [
  "persistant-core",
 ]
 
 [[package]]
 name = "persistant-core"
-version = "0.9.10"
+version = "0.9.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ab1b10377ba67e280a8a1ea866fc708f6046935a037246ba3a8cc5e0bde82e2"
+checksum = "24a85bd90704eba221a1407fc74b9444784f336efdd6ff19627e00585368759b"
 
 [[package]]
 name = "persistant-kv"
-version = "0.9.10"
+version = "0.9.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80ab1089db67179f69e3be7b0468fc23a39d6a584c0b8fce3419c965d549d367"
+checksum = "9c2ddf46077186ba8015973e543d8f24b8e61b6a39fb19c5d8b881d9e7debdab"
 dependencies = [
  "persistant-blob",
  "persistant-core",
@@ -3284,9 +3284,9 @@ dependencies = [
 
 [[package]]
 name = "persistant-opendal"
-version = "0.9.10"
+version = "0.9.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7bb69b8fee84bc6e123d8db18379082e1edf3f8bf8ba2d50a7ab591fa9be79c"
+checksum = "69d20a734fcafefd1c4f65b79901d29ed2c02fd00aa5c82c4d164da918d813ab"
 dependencies = [
  "futures-util",
  "opendal",
@@ -3297,9 +3297,9 @@ dependencies = [
 
 [[package]]
 name = "persistant-relational"
-version = "0.9.10"
+version = "0.9.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d092167a83326389ce43af23045a4c00f042b805caf8e2a9c93978b353781ad"
+checksum = "61ddcfd153ad0687b1ec4838c8c302c1a601aa79cf71d0cd0b89357a69e4649b"
 dependencies = [
  "persistant-core",
 ]
@@ -4487,9 +4487,9 @@ checksum = "9e1c906769ad99c88eaa54e728060edef082f8e358ff32030cb7c7d315e81109"
 
 [[package]]
 name = "tinystr"
-version = "0.8.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1e27c91459209c2986af3dcf603a5a74a4368754ce37414f59acc971167f643"
+checksum = "abc840c238154d58f9e86b2792261edfde565a17696e1cda1a449de27979801a"
 dependencies = [
  "displaydoc",
  "zerovec",
@@ -4722,9 +4722,9 @@ checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 
 [[package]]
 name = "unisql"
-version = "0.24.17"
+version = "0.25.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a71a31cb1ac2b2eec90f01e16131090685ac621d6006cd97a33ebef0a8f260d"
+checksum = "1c96e321f9fc796f89f72935df3658e6538f24ca222b87f8251f7d5420af0326"
 dependencies = [
  "unisql-core",
  "unisql-dialect-mysql",
@@ -4735,15 +4735,15 @@ dependencies = [
 
 [[package]]
 name = "unisql-core"
-version = "0.24.17"
+version = "0.25.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d37e29938e2cc6d3ce16c5d70e93bcba0d23975c7a62f12228ee18ac33dc5a4"
+checksum = "b70d7ebec6bdf5a46aa8af9e708fcf34e9437df648801f3335ce5052d82bc25f"
 
 [[package]]
 name = "unisql-dialect-mysql"
-version = "0.24.17"
+version = "0.25.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3120bf804393dc8504c0307bb356c17256f5982aaf6a7ac1547f3e45617cad83"
+checksum = "98694191735dc183490aaf13ae14939e5f982f150aa2a24e42eb6aced8e26f0a"
 dependencies = [
  "unisql-core",
  "unisql-sqlparser-adapter",
@@ -4751,9 +4751,9 @@ dependencies = [
 
 [[package]]
 name = "unisql-dialect-postgres"
-version = "0.24.17"
+version = "0.25.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f491fbd8821ca837688ba749fd3480e30f7e81e16c4284af4b78e7eecf4d1ce1"
+checksum = "fef019197bb1be5e8c9daecca985bae55bb4fc2edda64bccd834bc3c16c82aa9"
 dependencies = [
  "unisql-core",
  "unisql-sqlparser-adapter",
@@ -4761,9 +4761,9 @@ dependencies = [
 
 [[package]]
 name = "unisql-dialect-sqlite"
-version = "0.24.17"
+version = "0.25.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14f3d9bc854a5047107de373ffc652cab5acc689b8d7aad588a48108c986d48a"
+checksum = "dc32393ecd27725728e48435f71606c50cae71f469e719a5be7f0e859ec91b86"
 dependencies = [
  "unisql-core",
  "unisql-sqlparser-adapter",
@@ -4771,9 +4771,9 @@ dependencies = [
 
 [[package]]
 name = "unisql-sqlparser-adapter"
-version = "0.24.17"
+version = "0.25.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ccc5d4e47192185c812257a119b6cc98a0b389d9b51cf69a3e896ad2deb22df"
+checksum = "6d4649a272137a3709befaa580280fc434fbee1d1a78559446559f8ffb939a66"
 dependencies = [
  "sqlparser",
  "unisql-core",
@@ -4805,9 +4805,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.28.0"
+version = "1.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cc1186384beb7dd8eedea376413fd654937285ea6c9cfbb928dc3043ea4b606"
+checksum = "4a0e2d11620c50695fe12bbbfde96b3477fe606e7284c22d505c12ce51214514"
 dependencies = [
  "atomic",
  "getrandom 0.4.3",
@@ -5668,9 +5668,9 @@ checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
 
 [[package]]
 name = "yoke"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "709fe23a0424b6a435d82152b1bd3fdfb0833487d5fa90d05d42762a9891fef5"
+checksum = "417ef3fcf6c300b7dbd25c85531a746931c02ad536f3cf4786ed1e88223340b3"
 dependencies = [
  "stable_deref_trait",
  "yoke-derive",
@@ -5849,9 +5849,9 @@ dependencies = [
 
 [[package]]
 name = "zerovec"
-version = "0.11.8"
+version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb0464e17806c1d976d5cba29399c7f08e516e279e2ba493f63123b5fca67dd8"
+checksum = "f58a2799cfe9a1670c7ea8edbd52ef8edb93cb37a7f83bf31ba9e35d9dae6a40"
 dependencies = [
  "yoke",
  "zerofrom",
@@ -5860,9 +5860,9 @@ dependencies = [
 
 [[package]]
 name = "zerovec-derive"
-version = "0.11.6"
+version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34df6fc39dbd26ddc9c10e6a2984476e13acce22e64e4487636ef494369225da"
+checksum = "c3743ddbf47738d929cd1ae2e199d40d0162979dfe31aef8ae646d2bf00bf97a"
 dependencies = [
  "proc-macro2",
  "quote",
