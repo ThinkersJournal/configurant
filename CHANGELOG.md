@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.21
+
+- CI: the advisory `portfolio` job moves to coderipper commit 789b012 (Windows runner bash fix). `ROADMAP.md`: the
+  SUP-002 row names itself a waiver candidate. No code change. All crates move to 0.2.21.
+
 ## 0.2.20
 
 - `ROADMAP.md`: one row per rule the advisory CodeRipper check reports (SUP-002, SEC-006, licence, lint-suppression),
