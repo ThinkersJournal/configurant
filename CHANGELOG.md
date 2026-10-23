@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.14
+
+- `configurant-scan --server-arg ARG` (repeatable) passes arguments to the language server command. The
+  binary's exit code 2 (PARTIAL) and its server-start error are now tested against a fake stdio language server
+  (`examples/fake_lsp.rs`, built by `cargo test`/`cargo build --all-targets`), not only the real rust-analyzer.
+  All crates move to 0.2.14.
+
 ## 0.2.13
 
 - `configurant-scan` binary (scan assist slice 2): `configurant-scan <schema> --root <dir>` lists the
