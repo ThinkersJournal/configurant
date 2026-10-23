@@ -90,3 +90,9 @@ jobs:
         run: bash .github/spdx_gate.sh --self-test
       - name: Check the tree
         run: bash .github/spdx_gate.sh
+
+  # Advisory only (CireSnave 2026-10-23): not a required check, and no rule is silenced here.
+  portfolio:
+    permissions:
+      contents: read
+    uses: ciresnave/coderipper/.github/workflows/portfolio.yml@c665210ad0972cf3ddb7bc81bdd7800c3248a938
