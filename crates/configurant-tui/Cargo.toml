@@ -1,6 +1,6 @@
 [package]
 name = "configurant-tui"
-version = "0.2.9"
+version = "0.2.10"
 edition = "2024"
 rust-version = "1.95"
 description = "Terminal front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
@@ -15,7 +15,7 @@ name = "configurant-tui"
 path = "src/main.rs"
 
 [dependencies]
-configurant = { version = "0.2.9", path = "../..", features = ["persistant-blocking"] }
+configurant = { version = "0.2.10", path = "../..", features = ["persistant-blocking"] }
 clap = { version = "4.6.7", features = ["derive"] }
 ratatui = "0.30.2"
 

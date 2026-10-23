@@ -68,6 +68,7 @@ fn harness(config: &Config) -> Harness<'_, State<'_>> {
             Effect::None => {}
             Effect::Quit => s.quit = true,
             Effect::Write(c) => s.written = Some(c),
+            Effect::Transfer(_) => {}
         },
         state,
     )

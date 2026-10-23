@@ -7,7 +7,13 @@
 //! A secret is never in this crate's memory: `Session::fields` hands over `<redacted>`, so there is
 //! nothing to render unmasked or to put on the clipboard, and no text box is ever opened for one.
 
+use std::collections::BTreeMap;
+
 use configurant::edit::{Confirmed, Field, Review, Session};
+use configurant::persistant::{
+    EndpointSpec, PersistantModule, TransferEnd, TransferError, TransferJob, TransferOptions,
+    TransferReport, parse_endpoint,
+};
 use configurant::{ActionKind, Needs};
 use eframe::egui::{self, Key, RichText};
 
@@ -18,12 +24,38 @@ pub enum Effect {
     Quit,
     /// The user confirmed: write `Confirmed::file_text` and report the result with [`App::wrote`].
     Write(Confirmed),
+    /// The file must not be written yet: run the job on a worker thread (`TransferJob::run`) and hand the
+    /// result to [`App::transferred`], which says whether to write. Keep calling [`App::ui`] meanwhile.
+    Transfer(TransferJob),
+}
+
+/// What running a data transfer needs from the caller: the PersistAnt module (a clone of the registered
+/// one), the project's needs, and endpoint answers given up front (`id` -> `path` or `env:NAME`).
+pub struct TransferSetup {
+    pub module: PersistantModule,
+    pub needs: Needs,
+    pub endpoints: BTreeMap<String, String>,
+}
+
+/// The two endpoint questions of one transfer.
+struct Ask {
+    confirmed: Confirmed,
+    ids: [String; 2],
+    answers: [String; 2],
+    /// Which box takes focus on the next frame.
+    focus: Option<usize>,
 }
 
 enum Mode {
     List,
     Edit,
     Review(Review),
+    /// Asking for the source and target endpoints of a data transfer.
+    Endpoints(Box<Ask>),
+    /// Asking whether to write the file without copying (the answer is never the default).
+    SkipCopy(Box<Ask>),
+    /// The copy is running on the caller's worker thread.
+    Copying(Confirmed, [String; 2]),
     Done(Vec<String>),
 }
 
@@ -39,6 +71,11 @@ enum Act {
     Confirm,
     Back,
     Quit,
+    StartCopy,
+    CancelTransfer,
+    AskSkip,
+    SkipYes,
+    SkipBack,
 }
 
 pub struct App<'a> {
@@ -49,6 +86,9 @@ pub struct App<'a> {
     mode: Mode,
     message: Option<String>,
     focus_input: bool,
+    setup: Option<TransferSetup>,
+    report: Option<String>,
+    skipped_copy: bool,
 }
 
 impl<'a> App<'a> {
@@ -62,11 +102,60 @@ impl<'a> App<'a> {
             mode: Mode::List,
             message: None,
             focus_input: false,
+            setup: None,
+            report: None,
+            skipped_copy: false,
         }
     }
 
-    /// The caller wrote (or failed to write) the file for an [`Effect::Write`]. The plan is listed, not
-    /// executed: this front end has no way to open both endpoints of a data transfer.
+    /// Let this front end run the data transfer in a plan (without this it only lists it).
+    #[must_use]
+    pub fn with_transfer(mut self, setup: TransferSetup) -> Self {
+        self.setup = Some(setup);
+        self
+    }
+
+    fn needs(&self) -> Needs {
+        self.setup
+            .as_ref()
+            .map_or_else(Needs::default, |s| s.needs.clone())
+    }
+
+    /// The one data transfer in a confirmed plan, if this front end can run it.
+    fn transfer_pair(&self, confirmed: &Confirmed) -> Option<[String; 2]> {
+        self.setup.as_ref()?;
+        let mut pairs = confirmed
+            .plan()
+            .actions
+            .iter()
+            .filter_map(|a| match &a.kind {
+                ActionKind::DataTransfer { from, to } => Some([from.clone(), to.clone()]),
+                _ => None,
+            });
+        let first = pairs.next()?;
+        pairs.next().is_none().then_some(first)
+    }
+
+    /// The copy finished (or failed). `Ok` yields the write that was waiting for it; an error writes
+    /// nothing, shows why, and leaves the staged edits for another try.
+    pub fn transferred(&mut self, result: Result<TransferReport, TransferError>) -> Effect {
+        let Mode::Copying(confirmed, _) = std::mem::replace(&mut self.mode, Mode::List) else {
+            return Effect::None;
+        };
+        match result {
+            Ok(report) => {
+                self.report = Some(report.to_string());
+                Effect::Write(confirmed)
+            }
+            Err(e) => {
+                self.message = Some(format!("copy failed, nothing was written: {e}"));
+                Effect::None
+            }
+        }
+    }
+
+    /// The caller wrote (or failed to write) the file for an [`Effect::Write`]. A data transfer was run
+    /// before this if the app has a [`TransferSetup`]; otherwise the plan is only listed.
     pub fn wrote(&mut self, result: Result<(), String>, confirmed: &Confirmed) {
         match result {
             Err(e) => {
@@ -76,8 +165,14 @@ impl<'a> App<'a> {
             Ok(()) => {
                 let mut lines = vec![format!("{} change(s) written.", confirmed.changes().len())];
                 for a in &confirmed.plan().actions {
-                    lines.push(match &a.kind {
-                        ActionKind::DataTransfer { from, to } => format!(
+                    lines.push(match (&a.kind, &self.report) {
+                        (ActionKind::DataTransfer { from, to }, Some(report)) => {
+                            format!("Copied `{from}` -> `{to}`: {report}")
+                        }
+                        (ActionKind::DataTransfer { from, to }, None) if self.skipped_copy => format!(
+                            "NOT COPIED (you chose to write without copying): the data stays in `{from}`; `{to}` starts empty"
+                        ),
+                        (ActionKind::DataTransfer { from, to }, None) => format!(
                             "NOT DONE: {} (copy `{from}` -> `{to}`; this front end cannot run data transfers)",
                             a.description
                         ),
@@ -101,6 +196,9 @@ impl<'a> App<'a> {
             Mode::List => self.list_ui(ui),
             Mode::Edit => self.edit_ui(ui, escape),
             Mode::Review(_) => self.review_ui(ui, escape),
+            Mode::Endpoints(_) => self.endpoints_ui(ui, escape),
+            Mode::SkipCopy(_) => self.skip_ui(ui, escape),
+            Mode::Copying(..) => self.copying_ui(ui),
             Mode::Done(_) => self.done_ui(ui),
         };
         if quit_key {
@@ -180,13 +278,99 @@ impl<'a> App<'a> {
             }
             Act::Confirm => {
                 if let Mode::Review(review) = std::mem::replace(&mut self.mode, Mode::List) {
-                    return Effect::Write(review.confirm());
+                    let confirmed = review.confirm();
+                    return match self.transfer_pair(&confirmed) {
+                        Some(ids) => {
+                            let prefilled = |id: &String| {
+                                self.setup
+                                    .as_ref()
+                                    .and_then(|s| s.endpoints.get(id).cloned())
+                                    .unwrap_or_default()
+                            };
+                            let answers = [prefilled(&ids[0]), prefilled(&ids[1])];
+                            self.message = None;
+                            self.mode = Mode::Endpoints(Box::new(Ask {
+                                confirmed,
+                                ids,
+                                answers,
+                                focus: Some(0),
+                            }));
+                            Effect::None
+                        }
+                        None => Effect::Write(confirmed),
+                    };
+                }
+            }
+            Act::StartCopy => return self.start_copy(),
+            Act::CancelTransfer => {
+                self.mode = Mode::List;
+                self.message = Some("transfer cancelled: nothing was copied or written".into());
+            }
+            Act::AskSkip => {
+                if let Mode::Endpoints(ask) = std::mem::replace(&mut self.mode, Mode::List) {
+                    self.mode = Mode::SkipCopy(ask);
+                }
+            }
+            Act::SkipBack => {
+                if let Mode::SkipCopy(ask) = std::mem::replace(&mut self.mode, Mode::List) {
+                    self.mode = Mode::Endpoints(ask);
+                }
+            }
+            Act::SkipYes => {
+                if let Mode::SkipCopy(ask) = std::mem::replace(&mut self.mode, Mode::List) {
+                    self.skipped_copy = true;
+                    return Effect::Write(ask.confirmed);
                 }
             }
             Act::Back => self.mode = Mode::List,
             Act::Quit => return Effect::Quit,
         }
         Effect::None
+    }
+
+    /// Check both answers; on success hand the caller the job to run.
+    fn start_copy(&mut self) -> Effect {
+        let (Some(setup), Mode::Endpoints(ask)) = (&self.setup, &mut self.mode) else {
+            return Effect::None;
+        };
+        let labels = ["source", "target"];
+        let mut ends = Vec::new();
+        #[allow(clippy::needless_range_loop)] // `i` indexes ids, answers and labels together
+        for i in 0..2 {
+            let id = &ask.ids[i];
+            let parsed = setup
+                .module
+                .endpoint_spec(id)
+                .ok_or_else(|| format!("backend `{id}` is not offered by this build"))
+                .and_then(|spec: EndpointSpec| parse_endpoint(&ask.answers[i], &spec));
+            match parsed {
+                Ok(endpoint) => ends.push(TransferEnd::new(id, endpoint)),
+                Err(e) => {
+                    // A typed URL may hold a password: do not leave it in the box.
+                    if ask.answers[i].contains("://") {
+                        ask.answers[i].clear();
+                    }
+                    ask.focus = Some(i);
+                    self.message = Some(format!("{} endpoint: {e}", labels[i]));
+                    return Effect::None;
+                }
+            }
+        }
+        let (to, from) = (ends.pop(), ends.pop());
+        let (Some(from), Some(to)) = (from, to) else {
+            return Effect::None;
+        };
+        let job = TransferJob::new(
+            setup.module.clone(),
+            from,
+            to,
+            setup.needs.clone(),
+            TransferOptions::default(),
+        );
+        let (confirmed, ids) = (ask.confirmed.clone(), ask.ids.clone());
+        self.message = None;
+        self.mode = Mode::Copying(confirmed, ids);
+        Effect::Transfer(job)
     }
 
     fn message_ui(&self, ui: &mut egui::Ui) {
@@ -258,6 +442,7 @@ impl<'a> App<'a> {
 
     fn edit_ui(&mut self, ui: &mut egui::Ui, escape: bool) -> Option<Act> {
         let mut act = escape.then_some(Act::CancelEdit);
+        let needs = self.needs();
         let Some(f) = self.fields.get(self.selected) else {
             return Some(Act::CancelEdit);
         };
@@ -274,7 +459,7 @@ impl<'a> App<'a> {
         if r.lost_focus() && ui.input(|i| i.key_pressed(Key::Enter)) {
             act = Some(Act::Stage);
         }
-        let choices = self.session.choices(&f.key, &Needs::default());
+        let choices = self.session.choices(&f.key, &needs);
         if !choices.is_empty() {
             ui.label("Choices");
             for c in choices {
@@ -322,7 +507,11 @@ impl<'a> App<'a> {
             ));
         }
         if !r.plan().actions.is_empty() {
-            ui.label("Plan (shown, not run by this front end):");
+            ui.label(if self.setup.is_some() {
+                "Plan (a data transfer runs first, then the file is written):"
+            } else {
+                "Plan (shown, not run by this front end):"
+            });
             for a in &r.plan().actions {
                 ui.label(format!("- {}", a.description));
             }
@@ -336,6 +525,97 @@ impl<'a> App<'a> {
             }
         });
         act
+    }
+
+    fn endpoints_ui(&mut self, ui: &mut egui::Ui, escape: bool) -> Option<Act> {
+        let mut act = escape.then_some(Act::CancelTransfer);
+        let Mode::Endpoints(ask) = &mut self.mode else {
+            return act;
+        };
+        let spec_of = |id: &str| self.setup.as_ref().and_then(|s| s.module.endpoint_spec(id));
+        let hint = |id: &str| match spec_of(id) {
+            Some(EndpointSpec::Path) => "a directory or file path".to_owned(),
+            Some(EndpointSpec::None) => "nothing: leave it empty".to_owned(),
+            Some(EndpointSpec::Url { .. }) => {
+                "env:NAME, the variable that holds the URL (a URL is never typed)".to_owned()
+            }
+            _ => "not offered by this build".to_owned(),
+        };
+        ui.heading(format!(
+            "Move the data: copy `{}` -> `{}`",
+            ask.ids[0], ask.ids[1]
+        ));
+        ui.label("The file is written only after the copy has finished and read back equal.");
+        let names = ["Source endpoint of", "Target endpoint of"];
+        let mut enter = false;
+        for (i, name) in names.iter().enumerate() {
+            let label = ui.label(format!("{name} `{}`", ask.ids[i]));
+            let r = ui
+                .add(egui::TextEdit::singleline(&mut ask.answers[i]).desired_width(f32::INFINITY))
+                .labelled_by(label.id);
+            if ask.focus == Some(i) {
+                r.request_focus();
+                ask.focus = None;
+            }
+            if r.lost_focus() && ui.input(|inp| inp.key_pressed(Key::Enter)) {
+                enter = true;
+            }
+            ui.label(format!("({})", hint(&ask.ids[i])));
+        }
+        if enter {
+            act = Some(Act::StartCopy);
+        }
+        self.message_ui(ui);
+        ui.horizontal(|ui| {
+            if ui.button("Copy and write the file").clicked() {
+                act = Some(Act::StartCopy);
+            }
+            if ui.button("Write without copying...").clicked() {
+                act = Some(Act::AskSkip);
+            }
+            if ui.button("Cancel").clicked() {
+                act = Some(Act::CancelTransfer);
+            }
+        });
+        act
+    }
+
+    fn skip_ui(&mut self, ui: &mut egui::Ui, escape: bool) -> Option<Act> {
+        let mut act = escape.then_some(Act::SkipBack);
+        let Mode::SkipCopy(ask) = &self.mode else {
+            return act;
+        };
+        ui.heading("Write the file WITHOUT copying?");
+        ui.label(format!(
+            "The configuration will name `{to}` while all the stored data stays in `{from}`; `{to}` starts empty.",
+            from = ask.ids[0],
+            to = ask.ids[1]
+        ));
+        ui.horizontal(|ui| {
+            if ui.button("Write without copying").clicked() {
+                act = Some(Act::SkipYes);
+            }
+            if ui.button("Go back").clicked() {
+                act = Some(Act::SkipBack);
+            }
+        });
+        act
+    }
+
+    fn copying_ui(&mut self, ui: &mut egui::Ui) -> Option<Act> {
+        let Mode::Copying(_, ids) = &self.mode else {
+            return None;
+        };
+        ui.horizontal(|ui| {
+            ui.spinner();
+            ui.label(format!("Copying `{}` -> `{}`", ids[0], ids[1]));
+        });
+        ui.label(
+            "Nothing is written yet. Closing the window abandons the copy and leaves the file as it is.",
+        );
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_millis(100));
+        None
     }
 
     fn done_ui(&mut self, ui: &mut egui::Ui) -> Option<Act> {

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.10
+
+- `configurant-gui` runs the data transfer in a plan, the same flow as the TUI. "Write the file" on the review
+  asks for the source and target endpoints (a path, `env:NAME` for a URL, nothing for `memory`), copies on a
+  worker thread with a spinner, and writes the file only after the copy has read back equal. A failed copy
+  writes nothing and keeps the staged edit. "Write without copying..." asks for a second confirmation and the
+  result says `NOT COPIED`. New flags: `--require`, `--prefer`, `--min-durability` and `--endpoint ID=ANSWER`
+  (a URL is refused and never echoed). `App::with_transfer`, `App::transferred` and `Effect::Transfer` are new
+  (additive). All three crates move to 0.2.10.
+
 ## 0.2.9
 
 - `configurant-tui` runs the data transfer in a plan. After the review's `y`, if the plan holds one

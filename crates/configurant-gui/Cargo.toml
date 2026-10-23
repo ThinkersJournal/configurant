@@ -1,6 +1,6 @@
 [package]
 name = "configurant-gui"
-version = "0.2.9"
+version = "0.2.10"
 edition = "2024"
 rust-version = "1.95"
 description = "Graphical front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
@@ -15,9 +15,11 @@ name = "configurant-gui"
 path = "src/main.rs"
 
 [dependencies]
-configurant = { version = "0.2.9", path = "../.." }
+configurant = { version = "0.2.10", path = "../..", features = ["persistant-blocking"] }
 clap = { version = "4.6.7", features = ["derive"] }
 eframe = { version = "0.37.0", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
 
 [dev-dependencies]
 egui_kittest = "0.37.0"
+persistant = { version = "0.9.10", default-features = false, features = ["registry"] }
+tokio = { version = "1.54.1", default-features = false, features = ["rt"] }
