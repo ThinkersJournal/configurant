@@ -88,6 +88,11 @@ pub struct ValueDef {
     pub secret: bool,
     #[serde(default)]
     pub env: Option<String>,
+    /// Where else a `secret` may come from: `<source>:<reference>`, e.g. `vault:MYAPP_API_TOKEN`. The
+    /// reference names the secret and is not secret; the `configurant-secrets` crate fetches it. The
+    /// environment still wins.
+    #[serde(default)]
+    pub source: Option<String>,
     #[serde(default)]
     pub flag: Option<String>,
     /// Changing it needs a restart (shown by `explain` and `help`).
@@ -189,6 +194,10 @@ pub enum SchemaError {
     SecretWithDefault(String),
     #[error("secret `{0}` may not have a command-line flag")]
     SecretWithFlag(String),
+    #[error("`{0}` has a `source` but is not a secret")]
+    SourceOnNonSecret(String),
+    #[error("`source` of `{0}` must look like `<source>:<reference>`")]
+    BadSource(String),
     #[error("enum `{0}` needs a non-empty `choices`")]
     EnumNeedsChoices(String),
     #[error("`{0}` has `choices` but is not an enum")]
@@ -494,6 +503,14 @@ fn check_def(d: &ValueDef) -> Result<Option<Value>, SchemaError> {
     }
     if d.secret && d.flag.is_some() {
         return Err(SchemaError::SecretWithFlag(d.key.clone()));
+    }
+    if let Some(src) = &d.source {
+        if !d.secret {
+            return Err(SchemaError::SourceOnNonSecret(d.key.clone()));
+        }
+        if !matches!(src.split_once(':'), Some((n, r)) if !n.is_empty() && !r.is_empty()) {
+            return Err(SchemaError::BadSource(d.key.clone()));
+        }
     }
     match d.ty {
         ValueType::Enum if d.choices.is_empty() => {

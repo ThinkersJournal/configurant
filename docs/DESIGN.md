@@ -17,8 +17,9 @@
 4. **Errors** (`ConfigError`) name key and origin: `UnknownKey` (with suggestion), `WrongType`, `OutOfRange`,
    `NotAllowed`, `SecretInForbiddenSource`, `MissingRequired`, `NotSet`, `FileParse`, `Module*`. A secret's
    value is `<redacted>` wherever it would be shown.
-5. **Secrets** come only from the environment in this version (a secret-source module is a later,
-   deliberate extension). Not accepted from a file or the command line, no default, no flag, never in
+5. **Secrets** come from the environment, or from a source a `secret` value declares
+   (`source = "<source>:<reference>"`, fetched by `configurant-secrets`; [SECRET-SOURCES.md](SECRET-SOURCES.md)); the
+   environment wins. Not accepted from a file or the command line, no default, no flag, never in
    `help`, `explain`, `Debug` or an error.
 6. **`explain(key)`** lists each layer that set the key, lowest first, and marks the one used.
 7. **Modules** (`Module`, interface version 1): `list_choices(needs)`, `validate(value)`,
