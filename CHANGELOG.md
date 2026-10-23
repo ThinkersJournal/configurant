@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.16
+
+- Dependencies to latest: persistant 0.9.10 to 0.9.28 (all three manifests), plus `cargo update` of the lockfile
+  (unisql 0.25, uuid 1.29, icu 2.4, cc 1.10 and others). No code change. `generic-array` and `pest*` stay behind
+  latest because other crates pin them. All crates move to 0.2.16.
+
 ## 0.2.15
 
 - `configurant-tui` "Add from scan" (scan assist slice 3, TUI first), behind the new Cargo feature `scan`
