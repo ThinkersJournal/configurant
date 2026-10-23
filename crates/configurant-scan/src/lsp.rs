@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use lsp_bridge::{LspBridge, LspServerConfig};
+use lsp_bridge::{LspBridge, LspBridgeError, LspError, LspServerConfig};
 use lsp_types::Position;
 use url::Url;
 
@@ -42,20 +42,13 @@ impl LspResolver {
             .build()
             .map_err(|e| err(e.to_string()))?;
         let root = plain(root.canonicalize().map_err(|e| err(format!("root: {e}")))?);
-        // `lsp-bridge` 0.2 builds `rootUri` as `file://` + the path, which is no URI for a Windows path, so
-        // the root is given by working directory and, for a Cargo project, `linkedProjects` instead.
-        let mut cfg = LspServerConfig::new()
+        let cfg = LspServerConfig::new()
             .command(command)
             .args(args.iter().cloned())
             .startup_timeout(wait)
             .request_timeout(wait)
-            .working_directory(&root);
-        let manifest = root.join("Cargo.toml");
-        if manifest.is_file() {
-            cfg = cfg.initialization_options(
-                serde_json::json!({ "linkedProjects": [manifest.to_string_lossy()] }),
-            );
-        }
+            .root_path(&root)
+            .workspace_folder(&root);
         let mut bridge = LspBridge::new();
         let id = "scan".to_owned();
         rt.block_on(async {
@@ -106,10 +99,10 @@ impl Resolver for LspResolver {
                 &uri,
                 Position::new(line, col),
             ));
-            // "content modified" is the server saying it reloaded the project under the request: ask again.
+            // ContentModified is the server saying it reloaded the project under the request: ask again.
             let got = match asked {
                 Ok(got) => got,
-                Err(e) if e.to_string().contains("content modified") => None,
+                Err(LspBridgeError::Lsp(LspError::ContentModified { .. })) => None,
                 Err(e) => return Err(err(e.to_string())),
             };
             if let Some(loc) = got {

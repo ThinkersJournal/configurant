@@ -58,12 +58,10 @@ fn a_secret_with_a_default_is_refused_and_the_default_is_never_in_the_error() {
     n.secret = true;
     n.default = Some(toml::Value::String("hunter2-canary".into()));
     let err = add_value(SCHEMA, &n).unwrap_err();
-    assert!(
-        matches!(err, SchemaEditError::SecretWithDefault(_)),
-        "{err:?}"
-    );
-    let shown = format!("{err} {err:?}");
-    assert!(!shown.contains("hunter2-canary"));
+    // No assert message below formats the error: a failure must not print anything near a secret.
+    assert!(matches!(err, SchemaEditError::SecretWithDefault(_)));
+    let leaked = format!("{err} {err:?}").contains("hunter2-canary");
+    assert!(!leaked);
 }
 
 #[test]

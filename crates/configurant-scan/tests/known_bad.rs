@@ -118,9 +118,10 @@ fn a_secret_name_never_carries_the_default_seen_beside_it() {
     assert!(p.proposals[0].secret && p.proposals[0].default_seen.is_none());
     let nv = p.proposals[0].to_new_value();
     let text = add_value(SCHEMA, &nv).unwrap();
-    for shown in [format!("{p:?}"), format!("{nv:?}"), text.clone()] {
-        assert!(!shown.contains("hunter2-canary"), "default leaked");
-    }
+    let leaked = [format!("{p:?}"), format!("{nv:?}"), text.clone()]
+        .iter()
+        .any(|shown| shown.contains("hunter2-canary"));
+    assert!(!leaked);
     let s = Schema::parse(&text).unwrap();
     let d = s.get("db.password").unwrap();
     assert!(d.secret && d.default.is_none() && d.flag.is_none());
