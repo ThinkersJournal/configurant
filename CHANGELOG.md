@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.17
+
+- `configurant-gui` "Add from scan" (scan assist slice 3, GUI), behind the Cargo feature `scan` (off by default).
+  Build with `--features scan` and run `configurant-gui <schema> --file <config> --scan <project dir>`
+  (`--scan-server`, `--scan-wait`): the "Add from scan" button runs the scan on a worker thread, lists the
+  proposals as checkboxes with a PARTIAL banner when the language server could not resolve every call, "Review the
+  ticked entries" shows what will be added, and "Write the schema" saves `<schema>.bak` and rewrites the schema.
+  A failed scan is shown and changes nothing; a secret is proposed with no default and none is ever drawn; the
+  button is refused while edits are staged. The session keeps the old schema, so it asks for a restart to edit
+  the new values. Library: `App::with_scan`, `App::scanned`, `App::schema_written`, `Effect::Scan`,
+  `Effect::WriteSchema`, `ScanSetup`, `ScanJob`. All crates move to 0.2.17.
+
 ## 0.2.16
 
 - Dependencies to latest: persistant 0.9.10 to 0.9.28 (all three manifests), plus `cargo update` of the lockfile

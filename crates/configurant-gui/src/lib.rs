@@ -17,6 +17,11 @@ use configurant::persistant::{
 use configurant::{ActionKind, Needs};
 use eframe::egui::{self, Key, RichText};
 
+#[cfg(feature = "scan")]
+mod scan_ui;
+#[cfg(feature = "scan")]
+pub use scan_ui::{ScanJob, ScanSetup};
+
 /// What the caller must do after a frame.
 #[derive(Debug)]
 pub enum Effect {
@@ -27,6 +32,14 @@ pub enum Effect {
     /// The file must not be written yet: run the job on a worker thread (`TransferJob::run`) and hand the
     /// result to [`App::transferred`], which says whether to write. Keep calling [`App::ui`] meanwhile.
     Transfer(TransferJob),
+    /// Run the scan on a worker thread (`ScanJob::run`) and hand the result to [`App::scanned`]. Keep
+    /// calling [`App::ui`] meanwhile.
+    #[cfg(feature = "scan")]
+    Scan(ScanJob),
+    /// The user confirmed the schema change: write this text over the schema (saving a backup first) and
+    /// report the result with [`App::schema_written`].
+    #[cfg(feature = "scan")]
+    WriteSchema(String),
 }
 
 /// What running a data transfer needs from the caller: the PersistAnt module (a clone of the registered
@@ -57,6 +70,13 @@ enum Mode {
     /// The copy is running on the caller's worker thread.
     Copying(Confirmed, [String; 2]),
     Done(Vec<String>),
+    /// The scan is running on the caller's worker thread.
+    #[cfg(feature = "scan")]
+    Scanning,
+    #[cfg(feature = "scan")]
+    Pick(Box<scan_ui::Pick>),
+    #[cfg(feature = "scan")]
+    SchemaReview(Box<scan_ui::SchemaReview>),
 }
 
 /// What the user asked for this frame; applied after drawing so no widget borrows the state it changes.
@@ -76,6 +96,15 @@ enum Act {
     AskSkip,
     SkipYes,
     SkipBack,
+    #[cfg(feature = "scan")]
+    StartScan,
+    /// Leave the proposals (or, from the schema review, go back to them).
+    #[cfg(feature = "scan")]
+    PickBack,
+    #[cfg(feature = "scan")]
+    PickReview,
+    #[cfg(feature = "scan")]
+    WriteSchema,
 }
 
 pub struct App<'a> {
@@ -89,6 +118,8 @@ pub struct App<'a> {
     setup: Option<TransferSetup>,
     report: Option<String>,
     skipped_copy: bool,
+    #[cfg(feature = "scan")]
+    scan: Option<ScanSetup>,
 }
 
 impl<'a> App<'a> {
@@ -105,6 +136,56 @@ impl<'a> App<'a> {
             setup: None,
             report: None,
             skipped_copy: false,
+            #[cfg(feature = "scan")]
+            scan: None,
+        }
+    }
+
+    /// Offer "Add from scan": propose schema entries for the environment variables the project reads.
+    #[cfg(feature = "scan")]
+    #[must_use]
+    pub fn with_scan(mut self, setup: ScanSetup) -> Self {
+        self.scan = Some(setup);
+        self
+    }
+
+    /// The scan finished (or failed). A failure is shown and changes nothing.
+    #[cfg(feature = "scan")]
+    pub fn scanned(&mut self, result: Result<configurant_scan::Proposals, String>) {
+        if !matches!(self.mode, Mode::Scanning) {
+            return;
+        }
+        match result {
+            Ok(found) => self.mode = Mode::Pick(Box::new(scan_ui::Pick::new(found))),
+            Err(e) => {
+                self.mode = Mode::List;
+                self.message = Some(format!("scan failed, nothing was changed: {e}"));
+            }
+        }
+    }
+
+    /// The caller wrote (or failed to write) the schema for an [`Effect::WriteSchema`].
+    #[cfg(feature = "scan")]
+    pub fn schema_written(&mut self, result: Result<(), String>) {
+        let Mode::SchemaReview(r) = std::mem::replace(&mut self.mode, Mode::List) else {
+            return;
+        };
+        match result {
+            Err(e) => {
+                self.message = Some(format!("schema not written: {e}"));
+                self.mode = Mode::SchemaReview(r);
+            }
+            Ok(()) => {
+                let path = self
+                    .scan
+                    .as_ref()
+                    .map_or_else(String::new, |s| s.schema_path.display().to_string());
+                self.message = None;
+                self.mode = Mode::Done(vec![
+                    format!("{} entries added to {path}: {}.", r.envs.len(), r.envs.join(", ")),
+                    "This session still has the old schema: start configurant-gui again to edit the new values.".into(),
+                ]);
+            }
         }
     }
 
@@ -200,6 +281,12 @@ impl<'a> App<'a> {
             Mode::SkipCopy(_) => self.skip_ui(ui, escape),
             Mode::Copying(..) => self.copying_ui(ui),
             Mode::Done(_) => self.done_ui(ui),
+            #[cfg(feature = "scan")]
+            Mode::Scanning => self.scanning_ui(ui),
+            #[cfg(feature = "scan")]
+            Mode::Pick(_) => self.pick_ui(ui, escape),
+            #[cfg(feature = "scan")]
+            Mode::SchemaReview(_) => self.schema_review_ui(ui, escape),
         };
         if quit_key {
             act = Some(Act::Quit);
@@ -324,8 +411,68 @@ impl<'a> App<'a> {
             }
             Act::Back => self.mode = Mode::List,
             Act::Quit => return Effect::Quit,
+            #[cfg(feature = "scan")]
+            Act::StartScan => return self.start_scan(),
+            #[cfg(feature = "scan")]
+            Act::PickBack => match std::mem::replace(&mut self.mode, Mode::List) {
+                Mode::SchemaReview(r) => {
+                    self.message = None;
+                    self.mode = Mode::Pick(Box::new(r.pick));
+                }
+                _ => self.message = None,
+            },
+            #[cfg(feature = "scan")]
+            Act::PickReview => self.review_picks(),
+            #[cfg(feature = "scan")]
+            Act::WriteSchema => {
+                if let Mode::SchemaReview(r) = &self.mode {
+                    return Effect::WriteSchema(r.new_text.clone());
+                }
+            }
         }
         Effect::None
+    }
+
+    #[cfg(feature = "scan")]
+    fn start_scan(&mut self) -> Effect {
+        let Some(setup) = &self.scan else {
+            return Effect::None;
+        };
+        // The new schema is only read on the next start: staged edits would be lost with it.
+        if !self.session.review().is_empty() {
+            self.message = Some("review or unstage your changes before adding from a scan".into());
+            return Effect::None;
+        }
+        let job = ScanJob::new(setup);
+        self.message = None;
+        self.mode = Mode::Scanning;
+        Effect::Scan(job)
+    }
+
+    /// Turn the ticked proposals into new schema text, held for the user's confirmation.
+    #[cfg(feature = "scan")]
+    fn review_picks(&mut self) {
+        let (Mode::Pick(pick), Some(setup)) = (&self.mode, &self.scan) else {
+            return;
+        };
+        let envs = pick.envs();
+        if envs.is_empty() {
+            self.message = Some("tick at least one proposal".into());
+            return;
+        }
+        match pick.found.accept(&setup.schema_text, &envs) {
+            Ok(new_text) => {
+                if let Mode::Pick(pick) = std::mem::replace(&mut self.mode, Mode::List) {
+                    self.message = None;
+                    self.mode = Mode::SchemaReview(Box::new(scan_ui::SchemaReview {
+                        pick: *pick,
+                        new_text,
+                        envs,
+                    }));
+                }
+            }
+            Err(e) => self.message = Some(e.to_string()),
+        }
     }
 
     /// Check both answers; on success hand the caller the job to run.
@@ -433,8 +580,90 @@ impl<'a> App<'a> {
             if ui.button("Review and confirm").clicked() {
                 act = Some(Act::OpenReview);
             }
+            #[cfg(feature = "scan")]
+            if self.scan.is_some() && ui.button("Add from scan").clicked() {
+                act = Some(Act::StartScan);
+            }
             if ui.button("Quit").clicked() {
                 act = Some(Act::Quit);
+            }
+        });
+        act
+    }
+
+    #[cfg(feature = "scan")]
+    fn scanning_ui(&mut self, ui: &mut egui::Ui) -> Option<Act> {
+        let root = self
+            .scan
+            .as_ref()
+            .map_or_else(String::new, |s| s.root.display().to_string());
+        ui.horizontal(|ui| {
+            ui.spinner();
+            ui.label(format!("Scanning `{root}`"));
+        });
+        ui.label(
+            "The language server loads the project first, which can take a minute. Nothing is changed. Closing the window abandons the scan.",
+        );
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_millis(100));
+        None
+    }
+
+    #[cfg(feature = "scan")]
+    fn pick_ui(&mut self, ui: &mut egui::Ui, escape: bool) -> Option<Act> {
+        let mut act = escape.then_some(Act::PickBack);
+        let Mode::Pick(pick) = &mut self.mode else {
+            return act;
+        };
+        ui.heading("Add from scan");
+        for l in pick.header() {
+            ui.label(l);
+        }
+        let lines = pick.lines();
+        egui::ScrollArea::vertical()
+            .max_height((ui.available_height() - 90.0).max(80.0))
+            .show(ui, |ui| {
+                for (line, checked) in lines.iter().zip(pick.checked.iter_mut()) {
+                    ui.checkbox(checked, line);
+                }
+            });
+        self.message_ui(ui);
+        ui.horizontal(|ui| {
+            if ui.button("Review the ticked entries").clicked() {
+                act = Some(Act::PickReview);
+            }
+            if ui.button("Cancel").clicked() {
+                act = Some(Act::PickBack);
+            }
+        });
+        act
+    }
+
+    #[cfg(feature = "scan")]
+    fn schema_review_ui(&mut self, ui: &mut egui::Ui, escape: bool) -> Option<Act> {
+        let mut act = escape.then_some(Act::PickBack);
+        let Mode::SchemaReview(r) = &self.mode else {
+            return act;
+        };
+        ui.heading("Review the schema change");
+        ui.label("The schema is not changed until you confirm.");
+        let lines = r.pick.lines();
+        for (l, c) in lines.iter().zip(&r.pick.checked) {
+            if *c {
+                ui.label(format!("add {l}"));
+            }
+        }
+        if let Some(s) = &self.scan {
+            let p = s.schema_path.display();
+            ui.label(format!("{p} is saved to {p}.bak first, then rewritten."));
+        }
+        self.message_ui(ui);
+        ui.horizontal(|ui| {
+            if ui.button("Write the schema").clicked() {
+                act = Some(Act::WriteSchema);
+            }
+            if ui.button("Go back").clicked() {
+                act = Some(Act::PickBack);
             }
         });
         act
