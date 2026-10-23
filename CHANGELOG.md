@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.13
+
+- `configurant-scan` binary (scan assist slice 2): `configurant-scan <schema> --root <dir>` lists the
+  environment variables a Rust project reads that its schema lacks, with their guessed key, type, literal
+  default (never for a secret) and sites, plus reads with a computed name, key clashes and calls the project
+  resolves to its own `env::var`. It exits 2 and prints PARTIAL when rust-analyzer could not resolve every call,
+  1 on an error (no schema, no server). `--accept ENV` (repeatable) prints the schema with those proposals
+  added; with `--write` it saves `<schema>.bak` first. New in the library: `Proposals::report` and
+  `Proposals::accept`. It is a separate binary rather than `configurant scan` because the scan crate depends on
+  `configurant`, so the core binary cannot depend on it. All crates move to 0.2.13.
+
 ## 0.2.12
 
 - New crate `configurant-scan` (slice 1 of scan assist, `docs/SCAN.md`): finds the environment variables a Rust
