@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.12
+
+- New crate `configurant-scan` (slice 1 of scan assist, `docs/SCAN.md`): finds the environment variables a Rust
+  project reads (`std::env::var`, `var_os`, `env!`, `option_env!`) and proposes schema entries. Candidates come
+  from the source text and rust-analyzer confirms each call resolves to `std::env`; a call it cannot resolve
+  marks the result partial, a project-own `env::var` is rejected, a non-literal name is listed by location. A
+  name that looks like a secret is proposed `secret` with no default, and the default seen beside it is dropped.
+  It suggests only. Works around `lsp-bridge` 0.2 building a non-URI `rootUri` on Windows.
+- Core: `configurant::schema_edit::add_value` appends one `[[value]]` to schema text with `toml_edit` (comments
+  and layout survive), refuses a secret with a default, and returns text only when the result parses as a
+  schema. Additive. All crates move to 0.2.12. CI installs `rust-analyzer` and `rust-src` for the one real
+  rust-analyzer test.
+
 ## 0.2.11
 
 - Design note `docs/SCAN.md`: scan assist (LSP) as an optional `configurant-scan` crate on `lsp-bridge`.

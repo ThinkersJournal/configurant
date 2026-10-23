@@ -12,6 +12,7 @@ pub mod module;
 #[cfg(feature = "persistant")]
 pub mod persistant;
 pub mod schema;
+pub mod schema_edit;
 pub mod value;
 
 pub use config::{Config, DEFAULT_ORDER, ExplainLine, Explanation, FromValue, Layer, Loader};
