@@ -13,6 +13,8 @@ use configurant::persistant::{
     Durability, PersistantModule, TransferError, TransferReport, parse_endpoint,
 };
 use configurant::{Config, Loader, Modules, Needs, Schema};
+#[cfg(feature = "scan")]
+use configurant_gui::ScanSetup;
 use configurant_gui::{App, Effect, TransferSetup};
 use eframe::egui;
 
@@ -47,6 +49,18 @@ struct Cli {
     /// (the variable that holds a connection URL; a URL itself is refused). Repeatable.
     #[arg(long = "endpoint", value_name = "ID=ANSWER")]
     endpoint: Vec<String>,
+    /// Offer "Add from scan": the Rust project whose environment reads become schema proposals.
+    #[cfg(feature = "scan")]
+    #[arg(long, value_name = "DIR")]
+    scan: Option<PathBuf>,
+    /// The language server command for `--scan`.
+    #[cfg(feature = "scan")]
+    #[arg(long, default_value = "rust-analyzer")]
+    scan_server: String,
+    /// How long the server may take to load the project and answer, in seconds.
+    #[cfg(feature = "scan")]
+    #[arg(long, default_value_t = 120)]
+    scan_wait: u64,
 }
 
 fn fail(msg: impl std::fmt::Display) -> ExitCode {
@@ -57,6 +71,11 @@ fn fail(msg: impl std::fmt::Display) -> ExitCode {
 /// Write the confirmed file text, saving `<file>.bak` first when the file exists (refused if the backup does).
 fn write(file: &Path, existing: &str, confirmed: &Confirmed) -> Result<(), String> {
     let text = confirmed.file_text(existing).map_err(|e| e.to_string())?;
+    save(file, existing, &text)
+}
+
+/// Write `text` over `file`, saving `existing` to `<file>.bak` first when the file exists (refused if the backup does).
+fn save(file: &Path, existing: &str, text: &str) -> Result<(), String> {
     if file.exists() {
         let mut bak = file.to_path_buf().into_os_string();
         bak.push(".bak");
@@ -96,8 +115,19 @@ fn endpoint_answers(
 
 type CopyResult = Result<TransferReport, TransferError>;
 
+#[cfg(feature = "scan")]
+type ScanResult = Result<configurant_scan::Proposals, String>;
+
 struct Window {
     app: App<'static>,
+    #[cfg(feature = "scan")]
+    schema: PathBuf,
+    #[cfg(feature = "scan")]
+    schema_text: String,
+    #[cfg(feature = "scan")]
+    scan_tx: mpsc::Sender<ScanResult>,
+    #[cfg(feature = "scan")]
+    scan_rx: mpsc::Receiver<ScanResult>,
     file: PathBuf,
     existing: String,
     tx: mpsc::Sender<CopyResult>,
@@ -112,6 +142,10 @@ impl eframe::App for Window {
         if let Ok(result) = self.rx.try_recv() {
             effect = self.app.transferred(result);
         }
+        #[cfg(feature = "scan")]
+        if let Ok(result) = self.scan_rx.try_recv() {
+            self.app.scanned(result);
+        }
         match effect {
             Effect::None => {}
             Effect::Quit => ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close),
@@ -122,6 +156,20 @@ impl eframe::App for Window {
                     let _ = tx.send(job.run());
                     ctx.request_repaint();
                 });
+            }
+            #[cfg(feature = "scan")]
+            Effect::Scan(job) => {
+                // The server loads the project here, off the frame loop, so the window keeps drawing.
+                let (tx, ctx) = (self.scan_tx.clone(), ui.ctx().clone());
+                std::thread::spawn(move || {
+                    let _ = tx.send(job.run());
+                    ctx.request_repaint();
+                });
+            }
+            #[cfg(feature = "scan")]
+            Effect::WriteSchema(text) => {
+                let result = save(&self.schema, &self.schema_text, &text);
+                self.app.schema_written(result);
             }
             Effect::Write(confirmed) => {
                 let result = write(&self.file, &self.existing, &confirmed);
@@ -179,12 +227,34 @@ fn main() -> ExitCode {
     };
     let config: &'static Config = Box::leak(Box::new(config));
     let (tx, rx) = mpsc::channel();
+    #[allow(unused_mut)] // only `--features scan` adds the scan setup
+    let mut app = App::new(Session::new(config, Some(modules))).with_transfer(TransferSetup {
+        module,
+        needs,
+        endpoints,
+    });
+    #[cfg(feature = "scan")]
+    if let Some(root) = &cli.scan {
+        app = app.with_scan(ScanSetup {
+            schema_path: cli.schema.clone(),
+            schema_text: schema_text.clone(),
+            root: root.clone(),
+            server: cli.scan_server.clone(),
+            wait: std::time::Duration::from_secs(cli.scan_wait),
+        });
+    }
+    #[cfg(feature = "scan")]
+    let (scan_tx, scan_rx) = mpsc::channel();
     let window = Window {
-        app: App::new(Session::new(config, Some(modules))).with_transfer(TransferSetup {
-            module,
-            needs,
-            endpoints,
-        }),
+        app,
+        #[cfg(feature = "scan")]
+        schema: cli.schema,
+        #[cfg(feature = "scan")]
+        schema_text,
+        #[cfg(feature = "scan")]
+        scan_tx,
+        #[cfg(feature = "scan")]
+        scan_rx,
         file: cli.file,
         existing,
         tx,

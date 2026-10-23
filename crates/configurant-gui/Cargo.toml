@@ -1,6 +1,6 @@
 [package]
 name = "configurant-gui"
-version = "0.2.16"
+version = "0.2.17"
 edition = "2024"
 rust-version = "1.95"
 description = "Graphical front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
@@ -15,9 +15,15 @@ name = "configurant-gui"
 path = "src/main.rs"
 
 [dependencies]
-configurant = { version = "0.2.16", path = "../..", features = ["persistant-blocking"] }
+configurant = { version = "0.2.17", path = "../..", features = ["persistant-blocking"] }
 clap = { version = "4.6.7", features = ["derive"] }
+configurant-scan = { version = "0.2.17", path = "../configurant-scan", optional = true }
 eframe = { version = "0.37.0", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
+
+[features]
+# "Add from scan" (button, flag `--scan <root>`): propose schema entries from the variables a Rust project reads.
+# Off by default: it needs a language server (rust-analyzer) at run time.
+scan = ["dep:configurant-scan"]
 
 [dev-dependencies]
 egui_kittest = "0.37.0"

@@ -81,6 +81,8 @@ fn harness<'a>(
             Effect::None | Effect::Quit => {}
             Effect::Write(c) => s.written = Some(c),
             Effect::Transfer(j) => s.job = Some(j),
+            #[cfg(feature = "scan")]
+            _ => {}
         },
         State {
             app,
