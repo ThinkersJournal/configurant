@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.20
+
+- `ROADMAP.md`: one row per rule the advisory CodeRipper check reports (SUP-002, SEC-006, licence, lint-suppression),
+  each checked. No code change. All crates move to 0.2.20.
+
 ## 0.2.19
 
 - CI: an advisory `portfolio` job (the CodeRipper portfolio check, pinned by commit). It is not a required check.
