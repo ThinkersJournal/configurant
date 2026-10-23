@@ -90,7 +90,7 @@ impl Proposal {
         let desc = format!(
             "read from the environment as {} ({}:{})",
             self.env,
-            first.file.display().to_string().replace('\', "/"),
+            first.file.display().to_string().replace('\\', "/"),
             first.line
         );
         let (ty, default) = self.typed();
@@ -278,7 +278,14 @@ impl Proposals {
             self.known
         );
         for p in &self.proposals {
-            let _ = write!(o, "  {} -> {} ({}){}", p.env, p.key, p.type_name(), p.mark());
+            let _ = write!(
+                o,
+                "  {} -> {} ({}){}",
+                p.env,
+                p.key,
+                p.type_name(),
+                p.mark()
+            );
             if let Some(d) = &p.default_seen {
                 let _ = write!(o, " default {d}");
             }
