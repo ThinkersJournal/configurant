@@ -15,6 +15,8 @@ pub enum Origin {
     Env(String),
     /// A command-line flag (or argument position).
     Cli(String),
+    /// A secret source (`configurant-secrets`), as the schema declares it: `<source>:<reference>`. Never the value.
+    Source(String),
     /// A lookup by key (`Config::get`, `explain`), not a source of values.
     Lookup,
     /// A change made by a front end through [`crate::edit::Session`].
@@ -28,6 +30,12 @@ impl fmt::Display for Origin {
             Origin::File(n) => write!(f, "file `{n}`"),
             Origin::Env(n) => write!(f, "environment variable `{n}`"),
             Origin::Cli(n) => write!(f, "command-line `{n}`"),
+            Origin::Source(declared) => match declared.split_once(':') {
+                Some((name, reference)) => {
+                    write!(f, "secret source `{name}` (reference `{reference}`)")
+                }
+                None => write!(f, "secret source `{declared}`"),
+            },
             Origin::Lookup => f.write_str("this lookup"),
             Origin::Edit => f.write_str("this edit"),
         }

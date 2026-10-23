@@ -1,0 +1,16 @@
+[package]
+name = "configurant-secrets"
+version = "0.2.24"
+edition = "2024"
+rust-version = "1.95"
+description = "Secret sources for ConfigurAnt: fetch a secret by reference at load time, hand it to the loader as redacted text, never print, log or write it."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ThinkersJournal/configurant"
+readme = "README.md"
+keywords = ["configuration", "config", "secrets", "schema"]
+categories = ["config"]
+
+[dependencies]
+configurant = { version = "0.2.24", path = "../.." }
+thiserror = "2.0.21"
+zeroize = "1.9.1"

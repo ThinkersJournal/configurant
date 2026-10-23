@@ -1,9 +1,9 @@
 [workspace]
-members = ["crates/configurant-tui", "crates/configurant-gui", "crates/configurant-scan"]
+members = ["crates/configurant-tui", "crates/configurant-gui", "crates/configurant-scan", "crates/configurant-secrets"]
 
 [package]
 name = "configurant"
-version = "0.2.23"
+version = "0.2.24"
 edition = "2024"
 rust-version = "1.95"
 description = "Schema-first configuration: declare values in a TOML schema, layer defaults, file, environment and command line, validate with named errors, explain where each value came from. No generated code; secrets never printed."

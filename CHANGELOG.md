@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.24
+
+- Secret sources, slice 1 (design: `docs/SECRET-SOURCES.md`). New crate `configurant-secrets`: the `SecretSource`
+  trait, `Sources`, `SecretValue` (wiped on drop, shows nothing), `resolve` (every failure reported, a bounded
+  wait, a key the environment sets is not fetched) and `Resolved::into_loader`. Core: a `secret` value may declare
+  `source = "<source>:<reference>"` (`SchemaError::SourceOnNonSecret`, `BadSource`), `Loader::resolved`,
+  `Layer::Source`, `ORDER_WITH_SOURCES` (default < file < source < environment < command line; `DEFAULT_ORDER` is
+  unchanged and has no source layer) and `Origin::Source`. No real source ships; a file, the command line and a
+  default still cannot carry a secret. CI: the advisory portfolio job moves to coderipper a48fc6c. All crates
+  move to 0.2.24.
+
 ## 0.2.23
 
 - Docs only: `docs/SECRET-SOURCES.md`, the design for secret-source modules (what a source is, how it composes with

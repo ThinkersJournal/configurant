@@ -1,7 +1,7 @@
-# Secret sources (design, not built)
+# Secret sources (design; slice 1 built)
 
 Status: design approved by the PM on 2026-10-23 (the four decisions are in section 5); nothing is implemented, and
-`docs/DESIGN.md` item 5 still holds (a secret comes only from the environment) until slice 1 lands.
+slice 1 (the crate `configurant-secrets` and the core hook) is built in 0.2.24; no real source exists yet.
 
 ## 1. What a SOURCE is
 
@@ -65,9 +65,9 @@ assert message (a failing assert must not print it).
 | S4 | The schema may name a reference only on a `secret` value; `source` on a non-secret, an unknown source name, or a malformed reference is a schema error with a suggestion. | Three bad schemas each refused by name; mutate the check away: each loads. |
 | S5 | A source that fails is a named error, never a silent fallback to a default or an empty value. | A fake source returning `Unreachable`, `Denied`, `TimedOut`: `load` fails with the source and reference in the error and no value; mutate to swallow the error: the load succeeds, the test fails. |
 | S6 | A fetch is bounded: a source that never answers times out (as `with-secret` does for an unanswered prompt). | A fake source that blocks past the limit: the load returns `TimedOut` within the bound. |
-| S7 | No cache on disk, no second copy: the value lives in the `Config` only, and `SecretValue` is dropped after it is moved in. | A fake source counts live `SecretValue`s; after `build` one remains, inside the config. |
-| S8 | A reference is not a secret and is shown; a fetched value is never shown, even when it equals the reference text. | Source returns the reference string as the value; `explain` shows `ref` and `<redacted>`, never the value, and equal strings do not leak through the reference line. |
-| S9 | The environment still overrides and is still the only layer that can carry a secret without a source. | A secret set both ways: the environment value is used, and `explain` lists the source as overridden without showing either value. |
+| S7 | No cache on disk, no second copy kept by this crate: `SecretValue` has no `Clone`, no `Display` and a `Debug` that shows nothing, and `into_loader` consumes it. | The canary is pushed through `Debug` of a `SecretValue` and of `Resolved`; mutate `Debug` to show the text: fails. (The wipe on drop is `zeroize`'s and is not tested here.) |
+| S8 | A reference is not a secret and is shown; a fetched value is never shown. | `explain` lists the origin `secret source `fake` (reference `...`)` with `<redacted>` as the value, and the canary appears nowhere. |
+| S9 | The environment still overrides, and a key the environment sets is not even asked of its source. | `resolve` with the variable set fetches only the other secret (the fake counts its calls); a loader given both an environment and a resolved value for one key uses the environment, and `explain` lists the source below it. Mutate the order or the skip: fails. |
 | S10 | The file, command line and default stay refused for a secret (unchanged). | The existing known-bad tests keep passing with a source registered. |
 
 Stated limit, as in `with-secret` (agentlife DESIGN-REVISION-1, 254): any process running as the same user can read

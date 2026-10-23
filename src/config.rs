@@ -24,10 +24,23 @@ pub enum Layer {
     File,
     Env,
     Cli,
+    /// Secrets a source supplied ([`Loader::resolved`]); below the environment, which overrides it.
+    Source,
 }
 
-/// The precedence order, lowest first: default < file < environment < command line.
+/// The precedence order, lowest first: default < file < environment < command line. A load with
+/// [`Loader::resolved`] values uses [`ORDER_WITH_SOURCES`] instead, which puts the source below the
+/// environment; this order has no source layer, so it ignores them.
 pub const DEFAULT_ORDER: [Layer; 4] = [Layer::Default, Layer::File, Layer::Env, Layer::Cli];
+
+/// The order [`Loader::build`] uses: default < file < source < environment < command line.
+pub const ORDER_WITH_SOURCES: [Layer; 5] = [
+    Layer::Default,
+    Layer::File,
+    Layer::Source,
+    Layer::Env,
+    Layer::Cli,
+];
 
 struct Candidate {
     key: String,
@@ -42,6 +55,7 @@ pub struct Loader<'a> {
     file: Option<(String, String)>,
     env: BTreeMap<String, String>,
     cli: Vec<String>,
+    resolved: BTreeMap<String, String>,
 }
 
 impl<'a> Loader<'a> {
@@ -52,6 +66,7 @@ impl<'a> Loader<'a> {
             file: None,
             env: BTreeMap::new(),
             cli: Vec::new(),
+            resolved: BTreeMap::new(),
         }
     }
 
@@ -80,9 +95,17 @@ impl<'a> Loader<'a> {
         self
     }
 
-    /// Layer in the standard order and validate.
+    /// Secrets fetched from their sources, by key (the `configurant-secrets` crate does the fetching). Each
+    /// key must be a `secret` value that declares a `source`; anything else is refused. They are checked
+    /// and redacted like the same secret from the environment, which overrides them.
+    pub fn resolved(mut self, values: BTreeMap<String, String>) -> Self {
+        self.resolved = values;
+        self
+    }
+
+    /// Layer in the standard order (with the source layer below the environment) and validate.
     pub fn build(&self) -> Result<Config, Errors> {
-        self.build_with_order(&DEFAULT_ORDER)
+        self.build_with_order(&ORDER_WITH_SOURCES)
     }
 
     /// Layer in a given order, lowest precedence first. Exists so the precedence test can prove
@@ -93,6 +116,7 @@ impl<'a> Loader<'a> {
         let file = self.file_candidates(&mut errors);
         let env = self.env_candidates(&mut errors);
         let cli = self.cli_candidates(&mut errors);
+        let source = self.source_candidates(&mut errors);
 
         let mut chains: BTreeMap<String, Vec<(Origin, Value)>> = BTreeMap::new();
         for layer in order {
@@ -101,6 +125,7 @@ impl<'a> Loader<'a> {
                 Layer::File => &file,
                 Layer::Env => &env,
                 Layer::Cli => &cli,
+                Layer::Source => &source,
             };
             for c in batch {
                 chains
@@ -422,6 +447,20 @@ impl<'a> Loader<'a> {
                 }
                 None => {}
             }
+        }
+        out
+    }
+
+    fn source_candidates(&self, errors: &mut Vec<ConfigError>) -> Vec<Candidate> {
+        let mut out = Vec::new();
+        for (key, raw) in &self.resolved {
+            let def = self.schema.get(key);
+            let Some((def, declared)) = def.and_then(|d| Some((d, d.source.clone()?))) else {
+                // Not a secret that names a source: refuse it rather than load a value nobody declared.
+                errors.push(self.unknown(key.clone(), Origin::Source(format!("undeclared:{key}"))));
+                continue;
+            };
+            self.accept_text(def, raw, Origin::Source(declared), &mut out, errors);
         }
         out
     }
