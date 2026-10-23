@@ -39,7 +39,7 @@ fn an_added_value_parses_and_comments_survive() {
 #[test]
 fn an_existing_key_is_refused_and_the_text_is_untouched() {
     let err = add_value(SCHEMA, &nv("server.port", ValueType::Int)).unwrap_err();
-    assert!(matches!(err, SchemaEditError::Invalid(_)), "{err:?}");
+    assert!(matches!(err, SchemaEditError::Invalid(_)));
 }
 
 #[test]

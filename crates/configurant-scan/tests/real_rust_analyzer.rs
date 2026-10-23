@@ -47,13 +47,10 @@ fn rust_analyzer_confirms_std_env_and_rejects_a_look_alike() {
     drop(ra);
     let _ = std::fs::remove_dir_all(&dir);
 
-    assert!(!p.is_partial(), "unresolved calls: {p:?}");
+    assert!(!p.is_partial(), "unresolved calls: {}", p.unresolved);
     let envs: Vec<_> = p.proposals.iter().map(|x| x.env.as_str()).collect();
-    assert_eq!(envs, ["REAL_HOST", "REAL_TOKEN"], "{p:?}");
-    assert_eq!(
-        p.rejected, 1,
-        "the module's own `env::var` is not std: {p:?}"
-    );
+    assert_eq!(envs, ["REAL_HOST", "REAL_TOKEN"]);
+    assert_eq!(p.rejected, 1, "the module's own `env::var` is not std");
     let host = &p.proposals[0];
     assert_eq!(host.default_seen.as_deref(), Some("localhost"));
     assert!(p.proposals[1].secret);

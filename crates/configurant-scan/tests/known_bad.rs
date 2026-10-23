@@ -79,7 +79,7 @@ fn a_literal_read_is_proposed_with_its_site_and_default() {
     );
     let p = scan(&t.0, &schema(), &mut std_env()).unwrap();
     assert!(!p.is_partial());
-    assert_eq!(p.proposals.len(), 1, "{p:?}");
+    assert_eq!(p.proposals.len(), 1);
     let one = &p.proposals[0];
     assert_eq!(
         (one.env.as_str(), one.key.as_str()),
@@ -213,7 +213,7 @@ fn macros_are_read_without_the_server_and_option_env_is_not_counted_twice() {
     // A resolver that would reject everything proves the macros never reach it.
     let mut reject = Fixed(Ok(Some("/elsewhere.rs".into())));
     let p = scan(&t.0, &schema(), &mut reject).unwrap();
-    assert_eq!(p.candidates, 2, "{p:?}");
+    assert_eq!(p.candidates, 2);
     let envs: Vec<_> = p.proposals.iter().map(|x| x.env.as_str()).collect();
     assert_eq!(envs, ["BUILD_ID", "BUILD_REV"]);
 }
