@@ -32,8 +32,11 @@
     migrated file must be carriable back and an operation that drops or invents data cannot promise that
     (a value outside a map passes through; one the map *produces* is refused as ambiguous). The library
     returns text and a key-names-only change list; a front end writes (`migrate --write` keeps `.bak`).
-    It edits with `toml_edit`, so comments and layout survive. Dropping a key is deliberately not offered:
-    until a lossless form exists, a removed key is migrated by the project's own code.
+    It edits with `toml_edit`, so comments and layout survive. Dropping a key is offered only in its lossless
+    form, `{ op = "drop", key = "a.b", value = "x" }`: it removes the key while it holds exactly that string,
+    refuses any other value (`DropMismatch`, which never shows the value), and carrying back writes
+    `a.b = "x"` again. A file that never had the key gains it when carried back; a value that is not a
+    constant string is still migrated by the project's own code.
 
 12. **The PersistAnt module** (feature `persistant`, `configurant::persistant`). The five-step contract of
     PersistAnt's registry seen from configuration: needs in (capability ids that must hold, plus an order of

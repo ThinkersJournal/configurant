@@ -767,7 +767,7 @@ fn bad_migrations_in_a_schema_are_refused() {
     assert!(matches!(parse(2, &same), SchemaError::BadMigration { .. }));
     let badkey = step("{ op = \"rename\", from = \"a..b\", to = \"c\" }");
     assert!(matches!(parse(2, &badkey), SchemaError::BadKey(_)));
-    // An operation that loses information is not offered at all.
+    // A drop that does not name the value it removes would lose information.
     let drop = step("{ op = \"drop\", key = \"a\" }");
     assert!(matches!(parse(2, &drop), SchemaError::Parse(_)));
     // The version key is the loader's.
@@ -778,6 +778,113 @@ fn bad_migrations_in_a_schema_are_refused() {
         Schema::parse(&reserved),
         Err(SchemaError::ReservedKey(_))
     ));
+}
+
+const DROP: &str = r#"
+[[migration]]
+from = 1
+to = 2
+ops = [{ op = "drop", key = "legacy.mode", value = "compat" }]
+"#;
+
+fn dropper() -> Schema {
+    Schema::parse(&migration_schema_text(2, DROP)).expect("the dropping schema is valid")
+}
+
+#[test]
+fn a_drop_removes_only_the_named_value_keeps_comments_and_carries_back() {
+    let s = dropper();
+    let old = "[legacy]
+# why
+mode = \"compat\" # old
+
+# the server
+[server]
+port = 1 # keep
+";
+    let up = s.migrate(old, Some(1)).unwrap();
+    assert!(!up.text.contains("mode"), "{}", up.text);
+    assert!(
+        !up.text.contains("[legacy]"),
+        "the emptied table goes too: {}",
+        up.text
+    );
+    assert!(up.text.contains("# the server") && up.text.contains("port = 1 # keep"));
+    assert_eq!(up.changes, vec!["1 -> 2: dropped `legacy.mode`".to_owned()]);
+    // Carried back, the key is written again with the value that was dropped.
+    let back = s.migrate_back(&up.text, 1).unwrap();
+    assert_eq!(
+        table(&back.text),
+        table(
+            "config_version = 1
+[legacy]
+mode = \"compat\"
+[server]
+port = 1
+"
+        ),
+        "{}",
+        back.text
+    );
+    // A file without the key is left alone going up.
+    let none = s
+        .migrate(
+            "[server]
+port = 1
+",
+            Some(1),
+        )
+        .unwrap();
+    assert!(none.changes.is_empty());
+    assert!(!none.text.contains("legacy"));
+}
+
+#[test]
+fn a_drop_of_any_other_value_is_refused_and_no_error_shows_a_value() {
+    let s = dropper();
+    let e = s
+        .migrate(
+            &format!(
+                "[legacy]
+mode = \"{SECRET}\"
+"
+            ),
+            Some(1),
+        )
+        .expect_err("a different value would be lost");
+    assert!(matches!(&e, MigrateError::DropMismatch { key } if key == "legacy.mode"));
+    let shown = format!("{e} | {e:?}");
+    // A bool, never the value in a message: a failing assert must not print the secret.
+    assert!(!shown.contains(SECRET));
+    let wrong = s
+        .migrate(
+            "[legacy]
+mode = 7
+",
+            Some(1),
+        )
+        .unwrap_err();
+    assert!(
+        matches!(
+            wrong,
+            MigrateError::WrongType {
+                found: "integer",
+                ..
+            }
+        ),
+        "{wrong:?}"
+    );
+    // Carrying back never overwrites a value that is already there.
+    let clash = s
+        .migrate_back(
+            "config_version = 2
+[legacy]
+mode = \"other\"
+",
+            1,
+        )
+        .unwrap_err();
+    assert!(matches!(&clash, MigrateError::DestinationExists { key } if key == "legacy.mode"));
 }
 
 #[test]

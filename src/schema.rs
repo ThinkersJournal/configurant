@@ -46,7 +46,8 @@ pub struct Migration {
 }
 
 /// One step of a migration. Every operation is reversible by construction, so a migrated file can
-/// be carried back; an operation that drops information is deliberately not offered.
+/// be carried back; an operation that would lose information is deliberately not offered (`drop` is
+/// lossless only because it names the one value it may remove).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 #[non_exhaustive]
@@ -58,6 +59,10 @@ pub enum Op {
         key: String,
         map: std::collections::BTreeMap<String, String>,
     },
+    /// Remove the key `key`, but only while it holds exactly the string `value`; any other value is an
+    /// error, so nothing is lost and carrying back writes `key = value` again. A file that never had the
+    /// key gains it when carried back.
+    Drop { key: String, value: String },
 }
 
 /// One `[[value]]` entry.
@@ -562,6 +567,7 @@ fn check_migrations(current: u32, migrations: &[Migration]) -> Result<(), Schema
                         return Err(bad("a rename must change the key"));
                     }
                 }
+                Op::Drop { key, .. } => check_key(key)?,
                 Op::MapValue { key, map } => {
                     check_key(key)?;
                     if map.is_empty() {
