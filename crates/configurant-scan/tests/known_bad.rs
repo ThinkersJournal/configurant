@@ -326,6 +326,6 @@ fn the_report_names_partial_and_never_carries_a_secret_default() {
     let p = scan(&t.0, &schema(), &mut Alternate(false)).unwrap();
     let r = p.report();
     assert!(r.contains("PARTIAL"));
-    assert!(r.contains("DB_PASSWORD") && r.contains("secret"));
+    assert!(r.contains("DB_PASSWORD") && r.contains("(no default)"));
     assert!(!r.contains("hunter2-canary"));
 }

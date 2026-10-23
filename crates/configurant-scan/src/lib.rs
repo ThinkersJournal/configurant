@@ -61,16 +61,9 @@ pub struct Proposal {
 }
 
 impl Proposal {
-    /// The value to hand to `schema_edit::add_value` once a human has accepted it.
-    pub fn to_new_value(&self) -> NewValue {
-        let first = &self.sites[0];
-        let desc = format!(
-            "read from the environment as {} ({}:{})",
-            self.env,
-            first.file.display().to_string().replace('\\', "/"),
-            first.line
-        );
-        let (ty, default) = match self.default_seen.as_deref() {
+    /// The type and default a value of this name would get, from the literal seen beside the read.
+    fn typed(&self) -> (ValueType, Option<toml::Value>) {
+        match self.default_seen.as_deref() {
             Some("true") => (ValueType::Bool, Some(toml::Value::Boolean(true))),
             Some("false") => (ValueType::Bool, Some(toml::Value::Boolean(false))),
             Some(s) => match s.parse::<i64>() {
@@ -78,7 +71,29 @@ impl Proposal {
                 Err(_) => (ValueType::String, Some(toml::Value::String(s.to_owned()))),
             },
             None => (ValueType::String, None),
-        };
+        }
+    }
+
+    /// The schema type name of the proposal, for the report.
+    pub fn type_name(&self) -> &'static str {
+        self.typed().0.name()
+    }
+
+    /// What the report appends to a proposal that must not hold a default.
+    pub fn mark(&self) -> &'static str {
+        if self.secret { " (no default)" } else { "" }
+    }
+
+    /// The value to hand to `schema_edit::add_value` once a human has accepted it.
+    pub fn to_new_value(&self) -> NewValue {
+        let first = &self.sites[0];
+        let desc = format!(
+            "read from the environment as {} ({}:{})",
+            self.env,
+            first.file.display().to_string().replace('\', "/"),
+            first.line
+        );
+        let (ty, default) = self.typed();
         let mut n = NewValue::new(&self.key, ty, &desc);
         n.env = Some(self.env.clone());
         n.default = default;
@@ -263,9 +278,7 @@ impl Proposals {
             self.known
         );
         for p in &self.proposals {
-            let nv = p.to_new_value();
-            let secret = if p.secret { " secret" } else { "" };
-            let _ = write!(o, "  {} -> {} ({}{secret})", p.env, p.key, nv.ty.name());
+            let _ = write!(o, "  {} -> {} ({}){}", p.env, p.key, p.type_name(), p.mark());
             if let Some(d) = &p.default_seen {
                 let _ = write!(o, " default {d}");
             }
