@@ -2,8 +2,8 @@
 //! Migrating configuration files between config versions, as data: the library returns the new
 //! text and a list of changes; only a front end writes a file. Comments and layout survive.
 //!
-//! Every operation is reversible by construction (`rename`, a one-to-one `map_value`), so a file can
-//! be carried back down. No error and no change line carries a value from the file.
+//! Every operation is reversible by construction (`rename`, a one-to-one `map_value`, a `drop` that names
+//! the one value it removes), so a file can be carried back down. No error and no change line carries a value from the file.
 
 use std::collections::BTreeMap;
 
@@ -50,6 +50,10 @@ pub enum MigrateError {
         "`{key}` already holds a value this migration produces, so it could not be carried back"
     )]
     Ambiguous { key: String },
+    #[error(
+        "`{key}` holds a value other than the one this migration drops, so dropping it would lose data"
+    )]
+    DropMismatch { key: String },
 }
 
 impl Schema {
@@ -179,6 +183,15 @@ fn apply(
                 changes.push(format!("{a} -> {b}: renamed `{from}` to `{to}`"));
             }
         }
+        Op::Drop { key, value } => {
+            if backward {
+                if restore(doc.as_table_mut(), key, value)? {
+                    changes.push(format!("{a} -> {b}: restored `{key}`"));
+                }
+            } else if drop_key(doc.as_table_mut(), key, value)? {
+                changes.push(format!("{a} -> {b}: dropped `{key}`"));
+            }
+        }
         Op::MapValue { key, map } => {
             let map: BTreeMap<&str, &str> = if backward {
                 map.iter().map(|(k, v)| (v.as_str(), k.as_str())).collect()
@@ -224,6 +237,19 @@ fn rename(root: &mut Table, from: &str, to: &str) -> Result<bool, MigrateError> 
         .unwrap_or_default();
     let item = parent.remove(leaf).expect("checked above");
 
+    insert_at(root, to, item, Some(key_decor))?;
+    // Only now: a table that still holds the destination keeps its header and comments.
+    prune(root, from);
+    Ok(true)
+}
+
+/// Put `item` at `to`, making the tables on the way. A segment that is not a table is a collision.
+fn insert_at(
+    root: &mut Table,
+    to: &str,
+    item: Item,
+    key_decor: Option<toml_edit::Decor>,
+) -> Result<(), MigrateError> {
     let (dirs, new_leaf) = to.rsplit_once('.').map_or(("", to), |(d, l)| (d, l));
     let mut cur: &mut dyn TableLike = root;
     if !dirs.is_empty() {
@@ -240,11 +266,57 @@ fn rename(root: &mut Table, from: &str, to: &str) -> Result<bool, MigrateError> 
         }
     }
     cur.insert(new_leaf, item);
-    if let Some(mut k) = cur.key_mut(new_leaf) {
-        *k.leaf_decor_mut() = key_decor;
+    if let (Some(decor), Some(mut k)) = (key_decor, cur.key_mut(new_leaf)) {
+        *k.leaf_decor_mut() = decor;
     }
-    // Only now: a table that still holds the destination keeps its header and comments.
-    prune(root, from);
+    Ok(())
+}
+
+/// Remove `key` if it holds exactly `value`. `Ok(false)` if the key is absent.
+fn drop_key(root: &mut Table, key: &str, value: &str) -> Result<bool, MigrateError> {
+    let Some((parent, leaf)) = parent_of(root, key) else {
+        return Ok(false);
+    };
+    let Some(item) = parent.get(leaf) else {
+        return Ok(false);
+    };
+    let Some(v) = item.as_value() else {
+        return Err(MigrateError::WrongType {
+            key: key.to_owned(),
+            found: item.type_name(),
+        });
+    };
+    match v.as_str() {
+        Some(s) if s == value => {}
+        Some(_) => {
+            return Err(MigrateError::DropMismatch {
+                key: key.to_owned(),
+            });
+        }
+        None => {
+            return Err(MigrateError::WrongType {
+                key: key.to_owned(),
+                found: v.type_name(),
+            });
+        }
+    }
+    parent.remove(leaf);
+    prune(root, key);
+    Ok(true)
+}
+
+/// Write `key = value` back. `Ok(false)` if the key already holds that value; any other value (or a
+/// table in the way) is a collision.
+fn restore(root: &mut Table, key: &str, value: &str) -> Result<bool, MigrateError> {
+    if let Some(item) = parent_of(root, key).and_then(|(parent, leaf)| parent.get(leaf)) {
+        return match item.as_value().and_then(EditValue::as_str) {
+            Some(s) if s == value => Ok(false),
+            _ => Err(MigrateError::DestinationExists {
+                key: key.to_owned(),
+            }),
+        };
+    }
+    insert_at(root, key, Item::Value(EditValue::from(value)), None)?;
     Ok(true)
 }
 

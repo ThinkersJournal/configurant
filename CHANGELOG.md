@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.18
+
+- Migrations gain a lossless `drop`: `{ op = "drop", key = "legacy.mode", value = "compat" }` removes the key only
+  while it holds exactly that string (empty parent tables go too, comments elsewhere survive), refuses any other
+  value or a non-string with a named error that never shows the value (`MigrateError::DropMismatch`, `WrongType`),
+  and carrying back writes `legacy.mode = "compat"` again (refused if the key holds something else). A file that
+  never had the key gains it when carried back. New `Op::Drop` (the enum is `non_exhaustive`). All crates move
+  to 0.2.18.
+
 ## 0.2.17
 
 - `configurant-gui` "Add from scan" (scan assist slice 3, GUI), behind the Cargo feature `scan` (off by default).
