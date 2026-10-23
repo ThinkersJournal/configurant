@@ -1,0 +1,20 @@
+[package]
+name = "configurant-scan"
+version = "0.2.12"
+edition = "2024"
+rust-version = "1.95"
+description = "Scan assist for ConfigurAnt: find the environment variables a Rust project reads (language-server confirmed) and propose schema entries for a human to accept. Suggests only; writes nothing."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ThinkersJournal/configurant"
+readme = "README.md"
+keywords = ["configuration", "config", "schema", "lsp", "scan"]
+categories = ["config", "development-tools"]
+
+[dependencies]
+configurant = { version = "0.2.12", path = "../.." }
+lsp-bridge = "0.4.0"
+lsp-types = "0.97"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", default-features = false, features = ["rt", "rt-multi-thread", "time"] }
+url = "2.5"
+toml = "1.1.8"

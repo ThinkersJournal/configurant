@@ -1,6 +1,7 @@
 # Design note: scan assist (LSP)
 
-Status: proposal; the questions at the end need an answer before building. Facts read at configurant
+Status: decided; slice 1 built in 0.2.12 (answers at the end). Text candidates plus LSP go-to-definition to
+confirm `std::env`, not `find_references`: workspace symbols do not index the standard library by default. Facts read at configurant
 `origin/main` 76a293e and `lsp-bridge` 0.2.0 (crates.io, CireSnave's own crate, MIT OR Apache-2.0).
 
 ## Today
@@ -78,3 +79,17 @@ runner if CireSnave wants it (CLAUDE.md 5.1g), not `#[ignore]`.
 3. Is a real rust-analyzer test on the self-hosted runner wanted, or is the scripted stub enough?
 4. `lsp-bridge` 0.2.0's README example says `lsp-bridge = "0.1"` and its build badge points at a placeholder
    repo; harmless here, but worth fixing in that crate before we depend on it.
+
+## Answers (PM, 2026-10-23)
+
+1. Own crate `configurant-scan`. 2. Rust only first. 3. Stub tests in CI plus one real rust-analyzer test,
+installed on the runner with `rustup component add rust-analyzer rust-src`. 4. `lsp-bridge` is CireSnave's
+(`ciresnave/lsp-bridge`); its README fix went to 0.2.1.
+
+## Built in slice 1
+
+`configurant-scan` with `Resolver` (trait; `LspResolver` over `lsp-bridge`), `scan`, `Proposals`;
+`configurant::schema_edit::add_value`. Not built: the `configurant scan` subcommand and TUI/GUI "Add from scan".
+`lsp-bridge` 0.2 sent `rootUri = "file://" + path`, which is not a URI for a Windows path, so rust-analyzer never
+loaded the workspace; fixed in 0.4.0 (which this crate requires), along with a typed `ContentModified` error that
+`LspResolver` retries.
