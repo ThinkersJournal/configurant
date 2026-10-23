@@ -364,8 +364,11 @@ impl<'a> App<'a> {
             KeyCode::Enter | KeyCode::Char('e') => match self.fields.get(self.selected) {
                 Some(f) if !f.editable => {
                     self.message = Some(format!(
-                        "`{}` is a secret: it comes only from its environment variable",
-                        f.key
+                        "`{}` is a secret: it comes only from its environment variable{}",
+                        f.key,
+                        f.source
+                            .as_ref()
+                            .map_or_else(String::new, |s| format!(" or its secret source `{s}`"))
                     ));
                 }
                 Some(_) => self.mode = Mode::Edit(String::new()),
@@ -745,6 +748,9 @@ impl<'a> App<'a> {
             }
             if f.secret {
                 text += " [secret]";
+                if let Some(src) = &f.source {
+                    text += &format!(" [source: {src}]");
+                }
             }
             if !f.choices.is_empty() {
                 text += &format!("\nchoices: {}", f.choices.join(", "));

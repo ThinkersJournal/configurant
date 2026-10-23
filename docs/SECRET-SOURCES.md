@@ -1,7 +1,8 @@
-# Secret sources (design; slice 1 built)
+# Secret sources (design; slices 1 and 2 built)
 
 Status: design approved by the PM on 2026-10-23 (the four decisions are in section 5); nothing is implemented, and
-slice 1 (the crate `configurant-secrets` and the core hook) is built in 0.2.24; no real source exists yet.
+slice 1 (the crate `configurant-secrets` and the core hook, 0.2.24) and slice 2 (the reference shown in `describe`,
+`explain`, the front ends and `check`, 0.2.25) are built; no real source exists yet.
 
 ## 1. What a SOURCE is
 
