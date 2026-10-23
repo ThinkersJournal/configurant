@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.11
+
+- Design note `docs/SCAN.md`: scan assist (LSP) as an optional `configurant-scan` crate on `lsp-bridge`.
+  Proposals are data, secrets are never shown, accepting one edits the schema text with `toml_edit`. No
+  behaviour change; all three crates move to 0.2.11.
+
 ## 0.2.10
 
 - `configurant-gui` runs the data transfer in a plan, the same flow as the TUI. "Write the file" on the review
