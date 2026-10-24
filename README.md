@@ -27,6 +27,6 @@ a key built with `format!` or held in a variable is the same; another type's met
 `explain` with a string argument is reported as if it were ours.
 
 Status: 0.0.x. Schema, layering, validation, `explain`, serde struct binding, config-file migrations and the module
-interface exist, and the PersistAnt module is behind the `persistant` feature; the TUI/GUI are later. Design:
+interface exist, and the PersistAnt module is behind the `persistant` feature; `configurant-tui` and `configurant-gui` edit a file with review and backup, `configurant-scan` proposes values. Design:
 [docs/DESIGN.md](docs/DESIGN.md); why not figment/config/clap/confy: [docs/PRIOR-ART.md](docs/PRIOR-ART.md).
 Licence: MIT OR Apache-2.0.

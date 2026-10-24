@@ -27,7 +27,7 @@
    absent, defaults still load and any other value is refused naming the module.
 8. **A `Plan` is data.** A module never acts. The **front end** (CLI, TUI, GUI) shows the plan and executes
    it only after the user confirms. The PersistAnt module's data transfer will be a `Plan`.
-9. **CLI**: `configurant check|describe|explain|migrate`. Front ends beyond that are separate crates: `configurant-tui` exists; the GUI is later.
+9. **CLI**: `configurant check|describe|explain|migrate`. Front ends beyond that are separate crates: `configurant-tui` exists; `configurant-gui` exists too.
 10. **Tests**: known-bad inputs first (`tests/known_bad.rs`): unknown key (file, env, flag), wrong type,
     secret leak (file, flag, positional, type error, every output), precedence inversion.
 
@@ -56,6 +56,6 @@
 13. **Front ends** (`configurant::edit`). A `Session` stages edits against a loaded `Config`, through the same
     checks as a load; a secret is never editable. `review()` is display only; `Review::confirm()` is the one
     way to a `Confirmed`, which alone yields new file text and the plan to execute. A front end (the
-    `configurant-tui` crate; a GUI later) draws, asks, writes and executes; the library decides what is valid.
+    `configurant-tui` and `configurant-gui` crates) draws, asks, writes and executes; the library decides what is valid.
 
-Later: secret-source modules (proposal: [SECRET-SOURCES.md](SECRET-SOURCES.md)); scan assist.
+Built since: secret sources ([SECRET-SOURCES.md](SECRET-SOURCES.md), slices 1-2) and scan assist ([SCAN.md](SCAN.md)). What is open is listed in `ROADMAP.md`.

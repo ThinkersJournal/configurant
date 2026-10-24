@@ -1,6 +1,6 @@
 # Design note: executing a `DataTransfer` (PersistAnt module)
 
-Status: decided (see Decisions at the end); nothing here is built yet.
+Status: decided and built (0.2.7; wired into the TUI in 0.2.9 and the GUI after, see `TRANSFER-UI.md`).
 Facts below were read at configurant `origin/main` 6fb8dd3 and PersistAnt `origin/main` (workspace 0.9.14).
 
 ## Today
@@ -85,4 +85,4 @@ Each is written failing, then the code under it is mutated to confirm it bites.
 
 `PersistantModule::transfer` / `transfer_blocking`, `copy_between` for two backends you already hold, and
 `TransferEnd`, `TransferOptions`, `TransferReport`, `TransferError`. Tests: `tests/known_bad_transfer.rs`, each
-mutation-checked. Not done: wiring into the TUI/GUI (they pass no modules yet) and a `configurant transfer` command.
+mutation-checked. Wiring into the TUI and GUI was done afterwards (`TRANSFER-UI.md`). Not done: a `configurant transfer` command (see `ROADMAP.md`).

@@ -52,4 +52,4 @@ before calling the window accessible in practice.
 
 ## Out of scope for this row
 
-Modules (the binary passes none, as the TUI does), tables and maps, executing a data transfer, scan assist.
+Tables and maps. (Executing a data transfer and scan assist were out of scope when this was written and were added later; CHANGELOG 0.2.9 onward.)
