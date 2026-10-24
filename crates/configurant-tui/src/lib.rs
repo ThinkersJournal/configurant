@@ -514,7 +514,10 @@ impl<'a> App<'a> {
         };
         let labels = ["source", "target"];
         let mut ends = Vec::new();
-        #[allow(clippy::needless_range_loop)] // `i` indexes ids, answers and labels together
+        #[allow(
+            clippy::needless_range_loop,
+            reason = "`i` indexes ids, answers and labels together"
+        )]
         for i in 0..2 {
             let id = &ask.ids[i];
             let parsed = setup

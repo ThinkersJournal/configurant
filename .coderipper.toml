@@ -1,0 +1,37 @@
+# Waivers of this repository's CodeRipper runs (the advisory `portfolio` job of ci.yml). Each carries its reason and owner.
+
+[[allow]]
+check = "SUP-002"
+file = "Cargo.lock"
+symbol = "crates.io:zbus_names@4.3.5"
+reason = "RUSTSEC-2026-0371 zbus_names: unmaintained notice, not a vulnerability. Reached only by configurant-gui: eframe -> egui-winit -> accesskit_winit -> accesskit_unix (Linux AT-SPI) -> zbus stack; core, tui, scan and secrets do not reach it. Nothing we can change; re-check on every eframe/accesskit bump. Owner: configurant lane (PM ruling 2026-10-24)."
+
+[[allow]]
+check = "SUP-002"
+file = "Cargo.lock"
+symbol = "crates.io:zvariant@5.15.1"
+reason = "RUSTSEC-2026-0370 zvariant: unmaintained notice, not a vulnerability. Reached only by configurant-gui: eframe -> egui-winit -> accesskit_winit -> accesskit_unix (Linux AT-SPI) -> zbus stack; core, tui, scan and secrets do not reach it. Nothing we can change; re-check on every eframe/accesskit bump. Owner: configurant lane (PM ruling 2026-10-24)."
+
+[[allow]]
+check = "SUP-002"
+file = "Cargo.lock"
+symbol = "crates.io:zvariant_derive@5.15.1"
+reason = "RUSTSEC-2026-0372 zvariant_derive: unmaintained notice, not a vulnerability. Reached only by configurant-gui: eframe -> egui-winit -> accesskit_winit -> accesskit_unix (Linux AT-SPI) -> zbus stack; core, tui, scan and secrets do not reach it. Nothing we can change; re-check on every eframe/accesskit bump. Owner: configurant lane (PM ruling 2026-10-24)."
+
+[[allow]]
+check = "SEC-006"
+file = "Cargo.lock"
+symbol = "crates.io:zbus_names@4.3.5"
+reason = "RUSTSEC-2026-0371 zbus_names: unmaintained notice, not a vulnerability. Reached only by configurant-gui: eframe -> egui-winit -> accesskit_winit -> accesskit_unix (Linux AT-SPI) -> zbus stack; core, tui, scan and secrets do not reach it. Nothing we can change; re-check on every eframe/accesskit bump. Owner: configurant lane (PM ruling 2026-10-24)."
+
+[[allow]]
+check = "SEC-006"
+file = "Cargo.lock"
+symbol = "crates.io:zvariant@5.15.1"
+reason = "RUSTSEC-2026-0370 zvariant: unmaintained notice, not a vulnerability. Reached only by configurant-gui: eframe -> egui-winit -> accesskit_winit -> accesskit_unix (Linux AT-SPI) -> zbus stack; core, tui, scan and secrets do not reach it. Nothing we can change; re-check on every eframe/accesskit bump. Owner: configurant lane (PM ruling 2026-10-24)."
+
+[[allow]]
+check = "SEC-006"
+file = "Cargo.lock"
+symbol = "crates.io:zvariant_derive@5.15.1"
+reason = "RUSTSEC-2026-0372 zvariant_derive: unmaintained notice, not a vulnerability. Reached only by configurant-gui: eframe -> egui-winit -> accesskit_winit -> accesskit_unix (Linux AT-SPI) -> zbus stack; core, tui, scan and secrets do not reach it. Nothing we can change; re-check on every eframe/accesskit bump. Owner: configurant lane (PM ruling 2026-10-24)."
