@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.28
+
+- CI only: the advisory `portfolio` job is repinned from a48fc6cc to coderipper `30e012b7`. No behaviour change. All crates
+  move to 0.2.28.
+
 ## 0.2.27
 
 - Lint suppressions: all 11 `#[allow]` now carry a `reason = "..."` (3 in source, 8 `dead_code` in `tests/known_bad.rs`),
