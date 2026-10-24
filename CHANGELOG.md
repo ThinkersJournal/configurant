@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.33
+
+- Docs only: `docs/SECRET-SOURCES.md` lists the slices after 2 (3 `file` source, proposed; 4 SecretAnt adapter, held; 5 publish), the rules a `file` source must meet, what is not planned and why, and the open decision whether to build it. All crates move to 0.2.33.
+
 ## 0.2.32
 
 - Second customer schema: `examples/synapsed.toml` (the Synapse daemon: home, listen address, mailbox store id + endpoint, launch and alert roles; environment names as `synapsed` reads them at origin/main) with `tests/customer_synapsed.rs` (7 tests; the module-absent refusal was shown to bite by removing `provider`). Tests and an example only; no library change. All crates move to 0.2.32.

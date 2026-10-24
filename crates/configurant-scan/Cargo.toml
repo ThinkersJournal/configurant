@@ -1,6 +1,6 @@
 [package]
 name = "configurant-scan"
-version = "0.2.32"
+version = "0.2.33"
 edition = "2024"
 rust-version = "1.95"
 description = "Scan assist for ConfigurAnt: find the environment variables a Rust project reads (language-server confirmed) and propose schema entries for a human to accept. Suggests only; writes nothing."
@@ -16,7 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }
-configurant = { version = "0.2.32", path = "../.." }
+configurant = { version = "0.2.33", path = "../.." }
 lsp-bridge = "0.4.0"
 lsp-types = "0.97"
 thiserror = "2.0.21"
