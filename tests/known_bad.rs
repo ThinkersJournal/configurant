@@ -485,17 +485,26 @@ fn a_config_binds_to_a_struct_with_the_winning_values() {
 #[test]
 fn a_struct_that_does_not_fit_is_refused_by_name() {
     #[derive(Debug, serde::Deserialize)]
-    #[allow(dead_code)]
+    #[allow(
+        dead_code,
+        reason = "fields are read only by `Debug` and the error text"
+    )]
     struct Wrong {
         server: WrongServer,
     }
     #[derive(Debug, serde::Deserialize)]
-    #[allow(dead_code)]
+    #[allow(
+        dead_code,
+        reason = "fields are read only by `Debug` and the error text"
+    )]
     struct WrongServer {
         port: String,
     }
     #[derive(Debug, serde::Deserialize)]
-    #[allow(dead_code)]
+    #[allow(
+        dead_code,
+        reason = "fields are read only by `Debug` and the error text"
+    )]
     struct Missing {
         nonesuch: bool,
     }
@@ -511,27 +520,42 @@ fn a_struct_that_does_not_fit_is_refused_by_name() {
 #[test]
 fn binding_never_leaks_a_secret_into_its_error() {
     #[derive(Debug, serde::Deserialize)]
-    #[allow(dead_code)]
+    #[allow(
+        dead_code,
+        reason = "fields are read only by `Debug` and the error text"
+    )]
     struct Db {
         db: DbPassword,
     }
     #[derive(Debug, serde::Deserialize)]
-    #[allow(dead_code)]
+    #[allow(
+        dead_code,
+        reason = "fields are read only by `Debug` and the error text"
+    )]
     struct DbPassword {
         password: u16,
     }
     #[derive(Debug, serde::Deserialize)]
-    #[allow(dead_code)]
+    #[allow(
+        dead_code,
+        reason = "fields are read only by `Debug` and the error text"
+    )]
     struct Variant {
         db: VariantPassword,
     }
     #[derive(Debug, serde::Deserialize)]
-    #[allow(dead_code)]
+    #[allow(
+        dead_code,
+        reason = "fields are read only by `Debug` and the error text"
+    )]
     enum Mode {
         Other,
     }
     #[derive(Debug, serde::Deserialize)]
-    #[allow(dead_code)]
+    #[allow(
+        dead_code,
+        reason = "fields are read only by `Debug` and the error text"
+    )]
     struct VariantPassword {
         password: Mode,
     }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.27
+
+- Lint suppressions: all 11 `#[allow]` now carry a `reason = "..."` (3 in source, 8 `dead_code` in `tests/known_bad.rs`),
+  clearing the CodeRipper `lint-suppression` row from `ROADMAP.md`. New `.coderipper.toml` waives SUP-002 and SEC-006 for
+  RUSTSEC-2026-0370, -0371 and -0372 (unmaintained `zvariant`, `zbus_names`, `zvariant_derive`, reached only by
+  `configurant-gui` through `eframe` -> `accesskit_unix`; PM ruling), each with its reason; the sweep reports no findings and
+  6 waived. No behaviour change. All crates move to 0.2.27.
+
 ## 0.2.26
 
 - Licence: the `LICENSE-MIT` holder line in the root and in every crate now reads "Copyright (c) 2026 The

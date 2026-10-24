@@ -227,7 +227,7 @@ fn main() -> ExitCode {
     };
     let config: &'static Config = Box::leak(Box::new(config));
     let (tx, rx) = mpsc::channel();
-    #[allow(unused_mut)] // only `--features scan` adds the scan setup
+    #[allow(unused_mut, reason = "only `--features scan` adds the scan setup")]
     let mut app = App::new(Session::new(config, Some(modules))).with_transfer(TransferSetup {
         module,
         needs,
