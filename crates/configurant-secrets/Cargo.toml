@@ -1,6 +1,6 @@
 [package]
 name = "configurant-secrets"
-version = "0.2.32"
+version = "0.2.33"
 edition = "2024"
 rust-version = "1.95"
 description = "Secret sources for ConfigurAnt: fetch a secret by reference at load time, hand it to the loader as redacted text, never print, log or write it."
@@ -11,6 +11,6 @@ keywords = ["configuration", "config", "secrets", "schema"]
 categories = ["config"]
 
 [dependencies]
-configurant = { version = "0.2.32", path = "../.." }
+configurant = { version = "0.2.33", path = "../.." }
 thiserror = "2.0.21"
 zeroize = "1.9.1"

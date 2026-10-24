@@ -1,4 +1,4 @@
-# Secret sources (design; slices 1 and 2 built)
+# Secret sources (design; slices 1 and 2 built, slice 3 proposed)
 
 Status: design approved by the PM on 2026-10-23 (the four decisions are in section 5); nothing is implemented, and
 slice 1 (the crate `configurant-secrets` and the core hook, 0.2.24) and slice 2 (the reference shown in `describe`,
@@ -83,7 +83,21 @@ process of the same user. A secret is held in ordinary memory (no `mlock`); `Sec
    source.
 2. `explain` / `describe` / `help` show the reference and `<redacted>`; the CLI `check` reports a schema's sources
    that are not registered in this build, by name.
-3. An adapter for SecretAnt, in its own crate, when SecretAnt is on crates.io.
+3. **`file` source** (proposed, waits on decision 5): `source = "file:<name>"` reads `<name>` from a secrets directory the
+   application's operator names (a mounted `/run/secrets`-style directory, as Docker and Kubernetes provide). It is the one
+   source needing no vault and no wrapper, and the shape pydantic-settings' `secrets_dir` shows
+   ([PRIOR-ART.md](PRIOR-ART.md)). Rules it must meet beyond S1 to S10: the reference is a bare file name (no `/`, `..`, drive
+   letter or absolute path; refused at schema load, S4); the directory comes from the environment (`CONFIGURANT_SECRETS_DIR`),
+   never the schema, so the schema stays portable and holds no machine path; the file is read once, at most 64 KiB, one
+   trailing newline removed, content must be UTF-8; on Unix a file readable by group or others is refused (`Denied`); a symlink
+   is refused; absent is `NotFound`. Known-bad first: `..` and absolute references, an oversize file, a symlink out of the
+   directory, a world-readable file, the canary never in an error.
+4. An adapter for SecretAnt, in its own crate, when SecretAnt is on crates.io (held).
+5. Publish `configurant-secrets` with the batch the PM releases (crates.io has 0.2.25 and the PM publishes batches).
+
+Not planned, and why: a `vault` source (decision 4: the `with-secret` wrapper already delivers an environment variable); a
+`.env` reader (it would make a plaintext file next to the code the normal place for a secret; [PRIOR-ART.md](PRIOR-ART.md), dotenvy);
+a command source (running a program to get a secret puts a process, its argv and its environment on the secret's path, against S2).
 
 ## 5. Decisions
 
@@ -96,3 +110,7 @@ Taken by the PM on 2026-10-23 as technical questions (no CireSnave decision need
 3. **DECIDED 2026-10-23: accept `zeroize`**, so `SecretValue` wipes on drop.
 4. **DECIDED 2026-10-23: no `vault` source.** The `with-secret` wrapper already delivers an environment variable. A
    SecretAnt adapter comes later as its own crate, when SecretAnt exists.
+5. **OPEN: is a `file` source wanted?** It lets a deployment that mounts secrets as files (containers) use ConfigurAnt without a
+   wrapper, at the price of a second place a secret may sit on disk. Options: (a) build slice 3 as above, recommended
+   (the file is the operator's, outside the repo and the schema, permission-checked, never written by us); (b) wait for
+   SecretAnt and build nothing; (c) a narrower `file` limited to Unix-permissioned paths. Raised with the PM 2026-10-24.
