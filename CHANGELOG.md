@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.31
+
+- Docs only: `docs/PRIOR-ART.md` rewritten as a reviewed table (adopt / differ, source, licence, how each was checked;
+  corrects the note that figment has no provenance report: it has `find_metadata` and error origins). `ROADMAP.md` gains
+  the doc-to-roadmap audit (18 rows). Stale "later / not built" statements corrected in `README.md`, `DESIGN.md`,
+  `GUI.md`, `TRANSFER.md`, `TRANSFER-UI.md`. All crates move to 0.2.31.
+
 ## 0.2.30
 
 - CI only: the advisory `portfolio` job is repinned from `d14a22b6` to coderipper `ee9c3950` (0.9.24). `CLAUDE.md` no longer

@@ -1,6 +1,6 @@
 # Design note: running a transfer from the TUI and GUI
 
-Status: proposal; the questions at the end need an answer before building. Facts read at `origin/main` 1096b9d.
+Status: built (TUI 0.2.9, GUI after; CHANGELOG), as recommended below. The "Today" section describes the state before that. Still open: a `Needs` schema field and a progress callback (`ROADMAP.md`). Facts read at `origin/main` 1096b9d.
 
 ## Today
 
