@@ -1,0 +1,56 @@
+# ConfigurAnt schema for the Synapse daemon `synapsed` (second customer). The schema is data: synapsed keeps reading
+# its settings as it does today and moves to configurant by replacing its `std::env::var` calls with `Config::get`.
+# Environment names are the ones synapsed reads at origin/main (crates/synapsed/src/main.rs); nothing here is a secret.
+#
+# The mailbox store is the one value a module owns (`provider = "persistant"`): with the PersistAnt module registered it
+# is chosen from the backends this build offers and a change returns a data-transfer plan; with the module absent the
+# default loads and any other id is refused naming the module. synapsed today also records the choice in
+# `<home>/mailbox-store.json`; moving that record into the config file is the adopter's decision.
+
+[project]
+name = "synapsed"
+version = "0.1.0"
+summary = "The Synapse daemon: where it keeps its data, where it listens, who it alerts"
+schema_version = 1
+
+[[value]]
+key = "home.dir"
+type = "path"
+env = "SYNAPSE_HOME"
+description = "Synapse home directory; unset means the platform default (as `synapse id`)"
+
+[[value]]
+key = "listen.addr"
+type = "string"
+env = "SYNAPSE_ADDR"
+description = "socket address synapsed listens on, host:port (synapsed refuses a value that is not an address)"
+
+[[value]]
+key = "storage.id"
+type = "string"
+default = "redb"
+provider = "persistant"
+env = "SYNAPSE_MAILBOX_STORE"
+restart = true
+description = "mailbox store backend id (`redb`; `sqlite` in a build with the sqlite-store feature)"
+
+# A path for a file backend, `env:NAME` for a URL backend: a URL may hold a password, so it is never written here.
+[[value]]
+key = "storage.endpoint"
+type = "string"
+description = "where the store lives: a path, or env:NAME naming the variable that holds the URL; unset means <home>/mailbox.<id>"
+restart = true
+
+[[value]]
+key = "launch.roles"
+type = "list"
+default = []
+env = "SYNAPSE_LAUNCHER_ROLES"
+description = "roles whose lanes may be launched on a message; empty means launch signals are OFF"
+
+[[value]]
+key = "alert.roles"
+type = "list"
+default = []
+env = "SYNAPSE_ALERT_ROLES"
+description = "roles that receive security alerts as mail"

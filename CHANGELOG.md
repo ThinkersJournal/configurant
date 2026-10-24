@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.32
+
+- Second customer schema: `examples/synapsed.toml` (the Synapse daemon: home, listen address, mailbox store id + endpoint, launch and alert roles; environment names as `synapsed` reads them at origin/main) with `tests/customer_synapsed.rs` (7 tests; the module-absent refusal was shown to bite by removing `provider`). Tests and an example only; no library change. All crates move to 0.2.32.
+
 ## 0.2.31
 
 - Docs only: `docs/PRIOR-ART.md` rewritten as a reviewed table (adopt / differ, source, licence, how each was checked;
