@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.29
+
+- CI only: the advisory `portfolio` job is repinned from `30e012b7` to coderipper `d14a22b6` (installs coderipper 0.9.14; the
+  old pin installs 0.9.6). No behaviour change. All crates move to 0.2.29.
+
 ## 0.2.28
 
 - CI only: the advisory `portfolio` job is repinned from a48fc6cc to coderipper `30e012b7`. No behaviour change. All crates
