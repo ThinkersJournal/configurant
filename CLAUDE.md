@@ -15,4 +15,4 @@ this file only adds to them. Read `HANDOFF.md` first and begin its first unblock
 - **Repo rules:** pinned actions, `permissions: contents: read`, `deny.toml`, SPDX header on every source
   file (`bash .github/spdx_gate.sh`), MIT OR Apache-2.0, crates.io deps only, `CHANGELOG.md` entry and
   version bump per PR (the PM allocates the number), `cargo fmt` before pushing.
-- Lanes cannot push here: send the PM the commit SHA. Windows linker gotchas: `HANDOFF.md`.
+- Lanes can push their own branches (bot token has push on this repo): push, open the PR, send the PM [READY]. Windows linker gotchas: `HANDOFF.md`.
