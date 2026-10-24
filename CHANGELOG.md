@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.26
+
+- Licence: the `LICENSE-MIT` holder line in the root and in every crate now reads "Copyright (c) 2026 The
+  configurant contributors" (was a person's handle; CireSnave's ruling on board 263). Thinker's Journal Inc. waits
+  for confirmed company ownership. The CodeRipper `licence` row leaves `ROADMAP.md`. All crates move to 0.2.26.
+
 ## 0.2.25
 
 - Secret sources, slice 2: a secret's `source` reference (never the value) is shown where the secret is described.
