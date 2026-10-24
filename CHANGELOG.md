@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.30
+
+- CI only: the advisory `portfolio` job is repinned from `d14a22b6` to coderipper `ee9c3950` (0.9.24). `CLAUDE.md` no longer
+  says lanes cannot push. No behaviour change. All crates move to 0.2.30.
+
 ## 0.2.29
 
 - CI only: the advisory `portfolio` job is repinned from `30e012b7` to coderipper `d14a22b6` (installs coderipper 0.9.14; the
