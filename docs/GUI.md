@@ -44,8 +44,9 @@ all the tests find widgets by their accessibility labels, as a screen reader doe
 
 What egui does not give: native platform widgets (it draws its own, so a screen reader sees AccessKit's
 description of them, not a native control, and some platform behaviours such as text-field caret
-navigation announcements and IME composition are less complete than in a native toolkit); arrow-key navigation
-inside the value list (Tab moves through the rows instead); high-contrast and system font scaling follow egui's
+navigation announcements and IME composition are less complete than in a native toolkit); a list that holds
+the arrows at its ends (Up and Down move between the value rows as Tab does, the detail pane follows the focused
+row, and Down from the last row goes on to the controls below); high-contrast and system font scaling follow egui's
 theme and `pixels_per_point`, not the operating system's setting. Screen-reader behaviour has been tested here
 only at the accessibility-tree level, not with a running screen reader: that is the next thing to check by hand
 before calling the window accessible in practice.

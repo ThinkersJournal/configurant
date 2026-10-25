@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3
+
+- GUI: Up and Down move between the value rows (egui's focus navigation already did; the selection and the detail pane below did not follow it, because the row selected itself only on the frame it gained focus). The focused row is now the selected row, so the detail pane shows the value the arrows landed on. Down from the last row goes on to the controls below, as Tab does (`docs/GUI.md` says so). 1 new test in `crates/configurant-gui/tests/app.rs` (red before the fix at the detail-pane assertion). All crates move to 0.5.1.
+
 ## 0.5.2
 
 - Docs only: `docs/PATENT-SWEEP.md`, the due-diligence patent sweep of the 0.5.x line at `ad5700c` (14 ideas, 14 queries on Google Patents, 11 hits whose independent claims were read, all `clear`; none needs review; not legal advice). `ROADMAP.md` row 19 keeps the re-sweep standing. All crates move to 0.5.2.
