@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.35
+
+- A list value from the environment or the command line can hold a comma: `\,` is a literal comma and `\\` a literal backslash (so `a\\,b` is `a\` and `b`). Any other backslash stays as written, so `C:\data,D:\more` is unchanged; only a backslash directly before a comma, or doubled, reads differently than before (ROADMAP row 14, PM ruling 2026-10-25). Files are unaffected (TOML arrays). 5 tests in `tests/known_bad_list_text.rs`, the escape arm shown to bite by narrowing it. All crates move to 0.2.35.
+
 ## 0.2.34
 
 - `configurant-secrets` gains the `file` source, `FileSource` (`source = "file:<name>"`; CireSnave 2026-10-25, PM board 277): the directory comes from `CONFIGURANT_SECRETS_DIR` (`FileSource::from_env`), the reference must be a bare file name, at most 64 KiB of UTF-8 with one trailing newline removed, a symlink is followed only if it stays inside the directory, and on Unix a file with any group or other permission bit is refused. Windows has no permission check (stated in `docs/SECRET-SOURCES.md` section 4a). No path, content or OS message reaches an error.

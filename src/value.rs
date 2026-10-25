@@ -54,12 +54,29 @@ pub enum Value {
     Bool(bool),
     Path(PathBuf),
     Enum(String),
-    /// A list of strings; from text it is comma-separated.
+    /// A list of strings; from text it is comma-separated (`\,` is a literal comma, `\\` a backslash).
     List(Vec<String>),
     /// The rows of an array of tables. Only a configuration file can set it.
     Rows(Vec<Row>),
     /// A map with arbitrary string keys. Only a configuration file can set it.
     Map(BTreeMap<String, Value>),
+}
+
+/// Split list text on commas. `\,` is a literal comma and `\\` a literal backslash; any other backslash is kept
+/// as written, so a Windows path in a list is unchanged. Items are trimmed.
+fn split_list(text: &str) -> Vec<String> {
+    let mut items = Vec::new();
+    let mut cur = String::new();
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' if matches!(chars.peek(), Some(',' | '\\')) => cur.extend(chars.next()),
+            ',' => items.push(std::mem::take(&mut cur)),
+            _ => cur.push(c),
+        }
+    }
+    items.push(cur);
+    items.into_iter().map(|s| s.trim().to_owned()).collect()
 }
 
 impl Value {
@@ -95,7 +112,7 @@ impl Value {
             ValueType::List => Value::List(if text.trim().is_empty() {
                 Vec::new()
             } else {
-                text.split(',').map(|s| s.trim().to_owned()).collect()
+                split_list(text)
             }),
         })
     }
