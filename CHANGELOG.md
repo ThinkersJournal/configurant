@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.2.35
+## 0.3.0
 
-- A list value from the environment or the command line can hold a comma: `\,` is a literal comma and `\\` a literal backslash (so `a\\,b` is `a\` and `b`). Any other backslash stays as written, so `C:\data,D:\more` is unchanged; only a backslash directly before a comma, or doubled, reads differently than before (ROADMAP row 14, PM ruling 2026-10-25). Files are unaffected (TOML arrays). 5 tests in `tests/known_bad_list_text.rs`, the escape arm shown to bite by narrowing it. All crates move to 0.2.35.
+- **Breaking** (the second number moves, pre-1.0; PM 2026-10-25): list text from the environment or the command line reads backslashes differently. Inputs that change, and only these: a value containing `\,` (was a backslash ending one item, then a split; now a literal comma inside the item) and a value containing `\\` (was two backslashes; now one). A lone backslash anywhere else, such as `C:\data`, is unchanged. Migration: to keep a literal backslash before a split, write `\\,`; to keep two literal backslashes, write `\\\\`. Files (TOML arrays) are unaffected.
+- A list value from the environment or the command line can hold a comma: `\,` is a literal comma and `\\` a literal backslash (so `a\\,b` is `a\` and `b`). Any other backslash stays as written, so `C:\data,D:\more` is unchanged; only a backslash directly before a comma, or doubled, reads differently than before (ROADMAP row 14, PM ruling 2026-10-25). Files are unaffected (TOML arrays). 5 tests in `tests/known_bad_list_text.rs`, the escape arm shown to bite by narrowing it. All crates move to 0.3.0.
 
 ## 0.2.34
 
