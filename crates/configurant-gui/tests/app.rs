@@ -212,6 +212,20 @@ fn arrow_keys_move_through_the_value_list_and_the_detail_follows() {
     h.run();
     assert!(h.get_by_label_contains("db.password   ").is_focused());
     assert!(h.query_by_label_contains("db.password (string)").is_some());
+    h.key_press(Key::ArrowDown);
+    h.run();
+    h.key_press(Key::ArrowDown);
+    h.run();
+    h.key_press(Key::ArrowDown);
+    h.run();
+    assert!(
+        !h.get_by_label_contains("log.level   ").is_focused(),
+        "Down from the last row leaves the list, as Tab does"
+    );
+    assert!(
+        h.query_by_label_contains("log.level (enum)").is_some(),
+        "the selection stays on the last row"
+    );
 }
 
 #[test]
