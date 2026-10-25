@@ -36,5 +36,6 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 16 | `ValueDef.min/max` as f64 (ints above 2^53) | HANDOFF "Known gaps" | done: `Bound` (int or float), exact int comparison, 0.5.0 |
 | 17 | Publish 0.2.26 onward (crates.io has 0.2.25) | PM, 2026-10-24 | held: PM publishes a batch when a slice is releasable |
 | 18 | Re-check the CodeRipper waiver on every `eframe`/`accesskit` bump | this file | standing |
+| 19 | Patent sweep of the 0.5.x line; re-sweep when a new family of capability lands and by 2027-10-25 | `PATENT-SWEEP-PROCESS.md` (CireSnave 2026-10-25) | done: `docs/PATENT-SWEEP.md` (11 hits claim-read, all clear); re-sweep standing |
 
 Rows needing a CireSnave call: 8 (a person), 13. Rows needing a PM call: none open (5 ruled: flags only; 15 ruled: validate defaults through the module).
