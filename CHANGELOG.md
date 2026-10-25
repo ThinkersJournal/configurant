@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- **0.3.0 was never published to crates.io**: this release is the first on crates.io after 0.2.34 and carries the 0.3.0 Breaking change below as well (backslash escapes in env/CLI list text). Read the 0.3.0 entry too when upgrading from 0.2.x.
+- **Breaking** (the second number moves, pre-1.0; PM ruling 2026-10-25): a schema default is now checked by its value's module at load, like a value from any other layer. A default that its registered module rejects fails the load with `ConfigError::ModuleRejected` naming the key (origin `Default`), even when a higher layer overrides it. Schemas that loaded before can now fail, and only these: a value with a `provider` whose schema `default` that provider's module rejects, loaded with that module registered. With no module registered a default still loads unchecked, as before (a front end that offers only some modules is unaffected). Migration: fix the default, or the module's `validate`. 3 tests in `tests/known_bad_default_module.rs`; skipping the check makes 2 of them fail. All crates move to 0.4.0.
+
 ## 0.3.0
 
 - **Breaking** (the second number moves, pre-1.0; PM 2026-10-25): list text from the environment or the command line reads backslashes differently. Inputs that change, and only these: a value containing `\,` (was a backslash ending one item, then a split; now a literal comma inside the item) and a value containing `\\` (was two backslashes; now one). A lone backslash anywhere else, such as `C:\data`, is unchanged. Migration: to keep a literal backslash before a split, write `\\,`; to keep two literal backslashes, write `\\\\`. Files (TOML arrays) are unaffected.

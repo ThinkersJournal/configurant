@@ -112,7 +112,7 @@ impl<'a> Loader<'a> {
     /// that it fails against an inverted order.
     pub fn build_with_order(&self, order: &[Layer]) -> Result<Config, Errors> {
         let mut errors = Vec::new();
-        let default = self.default_candidates();
+        let default = self.default_candidates(&mut errors);
         let file = self.file_candidates(&mut errors);
         let env = self.env_candidates(&mut errors);
         let cli = self.cli_candidates(&mut errors);
@@ -166,18 +166,29 @@ impl<'a> Loader<'a> {
         })
     }
 
-    fn default_candidates(&self) -> Vec<Candidate> {
-        self.schema
-            .values()
-            .iter()
-            .filter_map(|d| {
-                self.schema.default_of(&d.key).map(|v| Candidate {
+    /// The schema defaults. A default whose module is registered must pass it, like a value from any other layer;
+    /// with no module registered it loads unchecked, as a default always has.
+    fn default_candidates(&self, errors: &mut Vec<ConfigError>) -> Vec<Candidate> {
+        let mut out = Vec::new();
+        for d in self.schema.values() {
+            let Some(v) = self.schema.default_of(&d.key) else {
+                continue;
+            };
+            let module_absent = d
+                .provider
+                .as_ref()
+                .is_some_and(|p| self.modules.and_then(|m| m.get(p)).is_none());
+            if module_absent {
+                out.push(Candidate {
                     key: d.key.clone(),
                     origin: Origin::Default,
                     value: v.clone(),
-                })
-            })
-            .collect()
+                });
+            } else {
+                self.accept(d, v.clone(), Origin::Default, &mut out, errors);
+            }
+        }
+        out
     }
 
     fn file_candidates(&self, errors: &mut Vec<ConfigError>) -> Vec<Candidate> {
