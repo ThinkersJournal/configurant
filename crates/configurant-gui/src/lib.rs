@@ -549,8 +549,13 @@ impl<'a> App<'a> {
                         None => format!("{}   {now}", f.key),
                     };
                     let r = ui.selectable_label(self.selected == i, line);
-                    if r.clicked() || r.gained_focus() {
-                        act = Some(Act::Select(i));
+                    // Focus follows Tab and the arrow keys; the focused row is the selected one.
+                    if r.clicked() || r.has_focus() {
+                        if self.selected != i {
+                            act = Some(Act::Select(i));
+                            // The detail pane below was drawn for the old selection: draw once more.
+                            ui.ctx().request_repaint();
+                        }
                     }
                     if r.double_clicked() {
                         act = Some(Act::BeginEdit);

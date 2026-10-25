@@ -185,6 +185,36 @@ fn it_can_be_driven_from_the_keyboard_alone() {
 }
 
 #[test]
+fn arrow_keys_move_through_the_value_list_and_the_detail_follows() {
+    use eframe::egui::Key;
+    let config = config();
+    let mut h = harness(&config);
+    h.key_press(Key::Tab);
+    h.run();
+    assert!(h.get_by_label_contains("server.port   ").is_focused());
+    h.key_press(Key::ArrowUp);
+    h.run();
+    assert!(
+        h.get_by_label_contains("server.port   ").is_focused(),
+        "Up on the first row stays on it"
+    );
+    h.key_press(Key::ArrowDown);
+    h.run();
+    assert!(h.get_by_label_contains("db.password   ").is_focused());
+    h.key_press(Key::ArrowDown);
+    h.run();
+    assert!(h.get_by_label_contains("log.level   ").is_focused());
+    assert!(
+        h.query_by_label_contains("log.level (enum)").is_some(),
+        "the detail pane follows the arrow selection"
+    );
+    h.key_press(Key::ArrowUp);
+    h.run();
+    assert!(h.get_by_label_contains("db.password   ").is_focused());
+    assert!(h.query_by_label_contains("db.password (string)").is_some());
+}
+
+#[test]
 fn a_secret_with_a_source_shows_its_reference_and_still_is_not_editable() {
     let text = SCHEMA.replace(
         "env = \"DEMO_DB_PASSWORD\"",

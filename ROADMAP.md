@@ -26,7 +26,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 6 | `configurant transfer` command | `TRANSFER.md` s4 "only if wanted" | held: nobody has asked for it |
 | 7 | Transfer progress callback (a spinner only today) | `TRANSFER-UI.md` q4 | held: PersistAnt has no progress callback |
 | 8 | Check the GUI with a real screen reader (only the accessibility tree is tested) | `GUI.md` | held: needs a person with a screen reader (CireSnave) |
-| 9 | GUI arrow-key navigation inside the value list | `GUI.md` "does not give" | open, low |
+| 9 | GUI arrow-key navigation inside the value list | `GUI.md` "does not give" | done: arrows move the focused row, the detail follows (0.5.1) |
 | 10 | Scan assist for Python/TypeScript (Rust only so far) | `SCAN.md` q2 | held: not wanted yet (PM 2026-10-23: Rust only first) |
 | 11 | Other modules: ports, paths, logging | spec s4 "Other modules" | open, no design yet |
 | 12 | Further customers: lanes' tooling, direct-backend projects through PersistAnt | spec "First customers" | held: each project's own lane adopts |
