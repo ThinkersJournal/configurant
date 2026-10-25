@@ -4,6 +4,8 @@
 
 use std::fmt;
 
+use crate::schema::Bound;
+
 /// Where a value (or an offending input) came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -63,8 +65,8 @@ pub enum ConfigError {
     OutOfRange {
         key: String,
         found: String,
-        min: Option<f64>,
-        max: Option<f64>,
+        min: Option<Bound>,
+        max: Option<Bound>,
         origin: Origin,
     },
     #[error("`{key}` from {origin}: {found} is not one of {}", .choices.join(", "))]
@@ -125,7 +127,7 @@ fn suggest(s: &Option<String>) -> String {
         .unwrap_or_default()
 }
 
-fn range(min: Option<f64>, max: Option<f64>) -> String {
+fn range(min: Option<Bound>, max: Option<Bound>) -> String {
     match (min, max) {
         (Some(a), Some(b)) => format!("{a}..={b}"),
         (Some(a), None) => format!(">= {a}"),
