@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+
+- **Breaking** (public types, second number moves pre-1.0): `ValueDef::min` and `max` are `Option<Bound>` (was `Option<f64>`), and `ConfigError::OutOfRange`'s `min` and `max` are `Option<Bound>` too. `Bound` is new and exported: `Int(i64)` for a bound written as an integer, `Float(f64)` otherwise; it implements `Display`. An `int` value is now compared exactly: before, a bound or value above 2^53 was rounded to f64, so `min = 9007199254740993` accepted `9007199254740992` and `max = 9007199254740992` accepted `9007199254740993`; `min > max` is also exact. A float bound on an `int` still works (`min = 1.5` refuses 1, accepts 2). Schema files need no change; only Rust code that reads `ValueDef::min`/`max` or matches `OutOfRange`'s bounds does (migration: match on `Bound`, or print it). 5 tests in `tests/known_bad_int_bounds.rs`, 4 of them red on 0.4.0. All crates move to 0.5.0.
+
 ## 0.4.0
 
 - **0.3.0 was never published to crates.io**: this release is the first on crates.io after 0.2.34 and carries the 0.3.0 Breaking change below as well (backslash escapes in env/CLI list text). Read the 0.3.0 entry too when upgrading from 0.2.x.

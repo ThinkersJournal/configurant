@@ -33,7 +33,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 13 | Export a schema as JSON Schema for editors | `PRIOR-ART.md` (schemars) | held: not scheduled, needs a CireSnave call |
 | 14 | Env/CLI list items containing a comma | HANDOFF "Known gaps" | done: backslash escape `\,` (PM 2026-10-25), 0.3.0 |
 | 15 | Module validation for schema defaults | HANDOFF "Known gaps" | done: defaults checked by a registered module at load (PM 2026-10-25), 0.4.0 |
-| 16 | `ValueDef.min/max` as f64 (ints above 2^53) | HANDOFF "Known gaps" | open, low |
+| 16 | `ValueDef.min/max` as f64 (ints above 2^53) | HANDOFF "Known gaps" | done: `Bound` (int or float), exact int comparison, 0.5.0 |
 | 17 | Publish 0.2.26 onward (crates.io has 0.2.25) | PM, 2026-10-24 | held: PM publishes a batch when a slice is releasable |
 | 18 | Re-check the CodeRipper waiver on every `eframe`/`accesskit` bump | this file | standing |
 

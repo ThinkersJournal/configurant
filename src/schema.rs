@@ -2,8 +2,9 @@
 //! The schema: what a project's configuration contains. Parsed from `configurant.toml`, strictly
 //! (an unknown schema key is an error) and checked against itself.
 
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 
 use serde::Deserialize;
 
@@ -77,9 +78,9 @@ pub struct ValueDef {
     #[serde(default)]
     pub default: Option<toml::Value>,
     #[serde(default)]
-    pub min: Option<f64>,
+    pub min: Option<Bound>,
     #[serde(default)]
-    pub max: Option<f64>,
+    pub max: Option<Bound>,
     #[serde(default)]
     pub choices: Vec<String>,
     pub description: String,
@@ -241,6 +242,62 @@ pub struct Schema {
     tables: Vec<TableDef>,
     maps: Vec<MapDef>,
     migrations: Vec<Migration>,
+}
+
+/// A `min` or `max` in a schema. An integer bound is kept as an integer, so an `int` is compared exactly
+/// (an f64 cannot tell neighbours above 2^53 apart); a bound written with a fraction is a float.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize)]
+#[serde(untagged)]
+pub enum Bound {
+    Int(i64),
+    Float(f64),
+}
+
+impl fmt::Display for Bound {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Bound::Int(i) => write!(f, "{i}"),
+            Bound::Float(x) => write!(f, "{x}"),
+        }
+    }
+}
+
+/// `i` against `x`, exactly (`None` for NaN).
+fn cmp_int_float(i: i64, x: f64) -> Option<Ordering> {
+    if x.is_nan() {
+        return None;
+    }
+    let floor = x.floor();
+    // `as i128` saturates, and every i64 lies strictly inside that range.
+    let fl = floor as i128;
+    Some(match i128::from(i).cmp(&fl) {
+        Ordering::Equal if x > floor => Ordering::Less,
+        other => other,
+    })
+}
+
+impl Bound {
+    /// How `v` compares with this bound (`Greater`: the value is above it). `None` if `v` is not a number or
+    /// either side is NaN.
+    pub(crate) fn cmp_value(&self, v: &Value) -> Option<Ordering> {
+        match (v, self) {
+            (Value::Int(i), Bound::Int(b)) => Some(i.cmp(b)),
+            (Value::Int(i), Bound::Float(b)) => cmp_int_float(*i, *b),
+            (Value::Float(x), Bound::Int(b)) => cmp_int_float(*b, *x).map(Ordering::reverse),
+            (Value::Float(x), Bound::Float(b)) => x.partial_cmp(b),
+            _ => None,
+        }
+    }
+
+    /// How this bound compares with `other`.
+    pub(crate) fn cmp_bound(self, other: Bound) -> Option<Ordering> {
+        match (self, other) {
+            (Bound::Int(a), Bound::Int(b)) => Some(a.cmp(&b)),
+            (Bound::Int(a), Bound::Float(b)) => cmp_int_float(a, b),
+            (Bound::Float(a), Bound::Int(b)) => cmp_int_float(b, a).map(Ordering::reverse),
+            (Bound::Float(a), Bound::Float(b)) => a.partial_cmp(&b),
+        }
+    }
 }
 
 /// A value that broke a constraint of its definition.
@@ -483,8 +540,13 @@ impl Schema {
 
 impl ValueDef {
     pub(crate) fn violation(&self, v: &Value) -> Option<Violation> {
-        if let Some(n) = v.as_f64()
-            && (self.min.is_some_and(|m| n < m) || self.max.is_some_and(|m| n > m))
+        if matches!(v, Value::Int(_) | Value::Float(_))
+            && (self
+                .min
+                .is_some_and(|m| m.cmp_value(v) == Some(Ordering::Less))
+                || self
+                    .max
+                    .is_some_and(|m| m.cmp_value(v) == Some(Ordering::Greater)))
         {
             return Some(Violation::OutOfRange);
         }
@@ -529,7 +591,7 @@ fn check_def(d: &ValueDef) -> Result<Option<Value>, SchemaError> {
         return Err(SchemaError::RangeOnNonNumeric(d.key.clone()));
     }
     if let (Some(a), Some(b)) = (d.min, d.max)
-        && a > b
+        && a.cmp_bound(b) == Some(Ordering::Greater)
     {
         return Err(SchemaError::BadRange(d.key.clone()));
     }
