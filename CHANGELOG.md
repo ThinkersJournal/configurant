@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.34
+
+- `configurant-secrets` gains the `file` source, `FileSource` (`source = "file:<name>"`; CireSnave 2026-10-25, PM board 277): the directory comes from `CONFIGURANT_SECRETS_DIR` (`FileSource::from_env`), the reference must be a bare file name, at most 64 KiB of UTF-8 with one trailing newline removed, a symlink is followed only if it stays inside the directory, and on Unix a file with any group or other permission bit is refused. Windows has no permission check (stated in `docs/SECRET-SOURCES.md` section 4a). No path, content or OS message reaches an error.
+- `SecretSource::check_reference` (default accepts) and `ResolveError::BadReference`: a malformed reference is refused by `resolve` before any read, even when the environment sets the key. `SourceFailure::Invalid` (too large, not text). Both enums are `#[non_exhaustive]`, so this is not breaking.
+- 9 new tests (7 run on Windows; the permission and symlink tests run on Unix) in `crates/configurant-secrets/tests/file_source.rs` (traversal, oversize, bad permissions, symlink out of the directory, missing file, UTF-8, the canary in no error, `explain` and `Debug`). All crates move to 0.2.34.
+
 ## 0.2.33
 
 - Docs only: `docs/SECRET-SOURCES.md` lists the slices after 2 (3 `file` source, proposed; 4 SecretAnt adapter, held; 5 publish), the rules a `file` source must meet, what is not planned and why, and the open decision whether to build it. All crates move to 0.2.33.

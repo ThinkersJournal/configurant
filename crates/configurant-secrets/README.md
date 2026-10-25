@@ -11,10 +11,13 @@ The environment still overrides it, and a file, the command line and a default s
     let resolved = resolve(&schema, &sources, &env, Duration::from_secs(5))?;
     let config = resolved.into_loader(Loader::new(&schema).env(env)).build()?;
 
-A source returns only a `SecretValue` or a failure kind (`NotFound`, `Denied`, `Unreachable`); it cannot put text
+A source returns only a `SecretValue` or a failure kind (`NotFound`, `Denied`, `Unreachable`, `Invalid`); it cannot put text
 in an error, so no error carries what a source received. A source that does not answer in time is `TimedOut`.
-No source is built in: the vault wrapper already delivers an environment variable, and a SecretAnt adapter will
-be its own crate.
+One source is built in, `FileSource` (`source = "file:<name>"`): it reads `<name>` from the directory named by
+`CONFIGURANT_SECRETS_DIR`, a bare file name only, at most 64 KiB of UTF-8, a symlink only if it stays inside the
+directory, and on Unix only a file with no group or other permission bits. Windows has no permission check; see
+`docs/SECRET-SOURCES.md` section 4a. The vault wrapper already delivers an environment variable, so there is no `vault`
+source, and a SecretAnt adapter will be its own crate.
 
 Limit: any process running as the same user can read what this process can. `SecretValue` is wiped on drop, but
 the loader's copy inside the `Config` is not.

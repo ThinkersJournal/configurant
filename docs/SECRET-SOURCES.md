@@ -1,8 +1,8 @@
-# Secret sources (design; slices 1 and 2 built, slice 3 proposed)
+# Secret sources (design; slices 1 to 3 built)
 
-Status: design approved by the PM on 2026-10-23 (the four decisions are in section 5); nothing is implemented, and
-slice 1 (the crate `configurant-secrets` and the core hook, 0.2.24) and slice 2 (the reference shown in `describe`,
-`explain`, the front ends and `check`, 0.2.25) are built; no real source exists yet.
+Status: design approved by the PM on 2026-10-23 (the four decisions are in section 5). Slice 1 (the crate
+`configurant-secrets` and the core hook, 0.2.24), slice 2 (the reference shown in `describe`, `explain`, the front ends
+and `check`, 0.2.25) and slice 3 (the `file` source, 0.2.34) are built; `file` is the only real source.
 
 ## 1. What a SOURCE is
 
@@ -83,7 +83,7 @@ process of the same user. A secret is held in ordinary memory (no `mlock`); `Sec
    source.
 2. `explain` / `describe` / `help` show the reference and `<redacted>`; the CLI `check` reports a schema's sources
    that are not registered in this build, by name.
-3. **`file` source** (proposed, waits on decision 5): `source = "file:<name>"` reads `<name>` from a secrets directory the
+3. **`file` source** (built, 0.2.34; see section 4a for what it checks): `source = "file:<name>"` reads `<name>` from a secrets directory the
    application's operator names (a mounted `/run/secrets`-style directory, as Docker and Kubernetes provide). It is the one
    source needing no vault and no wrapper, and the shape pydantic-settings' `secrets_dir` shows
    ([PRIOR-ART.md](PRIOR-ART.md)). Rules it must meet beyond S1 to S10: the reference is a bare file name (no `/`, `..`, drive
@@ -99,6 +99,39 @@ Not planned, and why: a `vault` source (decision 4: the `with-secret` wrapper al
 `.env` reader (it would make a plaintext file next to the code the normal place for a secret; [PRIOR-ART.md](PRIOR-ART.md), dotenvy);
 a command source (running a program to get a secret puts a process, its argv and its environment on the secret's path, against S2).
 
+## 4a. The `file` source as built
+
+`FileSource` is in `configurant-secrets`. The application registers it (`FileSource::from_env(&env)` returns `None` when
+`CONFIGURANT_SECRETS_DIR` is unset or empty, so an unset directory is an unregistered source and `resolve` names it as one).
+
+Checked, in this order, for `source = "file:<name>"`:
+
+1. `<name>` is a bare file name: non-empty, not `.` or `..`, and no `/`, `\`, `:` or NUL (so no `../x`, no subdirectory,
+   no drive letter, no absolute path, no Windows alternate data stream). A bad name is `BadReference` from `resolve`, before
+   any read and even when the environment already sets the key (a malformed reference is a schema fault).
+2. The directory and the file are resolved with `canonicalize`, and the result must lie inside the resolved directory. A
+   symlink is therefore **followed when it ends inside the directory** (a container mount links `name -> ..data/name`) and
+   refused (`Denied`) when it leaves it. This refines the proposal above, which refused every symlink, because refusing all of
+   them would reject the Kubernetes layout the source exists for. A missing file or dangling link is `NotFound`.
+3. The opened handle must be a regular file (a directory is `Denied`). The check is on the handle, not the path.
+4. **Unix:** any group or other permission bit (`mode & 0o077`) is `Denied`; `0600` and `0400` are read.
+5. At most 64 KiB (`FileSource::MAX_BYTES`) is read; more is `Invalid`. The content must be UTF-8 (else `Invalid`). One
+   trailing newline (LF or CRLF) is removed; a second newline is part of the secret.
+
+Not checked, stated plainly:
+
+- **Windows has no permission check.** `std` exposes no ACL, and the Unix mode test has no equivalent, so on Windows a file
+  readable by other accounts is read. The only protection there is the operator's directory ACL. Every other check
+  (bare name, containment, regular file, size, UTF-8) applies on Windows; symlink creation needs a privilege there and is
+  tested only on Unix.
+- The directory's own permissions and ownership are not checked, and neither is the file's owner.
+- A mount whose files are mode `0644` (the default of some container platforms) is refused on Unix; set the mode (for
+  Kubernetes `defaultMode: 0400`) rather than expecting the check to be relaxed.
+- Same-user processes can read what this process reads (the limit in section 3 applies).
+
+An error from this source carries a failure kind (`not found`, `access denied`, `invalid content`), the key, the source name
+and the reference, and never a path, a file's content or an operating-system message.
+
 ## 5. Decisions
 
 Taken by the PM on 2026-10-23 as technical questions (no CireSnave decision needed):
@@ -110,7 +143,7 @@ Taken by the PM on 2026-10-23 as technical questions (no CireSnave decision need
 3. **DECIDED 2026-10-23: accept `zeroize`**, so `SecretValue` wipes on drop.
 4. **DECIDED 2026-10-23: no `vault` source.** The `with-secret` wrapper already delivers an environment variable. A
    SecretAnt adapter comes later as its own crate, when SecretAnt exists.
-5. **OPEN: is a `file` source wanted?** It lets a deployment that mounts secrets as files (containers) use ConfigurAnt without a
+5. **DECIDED 2026-10-25 by CireSnave (PM board 277), verbatim: "On decision 277: A": build it.** Raised as: is a `file` source wanted? It lets a deployment that mounts secrets as files (containers) use ConfigurAnt without a
    wrapper, at the price of a second place a secret may sit on disk. Options: (a) build slice 3 as above, recommended
    (the file is the operator's, outside the repo and the schema, permission-checked, never written by us); (b) wait for
    SecretAnt and build nothing; (c) a narrower `file` limited to Unix-permissioned paths. Raised with the PM 2026-10-24.

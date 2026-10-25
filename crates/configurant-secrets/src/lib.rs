@@ -6,6 +6,10 @@
 //! nothing through `Debug`; the environment is consulted first and a source is not asked for a key the
 //! environment already sets.
 
+mod file;
+
+pub use file::FileSource;
+
 use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::{Arc, mpsc};
@@ -44,6 +48,8 @@ pub enum SourceFailure {
     NotFound,
     Denied,
     Unreachable,
+    /// The source found something, but it is not usable (too large, not text).
+    Invalid,
     /// Added by [`resolve`] when the source did not answer in time.
     TimedOut,
 }
@@ -54,6 +60,7 @@ impl fmt::Display for SourceFailure {
             SourceFailure::NotFound => "not found",
             SourceFailure::Denied => "access denied",
             SourceFailure::Unreachable => "unreachable",
+            SourceFailure::Invalid => "invalid content",
             SourceFailure::TimedOut => "timed out",
         })
     }
@@ -66,6 +73,12 @@ pub trait SecretSource: Send + Sync {
 
     fn interface_version(&self) -> u32 {
         SOURCE_INTERFACE_VERSION
+    }
+
+    /// Whether `reference` is well formed for this source. Asked before any fetch, for every sourced secret in
+    /// a schema; a source that can tell a bad reference without looking it up should say so here.
+    fn check_reference(&self, _reference: &str) -> bool {
+        true
     }
 
     /// Fetch the secret named by `reference`.
@@ -140,6 +153,12 @@ pub enum ResolveError {
     },
     #[error("`source` of `{key}` must look like `<source>:<reference>`")]
     BadSource { key: String },
+    #[error("`{key}` has a reference `{reference}` that source `{source_name}` does not accept")]
+    BadReference {
+        key: String,
+        source_name: String,
+        reference: String,
+    },
     #[error(
         "secret source `{source_name}` could not supply `{key}` (reference `{reference}`): {kind}"
     )]
@@ -217,26 +236,40 @@ pub fn resolve(
             continue;
         };
         // The environment is the explicit override: do not even ask the source.
-        if def.env.as_ref().is_some_and(|name| env.contains_key(name)) {
-            continue;
-        }
+        let env_set = def.env.as_ref().is_some_and(|name| env.contains_key(name));
         let Some((name, reference)) = declared
             .split_once(':')
             .filter(|(n, r)| !n.is_empty() && !r.is_empty())
         else {
-            errors.push(ResolveError::BadSource {
-                key: def.key.clone(),
-            });
+            if !env_set {
+                errors.push(ResolveError::BadSource {
+                    key: def.key.clone(),
+                });
+            }
             continue;
         };
         let Some(source) = sources.by_name.get(name) else {
-            errors.push(ResolveError::UnknownSource {
-                key: def.key.clone(),
-                source_name: name.to_owned(),
-                registered: sources.names(),
-            });
+            if !env_set {
+                errors.push(ResolveError::UnknownSource {
+                    key: def.key.clone(),
+                    source_name: name.to_owned(),
+                    registered: sources.names(),
+                });
+            }
             continue;
         };
+        // A malformed reference is a schema fault, whatever the environment holds.
+        if !source.check_reference(reference) {
+            errors.push(ResolveError::BadReference {
+                key: def.key.clone(),
+                source_name: name.to_owned(),
+                reference: reference.to_owned(),
+            });
+            continue;
+        }
+        if env_set {
+            continue;
+        }
         match fetch_within(source, reference, timeout) {
             Ok(v) => {
                 out.insert(def.key.clone(), v);
