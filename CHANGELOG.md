@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4
+
+- Docs only: ROADMAP row 5 (`Needs` schema field) shows its ruling, flags only (PM 2026-10-25); it still read "open, needs a PM call".
+
 ## 0.5.3
 
 - GUI: Up and Down move between the value rows (egui's focus navigation already did; the selection and the detail pane below did not follow it, because the row selected itself only on the frame it gained focus). The focused row is now the selected row, so the detail pane shows the value the arrows landed on. Down from the last row goes on to the controls below, as Tab does (`docs/GUI.md` says so). 1 new test in `crates/configurant-gui/tests/app.rs` (red before the fix at the detail-pane assertion). All crates move to 0.5.1.

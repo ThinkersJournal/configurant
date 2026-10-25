@@ -22,7 +22,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 2 | Synapse (`synapsed`) schema: storage id + endpoint, as `examples/synapsed.toml` + test; then hand the adoption PR to the synapse lane | spec "First customers" | done: #36 (schema + tests); adoption held by the synapse lane |
 | 3 | Secret sources slice 3: list the slices after 2 and build the first that needs no SecretAnt | `SECRET-SOURCES.md` s4 | docs in #35; `file` source built in 0.2.34 (CireSnave 2026-10-25 "On decision 277: A"); SecretAnt adapter held |
 | 4 | SecretAnt adapter crate (`SecretSource` for SecretAnt) | `SECRET-SOURCES.md` s4 item 3 | held: SecretAnt is not on crates.io |
-| 5 | `Needs` schema field (today `--require`/`--prefer`/`--min-durability` flags) | `TRANSFER-UI.md` | open, needs a PM call on the field's shape |
+| 5 | `Needs` schema field (today `--require`/`--prefer`/`--min-durability` flags) | `TRANSFER-UI.md` | done: ruled flags only, no `Needs` schema field (PM 2026-10-25) |
 | 6 | `configurant transfer` command | `TRANSFER.md` s4 "only if wanted" | held: nobody has asked for it |
 | 7 | Transfer progress callback (a spinner only today) | `TRANSFER-UI.md` q4 | held: PersistAnt has no progress callback |
 | 8 | Check the GUI with a real screen reader (only the accessibility tree is tested) | `GUI.md` | held: needs a person with a screen reader (CireSnave) |
