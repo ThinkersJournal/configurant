@@ -31,10 +31,10 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 11 | Other modules: ports, paths, logging | spec s4 "Other modules" | open, no design yet |
 | 12 | Further customers: lanes' tooling, direct-backend projects through PersistAnt | spec "First customers" | held: each project's own lane adopts |
 | 13 | Export a schema as JSON Schema for editors | `PRIOR-ART.md` (schemars) | held: not scheduled, needs a CireSnave call |
-| 14 | Env/CLI list items containing a comma | HANDOFF "Known gaps" | open: needs a quoting rule decision |
+| 14 | Env/CLI list items containing a comma | HANDOFF "Known gaps" | done: backslash escape `\,` (PM 2026-10-25), 0.3.0 |
 | 15 | Module validation for schema defaults | HANDOFF "Known gaps" | open: decide whether defaults should reach the module |
 | 16 | `ValueDef.min/max` as f64 (ints above 2^53) | HANDOFF "Known gaps" | open, low |
 | 17 | Publish 0.2.26 onward (crates.io has 0.2.25) | PM, 2026-10-24 | held: PM publishes a batch when a slice is releasable |
 | 18 | Re-check the CodeRipper waiver on every `eframe`/`accesskit` bump | this file | standing |
 
-Rows needing a CireSnave call: 8 (a person), 13. Rows needing a PM call: 5, 14, 15.
+Rows needing a CireSnave call: 8 (a person), 13. Rows needing a PM call: none open (5 ruled: flags only; 15 ruled: validate defaults through the module).
