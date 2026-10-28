@@ -2,7 +2,7 @@
 
 ## 0.5.8
 
-- Easy-gate (EXPECTATIONS 6.24): `README.md` opens with a 10-line hello-world, which is `examples/quickstart.rs` and is run by `tests/quickstart_example.rs`; `easyants-card.toml` is the hub card read by ThinkersJournal/easyants (name, one sentence, install link, the example's lines 2-11). All crates move to 0.5.8.
+- Easy-gate (EXPECTATIONS 6.24): `README.md` opens with a 10-line hello-world, which is `examples/quickstart.rs` and is run by `tests/quickstart_example.rs`; `easyants-card.toml` is the hub card read by ThinkersJournal/easyants, `not-ready` ("Early release, not ready") until the fresh-eyes trial has run and the example is checked against the published crate. All crates move to 0.5.8.
 
 ## 0.5.7
 
