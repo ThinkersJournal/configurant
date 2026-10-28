@@ -645,6 +645,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "capant"
+version = "0.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "265b0c09787e73d2e851b8b3bca29cc9559547c5e24ba5d531530f76baebf1bb"
+
+[[package]]
 name = "castaway"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -805,7 +811,7 @@ dependencies = [
 
 [[package]]
 name = "configurant"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "clap",
  "persistant",
@@ -818,7 +824,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-gui"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "clap",
  "configurant",
@@ -831,7 +837,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-scan"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "clap",
  "configurant",
@@ -845,7 +851,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-secrets"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "configurant",
  "tempfile",
@@ -855,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-tui"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "clap",
  "configurant",
@@ -3250,9 +3256,9 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "persistant"
-version = "0.9.28"
+version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bc6ea3d8607b814bc63c6a8a20d127b7a570c494ee13226fd4aea54be8d7949"
+checksum = "a72e861cfd2a25d84324c115213c3b462f0c7ff9d1b48136ab991bee875781f7"
 dependencies = [
  "futures-util",
  "opendal",
@@ -3268,36 +3274,40 @@ dependencies = [
 
 [[package]]
 name = "persistant-blob"
-version = "0.9.28"
+version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3147d77dc05f2280acad187a91e725f03b835f3761a545b45160a6e0cf47dd39"
+checksum = "e6de4dc291647d8f8a64ca5525c70d48a682892e5c9a257f220aa1904d512155"
 dependencies = [
  "persistant-core",
 ]
 
 [[package]]
 name = "persistant-core"
-version = "0.9.28"
+version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24a85bd90704eba221a1407fc74b9444784f336efdd6ff19627e00585368759b"
+checksum = "87f6666d01a73c35f411fb954c1037a73c2117ef9c5b00ac497a7004f50dbc47"
+dependencies = [
+ "capant",
+]
 
 [[package]]
 name = "persistant-kv"
-version = "0.9.28"
+version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c2ddf46077186ba8015973e543d8f24b8e61b6a39fb19c5d8b881d9e7debdab"
+checksum = "5e997fe48464f09d46441cdf19171c08a520175dba152210a6b63707a4f95a2c"
 dependencies = [
  "persistant-blob",
  "persistant-core",
  "persistant-relational",
+ "tokio",
  "unisql",
 ]
 
 [[package]]
 name = "persistant-opendal"
-version = "0.9.28"
+version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69d20a734fcafefd1c4f65b79901d29ed2c02fd00aa5c82c4d164da918d813ab"
+checksum = "f79d3178859bfd77fe43b3305b309366bede6a7c3ce9b1ae5898a64f976250e5"
 dependencies = [
  "futures-util",
  "opendal",
@@ -3308,9 +3318,9 @@ dependencies = [
 
 [[package]]
 name = "persistant-relational"
-version = "0.9.28"
+version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61ddcfd153ad0687b1ec4838c8c302c1a601aa79cf71d0cd0b89357a69e4649b"
+checksum = "3607fbd98961c29afb5f08968a75f7728246a5e704cee85e1b5f62f9b159b5ea"
 dependencies = [
  "persistant-core",
 ]
@@ -4733,9 +4743,9 @@ checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 
 [[package]]
 name = "unisql"
-version = "0.25.8"
+version = "0.27.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c96e321f9fc796f89f72935df3658e6538f24ca222b87f8251f7d5420af0326"
+checksum = "09d3ffce0766e39026661e9b5beafc63c197cd2b2a038d42740e82cb6849964b"
 dependencies = [
  "unisql-core",
  "unisql-dialect-mysql",
@@ -4746,15 +4756,15 @@ dependencies = [
 
 [[package]]
 name = "unisql-core"
-version = "0.25.8"
+version = "0.27.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b70d7ebec6bdf5a46aa8af9e708fcf34e9437df648801f3335ce5052d82bc25f"
+checksum = "7a579a07847cc27fe5bd99e690021b2bb87ecbe2987c12ca6d99efc7d761502f"
 
 [[package]]
 name = "unisql-dialect-mysql"
-version = "0.25.8"
+version = "0.27.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98694191735dc183490aaf13ae14939e5f982f150aa2a24e42eb6aced8e26f0a"
+checksum = "b641948e3f4e51e910504bbb6f920ea2377b2904bda554bcffa741225a9c4f60"
 dependencies = [
  "unisql-core",
  "unisql-sqlparser-adapter",
@@ -4762,9 +4772,9 @@ dependencies = [
 
 [[package]]
 name = "unisql-dialect-postgres"
-version = "0.25.8"
+version = "0.27.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fef019197bb1be5e8c9daecca985bae55bb4fc2edda64bccd834bc3c16c82aa9"
+checksum = "b6c126857294ea33883729114288002c444afc53e59875545ba178ff3f979b1b"
 dependencies = [
  "unisql-core",
  "unisql-sqlparser-adapter",
@@ -4772,9 +4782,9 @@ dependencies = [
 
 [[package]]
 name = "unisql-dialect-sqlite"
-version = "0.25.8"
+version = "0.27.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc32393ecd27725728e48435f71606c50cae71f469e719a5be7f0e859ec91b86"
+checksum = "bc8cceef870d07b1983c0e896e9f27056e93c8c4eb6867a18d9e2c25b06dd1bb"
 dependencies = [
  "unisql-core",
  "unisql-sqlparser-adapter",
@@ -4782,9 +4792,9 @@ dependencies = [
 
 [[package]]
 name = "unisql-sqlparser-adapter"
-version = "0.25.8"
+version = "0.27.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d4649a272137a3709befaa580280fc434fbee1d1a78559446559f8ffb939a66"
+checksum = "1e7ec84b3c9f77104f3f12c0f5ce9a8d47fca86857ced6b1a018d9c6b43c6ab1"
 dependencies = [
  "sqlparser",
  "unisql-core",

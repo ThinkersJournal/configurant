@@ -1,6 +1,6 @@
 [package]
 name = "configurant-gui"
-version = "0.5.4"
+version = "0.5.5"
 edition = "2024"
 rust-version = "1.95"
 description = "Graphical front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
@@ -15,9 +15,9 @@ name = "configurant-gui"
 path = "src/main.rs"
 
 [dependencies]
-configurant = { version = "0.5.4", path = "../..", features = ["persistant-blocking"] }
+configurant = { version = "0.5.5", path = "../..", features = ["persistant-blocking"] }
 clap = { version = "4.6.7", features = ["derive"] }
-configurant-scan = { version = "0.5.4", path = "../configurant-scan", optional = true }
+configurant-scan = { version = "0.5.5", path = "../configurant-scan", optional = true }
 eframe = { version = "0.37.0", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
 
 [features]
@@ -27,5 +27,5 @@ scan = ["dep:configurant-scan"]
 
 [dev-dependencies]
 egui_kittest = "0.37.0"
-persistant = { version = "0.9.28", default-features = false, features = ["registry"] }
+persistant = { version = "0.11.7", default-features = false, features = ["registry"] }
 tokio = { version = "1.54.1", default-features = false, features = ["rt"] }
