@@ -745,7 +745,10 @@ impl<'a> App<'a> {
     fn detail(&self) -> Paragraph<'_> {
         let mut text = String::new();
         if let Some(f) = self.fields.get(self.selected) {
-            text += &format!("{} ({}): {}", f.key, f.ty.name(), f.description);
+            text += &format!("{} ({}): {}", f.key, f.ty.name(), f.prompt);
+            if let Some(x) = &f.example {
+                text += &format!(" (e.g. {x})");
+            }
             if f.restart {
                 text += " [restart needed]";
             }

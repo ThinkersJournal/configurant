@@ -84,6 +84,13 @@ pub struct ValueDef {
     #[serde(default)]
     pub choices: Vec<String>,
     pub description: String,
+    /// The question a wizard asks for this value, in plain language. Without one the description is asked.
+    #[serde(default)]
+    pub prompt: Option<String>,
+    /// A sample value shown next to the question, as it would be typed. It must pass the same checks as a
+    /// default, and a secret may not have one.
+    #[serde(default)]
+    pub example: Option<String>,
     /// Never printed; accepted only from the environment (or, later, a secret-source module).
     #[serde(default)]
     pub secret: bool,
@@ -195,6 +202,12 @@ pub enum SchemaError {
     SecretWithDefault(String),
     #[error("secret `{0}` may not have a command-line flag")]
     SecretWithFlag(String),
+    #[error("secret `{0}` may not have an example (an example of a secret looks like one)")]
+    SecretWithExample(String),
+    #[error("example of `{key}`: {reason}")]
+    BadExample { key: String, reason: String },
+    #[error("`{0}` has an empty `prompt`")]
+    EmptyPrompt(String),
     #[error("`{0}` has a `source` but is not a secret")]
     SourceOnNonSecret(String),
     #[error("`source` of `{0}` must look like `<source>:<reference>`")]
@@ -487,6 +500,9 @@ impl Schema {
             } else if let Some(v) = self.defaults.get(&d.key) {
                 let _ = write!(out, "  [default: {}]", v.shown());
             }
+            if let Some(x) = &d.example {
+                let _ = write!(out, "  [example: {x}]");
+            }
             if d.restart {
                 out.push_str("  [restart needed]");
             }
@@ -539,6 +555,11 @@ impl Schema {
 }
 
 impl ValueDef {
+    /// The question to ask for this value: its `prompt`, else its description.
+    pub fn question(&self) -> &str {
+        self.prompt.as_deref().unwrap_or(&self.description)
+    }
+
     pub(crate) fn violation(&self, v: &Value) -> Option<Violation> {
         if matches!(v, Value::Int(_) | Value::Float(_))
             && (self
@@ -594,6 +615,25 @@ fn check_def(d: &ValueDef) -> Result<Option<Value>, SchemaError> {
         && a.cmp_bound(b) == Some(Ordering::Greater)
     {
         return Err(SchemaError::BadRange(d.key.clone()));
+    }
+    if d.prompt.as_deref().is_some_and(|p| p.trim().is_empty()) {
+        return Err(SchemaError::EmptyPrompt(d.key.clone()));
+    }
+    if let Some(text) = &d.example {
+        if d.secret {
+            return Err(SchemaError::SecretWithExample(d.key.clone()));
+        }
+        let bad = |reason: &str| SchemaError::BadExample {
+            key: d.key.clone(),
+            reason: reason.into(),
+        };
+        let v = Value::parse_text(d.ty, text)
+            .ok_or_else(|| bad(&format!("not a valid {}", d.ty.name())))?;
+        match d.violation(&v) {
+            Some(Violation::OutOfRange) => return Err(bad("outside min/max")),
+            Some(Violation::NotAllowed) => return Err(bad("not one of choices")),
+            None => {}
+        }
     }
     let Some(raw_default) = &d.default else {
         return Ok(None);

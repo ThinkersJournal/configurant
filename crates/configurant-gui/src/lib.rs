@@ -563,7 +563,10 @@ impl<'a> App<'a> {
         ui.separator();
         if let Some(f) = self.fields.get(self.selected) {
             ui.label(RichText::new(format!("{} ({})", f.key, f.ty.name())).strong());
-            ui.label(&f.description);
+            ui.label(&f.prompt);
+            if let Some(x) = &f.example {
+                ui.label(format!("For example: {x}"));
+            }
             if f.restart {
                 ui.label("Changing this needs a restart.");
             }
@@ -688,7 +691,10 @@ impl<'a> App<'a> {
             return Some(Act::CancelEdit);
         };
         ui.heading(format!("Edit {}", f.key));
-        ui.label(format!("{}: {}", f.ty.name(), f.description));
+        ui.label(format!("{}: {}", f.ty.name(), f.prompt));
+        if let Some(x) = &f.example {
+            ui.label(format!("For example: {x}"));
+        }
         let label = ui.label("New value");
         let r = ui
             .add(egui::TextEdit::singleline(&mut self.input).desired_width(f32::INFINITY))
