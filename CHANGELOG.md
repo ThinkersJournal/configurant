@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.8
+
+- Easy-gate (EXPECTATIONS 6.24): `README.md` opens with a 10-line hello-world, which is `examples/quickstart.rs` and is run by `tests/quickstart_example.rs`; `easyants-card.toml` is the hub card read by ThinkersJournal/easyants (name, one sentence, install link, the example's lines 2-11). All crates move to 0.5.8.
+
 ## 0.5.7
 
 - Plain-language prompts (ROADMAP row 20). A `[[value]]` may carry `prompt` (the question a wizard asks) and `example` (a sample as it would be typed). `ValueDef::question()` gives the prompt, else the description; `edit::Field` has `prompt` and `example`; `help` shows `[example: ...]`; the TUI detail line and the GUI detail and edit panels show the prompt and the example. An example must pass the same checks as a default (type, min/max, choices: `SchemaError::BadExample`), a secret may not have one (`SecretWithExample`, and the error does not echo it), and an empty prompt is refused (`EmptyPrompt`). 7 tests in `tests/known_bad_prompts.rs`. All crates move to 0.5.7.
