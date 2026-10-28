@@ -27,6 +27,10 @@ pub struct Field {
     pub key: String,
     pub ty: ValueType,
     pub description: String,
+    /// The question to ask for this value: the schema's `prompt`, else the description.
+    pub prompt: String,
+    /// A sample value as it would be typed (never present for a secret).
+    pub example: Option<String>,
     pub secret: bool,
     /// The `<source>:<reference>` a secret declares: a name, never the secret.
     pub source: Option<String>,
@@ -77,6 +81,8 @@ impl<'a> Session<'a> {
                 key: d.key.clone(),
                 ty: d.ty,
                 description: d.description.clone(),
+                prompt: d.question().to_owned(),
+                example: d.example.clone(),
                 secret: d.secret,
                 source: d.source.clone(),
                 restart: d.restart,

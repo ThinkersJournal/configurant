@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.7
+
+- Plain-language prompts (ROADMAP row 20). A `[[value]]` may carry `prompt` (the question a wizard asks) and `example` (a sample as it would be typed). `ValueDef::question()` gives the prompt, else the description; `edit::Field` has `prompt` and `example`; `help` shows `[example: ...]`; the TUI detail line and the GUI detail and edit panels show the prompt and the example. An example must pass the same checks as a default (type, min/max, choices: `SchemaError::BadExample`), a secret may not have one (`SecretWithExample`, and the error does not echo it), and an empty prompt is refused (`EmptyPrompt`). 7 tests in `tests/known_bad_prompts.rs`. All crates move to 0.5.7.
+
 ## 0.5.6
 
 - Docs only: `docs/SCHEMA-FRAGMENTS.md`, the design for a library shipping its own options as a feature-gated schema fragment that an application mounts (proposed, nothing built), and ROADMAP rows 20-29 in the order the PM's wave 0 asked for (prompts and view-model first, then fragments, form projection, step engine). All crates move to 0.5.6.
