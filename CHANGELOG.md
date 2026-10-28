@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.5
+
+- Dependencies: `persistant` 0.9.28 -> 0.11.7 in the core crate, `configurant-tui` and `configurant-gui` (CireSnave: all dependencies on their most recent versions); `unisql` follows to 0.27.10 and `capant` 0.0.7 joins the lock. No source change was needed; the workspace builds and all tests pass with `--all-features`. All crates move to 0.5.5.
+
 ## 0.5.4
 
 - Docs only: ROADMAP row 5 (`Needs` schema field) shows its ruling, flags only (PM 2026-10-25); it still read "open, needs a PM call".
