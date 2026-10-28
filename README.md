@@ -1,5 +1,20 @@
 # ConfigurAnt
 
+```rust
+use configurant::{Loader, Schema};
+fn main() {
+    let toml = r#"
+project = { name = "app", version = "1", summary = "demo", schema_version = 1 }
+value = [{ key = "server.port", type = "int", default = 8080, description = "port" }]
+"#;
+    let schema = Schema::parse(toml).unwrap();
+    let c = Loader::new(&schema).build().unwrap(); // default < file < env < command line
+    assert_eq!(c.get::<i64>("server.port").unwrap(), 8080);
+}
+```
+
+That is `examples/quickstart.rs`; CI runs it (`tests/quickstart_example.rs`), so it cannot go stale.
+
 Schema-first configuration for Rust projects. Declare every value once in `configurant.toml`; the
 library layers **default < file < environment < command line**, validates with named errors, and
 `explain`s where each value came from. **No generated code**: the schema is a plain file that tools

@@ -47,5 +47,6 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 27 | Hand redaction to RedactAnt and delete our copy (`src/config.rs` `REDACTED` and the substring redaction) | ant-fit finding | held: S-M, RedactAnt does not exist yet |
 | 28 | Plan executor with confirmation (dirs, files, commands) for installers | ant-fit finding | open: M-L, needs 26 |
 | 29 | Browser wizard renderer | platform-fit finding (PM 2026-10-28) | held: L, needs 21, 26 and HTTPAnt or WebHostAnt to serve it |
+| 30 | Easy-gate: README hello-world, examples compiled and run in CI, fresh-eyes trial before a first or breaking release; hub card `easyants-card.toml` | EXPECTATIONS 6.24 (CireSnave 2026-10-28) | README, example and CI run done (0.5.8); card is `not-ready` (PM hold on #47) until (a) the fresh-eyes trial has run and (b) the example test also checks the crates.io version once the publish batch (row 17) is out; then the card gets `ready`, `install_url`, `example_path` back |
 
 Rows needing a CireSnave call: 8 (a person), 13. Rows needing a PM call: none open (5 ruled: flags only; 15 ruled: validate defaults through the module).
