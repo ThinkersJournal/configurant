@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.6
+
+- Docs only: `docs/SCHEMA-FRAGMENTS.md`, the design for a library shipping its own options as a feature-gated schema fragment that an application mounts (proposed, nothing built), and ROADMAP rows 20-29 in the order the PM's wave 0 asked for (prompts and view-model first, then fragments, form projection, step engine). All crates move to 0.5.6.
+
 ## 0.5.5
 
 - Dependencies: `persistant` 0.9.28 -> 0.11.7 in the core crate, `configurant-tui` and `configurant-gui` (CireSnave: all dependencies on their most recent versions); `unisql` follows to 0.27.10 and `capant` 0.0.7 joins the lock. No source change was needed; the workspace builds and all tests pass with `--all-features`. All crates move to 0.5.5.
