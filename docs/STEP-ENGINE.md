@@ -40,9 +40,10 @@ remembers where the person is.
    read from the staged value if any, else the current one. No expressions, no scripts. A hidden step is skipped
    by `next` and `back`; its keys keep whatever they hold and are not asked.
 
-4. **Events grow by three:** `next`, `back`, `goto { step }` (only to a step already reached). `next` is refused,
-   with the named error and the key, while a key in the current step is `required` and unset or has a refused
-   staged value; the person stays where they are. The last `next` lands on the review, whose only exits are `back`
+4. **Events grow by three:** `next`, `back`, `goto { step }` (only to a step already reached). A `required` value
+   is already guaranteed by load (a configuration missing one does not load), so `next` refuses nothing for want
+   of an answer; it is refused only where there is nowhere to go (at the review). **Built:** this is how part b
+   behaves. The last `next` lands on the review, whose only exits are `back`
    and `confirm`.
 
 5. **The view says where you are.** `View.wizard`: `steps[]` (id, title, state `done | current | todo | hidden`),
@@ -60,7 +61,7 @@ remembers where the person is.
 
 ## Checks (known-bad first)
 
-- `next` past a required key that is unset, and past one with a refused value: refused, stays.
+- `next` at the review, `back` at the first step, `confirm` anywhere but the review: refused, position unchanged.
 - A hidden step is skipped both ways; revealing it by changing its `when` key makes `next` stop there.
 - `goto` to a step not yet reached is refused; an unknown step id is refused with a suggestion.
 - A `[[step]]` naming an unknown key, naming a key twice, with an empty `title`, or a `when` on an unknown key is a
