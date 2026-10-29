@@ -15,6 +15,7 @@ pub mod persistant;
 pub mod schema;
 pub mod schema_edit;
 pub mod value;
+pub mod view;
 
 pub use config::{Config, DEFAULT_ORDER, ExplainLine, Explanation, FromValue, Layer, Loader};
 pub use error::{ConfigError, Errors, Origin};
