@@ -25,6 +25,7 @@ pub use module::{
     Plan,
 };
 pub use schema::{
-    Bound, MapDef, Migration, Mount, Op, Project, Schema, SchemaError, TableDef, ValueDef,
+    Bound, MapDef, Migration, Mount, Op, Project, Schema, SchemaError, Step, TableDef, ValueDef,
+    When,
 };
 pub use value::{Row, Value, ValueType};

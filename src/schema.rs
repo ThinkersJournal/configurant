@@ -186,6 +186,59 @@ struct Raw {
     maps: Vec<MapDef>,
     #[serde(default, rename = "migration")]
     migrations: Vec<Migration>,
+    #[serde(default, rename = "step")]
+    steps: Vec<Step>,
+}
+
+/// A condition that shows a step only sometimes: exactly one of `equals = "text"`, `not_equals = "text"` or
+/// `set = true|false` next to the `key` it reads (the value as shown, staged if any, else current; values
+/// are compared as text). Data only: no expressions, no combining several conditions yet.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct When {
+    pub key: String,
+    #[serde(default)]
+    pub equals: Option<String>,
+    #[serde(default)]
+    pub not_equals: Option<String>,
+    /// `true`: the key has a value. `false`: it has none.
+    #[serde(default)]
+    pub set: Option<bool>,
+}
+
+/// One `[[step]]` of a wizard: a group of values asked together, in declaration order.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
+pub struct Step {
+    pub id: String,
+    pub title: String,
+    /// Plain sentences shown above the questions.
+    #[serde(default)]
+    pub intro: String,
+    #[serde(default)]
+    pub keys: Vec<String>,
+    #[serde(default)]
+    pub when: Option<When>,
+}
+
+impl Step {
+    /// Is the step shown? `lookup` gives a key's value as shown, or `None` when it has none. A step with
+    /// no `when` is always shown; `equals` on a key with no value is false, `not_equals` is true, and
+    /// `set = true` is false.
+    pub fn visible(&self, lookup: &dyn Fn(&str) -> Option<String>) -> bool {
+        let Some(w) = &self.when else {
+            return true;
+        };
+        let now = lookup(&w.key);
+        match (&w.equals, &w.not_equals, w.set) {
+            (Some(x), _, _) => now.as_deref() == Some(x.as_str()),
+            (_, Some(x), _) => now.as_deref() != Some(x.as_str()),
+            (_, _, Some(set)) => now.is_some() == set,
+            _ => true,
+        }
+    }
 }
 
 /// A library's options, mounted into an application's schema under a name. See
@@ -297,6 +350,18 @@ pub enum SchemaError {
     },
     #[error("map `{0}` has a value_type that is not string, int, float, bool or path")]
     BadMapValueType(String),
+    #[error("step id `{0}` is empty or not letters, digits, `_` and `-`")]
+    BadStepId(String),
+    #[error("step `{0}` is declared twice")]
+    DuplicateStep(String),
+    #[error("step `{0}` has an empty `title`")]
+    EmptyStepTitle(String),
+    #[error("step `{step}` names `{key}`, which is not a value")]
+    StepUnknownKey { step: String, key: String },
+    #[error("`{0}` is in two steps")]
+    StepKeyTwice(String),
+    #[error("`when` of step `{step}`: {reason}")]
+    BadWhen { step: String, reason: String },
     #[error("mount `{0}` is mounted twice")]
     DuplicateMount(String),
     #[error("fragment mounted as `{mount}` is not valid: {reason}")]
@@ -320,6 +385,7 @@ pub struct Schema {
     tables: Vec<TableDef>,
     maps: Vec<MapDef>,
     migrations: Vec<Migration>,
+    steps: Vec<Step>,
 }
 
 /// A `min` or `max` in a schema. An integer bound is kept as an integer, so an `int` is compared exactly
@@ -517,6 +583,7 @@ impl Schema {
             }
         }
         check_migrations(raw.project.config_version, &raw.migrations)?;
+        check_steps(&raw.steps, &raw.values)?;
         for a in &keys {
             if let Some(b) = keys.iter().find(|b| {
                 b.len() > a.len() && b.starts_with(a.as_str()) && b.as_bytes()[a.len()] == b'.'
@@ -534,7 +601,84 @@ impl Schema {
             tables: raw.tables,
             maps: raw.maps,
             migrations: raw.migrations,
+            steps: raw.steps,
         })
+    }
+
+    /// The steps a wizard walks, "effective" because they are what is asked after the defaults are filled in:
+    ///
+    /// - with `[[step]]` entries: those, in order, then a final "More settings" step holding every value no
+    ///   step lists (an unlisted value is never dropped);
+    /// - with none: one step per form section (the value's `section`, else the key's first segment, else
+    ///   `General`), in order of first appearance, so a schema with no `[[step]]` still has a wizard.
+    ///
+    /// ```
+    /// use configurant::Schema;
+    /// let schema = Schema::parse(r#"
+    /// project = { name = "app", version = "1", summary = "demo", schema_version = 1 }
+    /// value = [
+    ///   { key = "mode", type = "enum", choices = ["server", "client"], default = "server", description = "what to run" },
+    ///   { key = "server.port", type = "int", default = 8080, description = "listen port" },
+    /// ]
+    /// step = [
+    ///   { id = "mode", title = "What do you want to run?", keys = ["mode"] },
+    ///   { id = "net", title = "Where should it listen?", keys = ["server.port"], when = { key = "mode", equals = "server" } },
+    /// ]
+    /// "#).unwrap();
+    /// let steps = schema.effective_steps();
+    /// assert_eq!(steps[1].title, "Where should it listen?");
+    /// // A step with a `when` is shown only while the condition holds; you supply how to read a value.
+    /// assert!(steps[1].visible(&|key| (key == "mode").then(|| "server".to_string())));
+    /// assert!(!steps[1].visible(&|key| (key == "mode").then(|| "client".to_string())));
+    /// ```
+    pub fn effective_steps(&self) -> Vec<Step> {
+        let unique = |taken: &[Step], base: String| {
+            let mut id = base.clone();
+            let mut n = 2;
+            while taken.iter().any(|s| s.id == id) {
+                id = format!("{base}-{n}");
+                n += 1;
+            }
+            id
+        };
+        let mut steps: Vec<Step> = Vec::new();
+        if self.steps.is_empty() {
+            for d in &self.values {
+                let title = d.section_title();
+                match steps.iter_mut().find(|s| s.title == title) {
+                    Some(s) => s.keys.push(d.key.clone()),
+                    None => {
+                        let id = unique(&steps, slug(title));
+                        steps.push(Step {
+                            id,
+                            title: title.to_owned(),
+                            intro: String::new(),
+                            keys: vec![d.key.clone()],
+                            when: None,
+                        });
+                    }
+                }
+            }
+            return steps;
+        }
+        steps.extend(self.steps.iter().cloned());
+        let rest: Vec<String> = self
+            .values
+            .iter()
+            .filter(|d| !self.steps.iter().any(|s| s.keys.contains(&d.key)))
+            .map(|d| d.key.clone())
+            .collect();
+        if !rest.is_empty() {
+            let id = unique(&steps, "more".to_owned());
+            steps.push(Step {
+                id,
+                title: "More settings".to_owned(),
+                intro: String::new(),
+                keys: rest,
+                when: None,
+            });
+        }
+        steps
     }
 
     /// Every declared array of tables, in schema order.
@@ -778,6 +922,73 @@ fn override_of(mut from_fragment: ValueDef, app: ValueDef) -> Result<ValueDef, S
         from_fragment.hint = app.hint;
     }
     Ok(from_fragment)
+}
+
+/// A step id from a section title: lower case letters and digits, other runs become one `-`.
+fn slug(title: &str) -> String {
+    let mut out = String::new();
+    for c in title.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c.to_ascii_lowercase());
+        } else if !out.is_empty() && !out.ends_with('-') {
+            out.push('-');
+        }
+    }
+    let out = out.trim_end_matches('-').to_owned();
+    if out.is_empty() {
+        "step".to_owned()
+    } else {
+        out
+    }
+}
+
+/// Steps name real values, once each; a `when` reads a real value and makes exactly one test.
+fn check_steps(steps: &[Step], values: &[ValueDef]) -> Result<(), SchemaError> {
+    let known = |k: &str| values.iter().any(|v| v.key == k);
+    let mut ids = BTreeSet::new();
+    let mut used = BTreeSet::new();
+    for s in steps {
+        let id_ok = !s.id.is_empty()
+            && s.id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+        if !id_ok {
+            return Err(SchemaError::BadStepId(s.id.clone()));
+        }
+        if !ids.insert(s.id.clone()) {
+            return Err(SchemaError::DuplicateStep(s.id.clone()));
+        }
+        if s.title.trim().is_empty() {
+            return Err(SchemaError::EmptyStepTitle(s.id.clone()));
+        }
+        for k in &s.keys {
+            if !known(k) {
+                return Err(SchemaError::StepUnknownKey {
+                    step: s.id.clone(),
+                    key: k.clone(),
+                });
+            }
+            if !used.insert(k.clone()) {
+                return Err(SchemaError::StepKeyTwice(k.clone()));
+            }
+        }
+        if let Some(w) = &s.when {
+            let bad = |reason: &str| SchemaError::BadWhen {
+                step: s.id.clone(),
+                reason: reason.into(),
+            };
+            if !known(&w.key) {
+                return Err(bad("it reads a key that is not a value"));
+            }
+            let tests = usize::from(w.equals.is_some())
+                + usize::from(w.not_equals.is_some())
+                + usize::from(w.set.is_some());
+            if tests != 1 {
+                return Err(bad("it needs exactly one of equals, not_equals, set"));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn check_def(d: &ValueDef) -> Result<Option<Value>, SchemaError> {
