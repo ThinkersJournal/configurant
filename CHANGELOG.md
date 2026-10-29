@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.18
+
+- Hub card flipped to `ready` (ROADMAP row 30) after a fresh-eyes trial of the PUBLISHED 0.5.16 crate: the README snippet compiled and ran unchanged. README fixes from that trial: status line said 0.0.x; docs links are absolute (they broke on crates.io); `cargo install configurant` and the sibling crates are named; the schema value fields are listed; the `Settings` snippet says what it is. New test `the_readme_snippet_is_the_example` fails if the README hello-world drifts from `examples/quickstart.rs`. All crates move to 0.5.18.
+
 ## 0.5.17
 
 - Docs only: `docs/PLAN-EXECUTOR.md`, the design for ROADMAP row 28. Steps as data (`Mkdir`, `WriteFile`, `Run` with argv only, `Service`) with check, verify and undo; `Executor` with an inert `describe()`, `run(confirmed_hash)` bound to the plan hash with a resumable state file that holds no values, and `undo()`. Three PRs. Nothing is built; three questions are open for the PM.

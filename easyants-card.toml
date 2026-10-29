@@ -1,5 +1,8 @@
 name = "ConfigurAnt"
 sentence = "Declare every setting once in a TOML file; get layered values, named errors and secrets that never print."
-status = "not-ready"
-status_label = "Early release, not ready"
+status = "ready"
+install_url = "https://crates.io/crates/configurant"
+install_snippet = "cargo add configurant"
 docs = "https://github.com/ThinkersJournal/configurant"
+example_path = "examples/quickstart.rs"
+example_lines = [2, 10]
