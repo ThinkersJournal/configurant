@@ -125,3 +125,23 @@ fn an_empty_prompt_is_refused() {
         SchemaError::EmptyPrompt(_)
     ));
 }
+
+#[test]
+fn an_empty_hint_is_refused() {
+    assert!(matches!(err(r#"hint = """#), SchemaError::EmptyHint(_)));
+}
+
+#[test]
+fn a_hint_reaches_the_field_and_help() {
+    let s = Schema::parse(&schema(
+        r#"hint = "Use 8080 unless another program has it.""#,
+    ))
+    .expect("parses");
+    let cfg = config(&s);
+    let f = Session::new(&cfg, None).fields().remove(0);
+    assert_eq!(
+        f.hint.as_deref(),
+        Some("Use 8080 unless another program has it.")
+    );
+    assert!(s.help().contains("[hint: Use 8080"), "{}", s.help());
+}

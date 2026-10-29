@@ -13,7 +13,11 @@ value = [{ key = "server.port", type = "int", default = 8080, description = "por
 }
 ```
 
-That is `examples/quickstart.rs`; CI runs it (`tests/quickstart_example.rs`), so it cannot go stale.
+Install with `cargo add configurant`, paste it into `src/main.rs` and `cargo run`. It prints nothing: it succeeds when the
+assertion holds. The comment is the layering order (a later source overrides an earlier one): the value is `8080` here
+because only the schema's default is set; a `--flag`, an environment variable or a config file would change it. The
+`persistant` features are optional and off by default. This snippet is `examples/quickstart.rs`; CI runs it
+(`tests/quickstart_example.rs`), so it cannot go stale.
 
 Schema-first configuration for Rust projects. Declare every value once in `configurant.toml`; the
 library layers **default < file < environment < command line**, validates with named errors, and

@@ -567,6 +567,9 @@ impl<'a> App<'a> {
             if let Some(x) = &f.example {
                 ui.label(format!("For example: {x}"));
             }
+            if let Some(h) = &f.hint {
+                ui.label(format!("Hint: {h}"));
+            }
             if f.restart {
                 ui.label("Changing this needs a restart.");
             }
@@ -694,6 +697,9 @@ impl<'a> App<'a> {
         ui.label(format!("{}: {}", f.ty.name(), f.prompt));
         if let Some(x) = &f.example {
             ui.label(format!("For example: {x}"));
+        }
+        if let Some(h) = &f.hint {
+            ui.label(format!("Hint: {h}"));
         }
         let label = ui.label("New value");
         let r = ui

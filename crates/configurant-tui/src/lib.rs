@@ -749,6 +749,9 @@ impl<'a> App<'a> {
             if let Some(x) = &f.example {
                 text += &format!(" (e.g. {x})");
             }
+            if let Some(h) = &f.hint {
+                text += &format!(" Hint: {h}");
+            }
             if f.restart {
                 text += " [restart needed]";
             }

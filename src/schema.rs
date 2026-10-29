@@ -91,6 +91,9 @@ pub struct ValueDef {
     /// default, and a secret may not have one.
     #[serde(default)]
     pub example: Option<String>,
+    /// One short sentence of help for the person answering (where to find the value, what to avoid).
+    #[serde(default)]
+    pub hint: Option<String>,
     /// Never printed; accepted only from the environment (or, later, a secret-source module).
     #[serde(default)]
     pub secret: bool,
@@ -206,6 +209,8 @@ pub enum SchemaError {
     SecretWithExample(String),
     #[error("example of `{key}`: {reason}")]
     BadExample { key: String, reason: String },
+    #[error("`{0}` has an empty `hint`")]
+    EmptyHint(String),
     #[error("`{0}` has an empty `prompt`")]
     EmptyPrompt(String),
     #[error("`{0}` has a `source` but is not a secret")]
@@ -503,6 +508,9 @@ impl Schema {
             if let Some(x) = &d.example {
                 let _ = write!(out, "  [example: {x}]");
             }
+            if let Some(h) = &d.hint {
+                let _ = write!(out, "  [hint: {h}]");
+            }
             if d.restart {
                 out.push_str("  [restart needed]");
             }
@@ -618,6 +626,9 @@ fn check_def(d: &ValueDef) -> Result<Option<Value>, SchemaError> {
     }
     if d.prompt.as_deref().is_some_and(|p| p.trim().is_empty()) {
         return Err(SchemaError::EmptyPrompt(d.key.clone()));
+    }
+    if d.hint.as_deref().is_some_and(|h| h.trim().is_empty()) {
+        return Err(SchemaError::EmptyHint(d.key.clone()));
     }
     if let Some(text) = &d.example {
         if d.secret {

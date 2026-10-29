@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.9
+
+- Row 20 finished: a `[[value]]` may also carry `hint`, one short sentence of help for the person answering (where to find the value, what to avoid). `edit::Field::hint`; `help` shows `[hint: ...]`; the TUI detail line and the GUI detail and edit panels show it. An empty hint is refused (`SchemaError::EmptyHint`). 2 more tests in `tests/known_bad_prompts.rs`. All crates move to 0.5.9.
+
 ## 0.5.8
 
 - Easy-gate (EXPECTATIONS 6.24): `README.md` opens with a 10-line hello-world, which is `examples/quickstart.rs` and is run by `tests/quickstart_example.rs`; `easyants-card.toml` is the hub card read by ThinkersJournal/easyants, `not-ready` ("Early release, not ready") until the fresh-eyes trial has run and the example is checked against the published crate. All crates move to 0.5.8.
