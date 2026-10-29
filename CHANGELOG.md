@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.17
+
+- Docs only: `docs/PLAN-EXECUTOR.md`, the design for ROADMAP row 28. Steps as data (`Mkdir`, `WriteFile`, `Run` with argv only, `Service`) with check, verify and undo; `Executor` with an inert `describe()`, `run(confirmed_hash)` bound to the plan hash with a resumable state file that holds no values, and `undo()`. Three PRs. Nothing is built; three questions are open for the PM.
+
 ## 0.5.16
 
 - Docs only: `docs/PATENT-SWEEP.md` gains an addendum (2026-10-29) for rows 20 to 26 (prompts, view-model, schema fragments, form projection, step engine and wizard): 6 new ideas, 8 queries, 14 hits whose independent claims were read, all "outside, as read" (none "clear"), 14 found-but-not-read patents listed without a verdict, nothing needing review. All crates move to 0.5.16.
