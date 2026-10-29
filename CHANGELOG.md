@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.12
+
+- Form projection (ROADMAP row 23). `View` now groups the fields for a form: `sections` (title and keys, in order of first appearance, schema order inside) and `file_only` (the tables and maps only a configuration file can set, with their descriptions, so a form says where to edit them). New schema keys on a `[[value]]`: `section` (the title; default the key's first segment, or `General`) and `advanced` (a form may fold it away); an empty `section` is refused (`SchemaError::EmptySection`) and a fragment override may not set either. `edit::Field` and `view::FieldView` carry `section` and `advanced`; `Session::file_only()`. The grouping carries keys only, never a value. 6 tests in `tests/known_bad_form.rs` (the section override proven to bite by mutation). All crates move to 0.5.12.
 ## 0.5.11
 
 - Schema fragments (ROADMAP row 22, `docs/SCHEMA-FRAGMENTS.md`). `Schema::parse_with(text, &[Mount::new(name, fragment)])` adds a library's options under the mount name: a fragment is a schema with `[fragment]` (name, version, summary, schema_version) instead of `[project]`, and its `[[value]]`, `[[table]]` and `[[map]]` keys are written relative to the mount. A declared `env` becomes `<env_prefix><MOUNT>_<ENV>` and a `flag` becomes `--<mount>-<flag>`. The application may restate a mounted value to change its default and wording only (`SchemaError::MountOverride` otherwise); a mounted secret stays secret. New `Mount`, `SchemaError::{DuplicateMount, FragmentParse, MountOverride}`; `Schema::parse` is `parse_with(text, &[])`. A fragment with migrations is refused for now (new ROADMAP row 31). 13 tests in `tests/known_bad_fragments.rs` (two mutations proven to bite). All crates move to 0.5.11.

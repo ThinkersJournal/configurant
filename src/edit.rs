@@ -33,6 +33,10 @@ pub struct Field {
     pub example: Option<String>,
     /// One short sentence of help for the person answering.
     pub hint: Option<String>,
+    /// The form section it is listed under.
+    pub section: String,
+    /// A form may fold it away until asked.
+    pub advanced: bool,
     pub secret: bool,
     /// The `<source>:<reference>` a secret declares: a name, never the secret.
     pub source: Option<String>,
@@ -46,6 +50,16 @@ pub struct Field {
     pub current: Option<String>,
     /// The staged value, as shown.
     pub staged: Option<String>,
+}
+
+/// A table or map: listed so a form can say it is edited in the configuration file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct FileOnly {
+    pub key: String,
+    /// `table` or `map`.
+    pub kind: &'static str,
+    pub description: String,
 }
 
 /// Staged changes to a loaded configuration.
@@ -86,6 +100,8 @@ impl<'a> Session<'a> {
                 prompt: d.question().to_owned(),
                 example: d.example.clone(),
                 hint: d.hint.clone(),
+                section: d.section_title().to_owned(),
+                advanced: d.advanced,
                 secret: d.secret,
                 source: d.source.clone(),
                 restart: d.restart,
@@ -96,6 +112,22 @@ impl<'a> Session<'a> {
                 staged: self.staged.get(&d.key).map(Value::shown),
             })
             .collect()
+    }
+
+    /// The tables and maps, which only a configuration file can set, in schema order (tables first).
+    pub fn file_only(&self) -> Vec<FileOnly> {
+        let schema = self.config.schema();
+        let tables = schema.tables().iter().map(|t| FileOnly {
+            key: t.key.clone(),
+            kind: "table",
+            description: t.description.clone(),
+        });
+        let maps = schema.maps().iter().map(|m| FileOnly {
+            key: m.key.clone(),
+            kind: "map",
+            description: m.description.clone(),
+        });
+        tables.chain(maps).collect()
     }
 
     /// The choices for a key: its provider module's list for `needs`, else the schema's own.

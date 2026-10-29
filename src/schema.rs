@@ -94,6 +94,13 @@ pub struct ValueDef {
     /// One short sentence of help for the person answering (where to find the value, what to avoid).
     #[serde(default)]
     pub hint: Option<String>,
+    /// The form section this value is listed under. Without one: the first segment of the key
+    /// (`server` for `server.port`), or `General` for a key with no dot.
+    #[serde(default)]
+    pub section: Option<String>,
+    /// A form may fold this value away until asked (rarely changed; the default is usually right).
+    #[serde(default)]
+    pub advanced: bool,
     /// Never printed; accepted only from the environment (or, later, a secret-source module).
     #[serde(default)]
     pub secret: bool,
@@ -252,6 +259,8 @@ pub enum SchemaError {
     SecretWithExample(String),
     #[error("example of `{key}`: {reason}")]
     BadExample { key: String, reason: String },
+    #[error("`{0}` has an empty `section`")]
+    EmptySection(String),
     #[error("`{0}` has an empty `hint`")]
     EmptyHint(String),
     #[error("`{0}` has an empty `prompt`")]
@@ -651,6 +660,15 @@ impl Schema {
 }
 
 impl ValueDef {
+    /// The form section this value is listed under: its `section`, else the key's first segment, else `General`.
+    pub fn section_title(&self) -> &str {
+        match (&self.section, self.key.split_once('.')) {
+            (Some(s), _) => s,
+            (None, Some((first, _))) => first,
+            (None, None) => "General",
+        }
+    }
+
     /// The question to ask for this value: its `prompt`, else its description.
     pub fn question(&self) -> &str {
         self.prompt.as_deref().unwrap_or(&self.description)
@@ -739,6 +757,8 @@ fn override_of(mut from_fragment: ValueDef, app: ValueDef) -> Result<ValueDef, S
         || app.restart
         || app.provider.is_some()
         || app.required
+        || app.section.is_some()
+        || app.advanced
     {
         return Err(refuse(
             "it sets something other than default, description, prompt, example or hint",
@@ -795,6 +815,9 @@ fn check_def(d: &ValueDef) -> Result<Option<Value>, SchemaError> {
     }
     if d.prompt.as_deref().is_some_and(|p| p.trim().is_empty()) {
         return Err(SchemaError::EmptyPrompt(d.key.clone()));
+    }
+    if d.section.as_deref().is_some_and(|s| s.trim().is_empty()) {
+        return Err(SchemaError::EmptySection(d.key.clone()));
     }
     if d.hint.as_deref().is_some_and(|h| h.trim().is_empty()) {
         return Err(SchemaError::EmptyHint(d.key.clone()));
