@@ -1,6 +1,6 @@
 # Plan executor
 
-Status: **design, nothing built** (ROADMAP row 28). Written 2026-10-29. Facts about today's code are from
+Status: **design accepted, nothing built** (ROADMAP row 28). Written 2026-10-29. Facts about today's code are from
 `src/module.rs` and `src/edit.rs` at 0.5.14. The must-haves below are the Humboldt installer lane's
 (`docs/INSTALLER-DESIGN.md`, Humboldt PR #148, read as a message on 2026-10-29, not from the file); the rest is proposed.
 
@@ -83,11 +83,8 @@ L, in three PRs: (a) the `Step` data types, validation and `describe()` with the
 state, hash binding, resume, and the secret path; (c) `undo` and the host trait's service control. Needs nothing
 from another Ant. Rows 29 (browser renderer) and the Humboldt installer build on it.
 
-For the PM:
+Decided by the PM (2026-10-29), all three proposals accepted with one addition each:
 
-- Windows and Unix differ (file modes, services). Proposed: `mode` is advisory on Windows and the executor says so
-  on the confirm screen; `Service` is host-implemented, so the executor never calls `sc` or `systemctl` itself.
-- Should `WriteFile` content be allowed inline for small non-secret text? Proposed: yes up to a size limit, hashed
-  into the plan; larger content is by hash from the host.
-- Containers (the Humboldt lane lists "service/container up-down"): proposed to treat as `Service` and leave the
-  engine to the host.
+- Windows and Unix differ. `mode` is advisory on Windows and the confirm screen says so; `Service` is host-implemented, so the executor never calls `sc` or `systemctl`. **Added:** a file that carries or derives from a `SecretRef` is not written on Windows unless the host reports an owner-only ACL (PersistAnt has done this for SQLite since 0.9.43); otherwise the step is refused, never silently downgraded.
+- `WriteFile` content may be inline for small non-secret text, up to 64 KiB, hashed into the plan; larger content is by hash from the host. **Added:** a secret is never inline (`SecretRef` only), with a test.
+- Containers are `Service`; the engine is left to the host.
