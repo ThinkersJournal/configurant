@@ -1,6 +1,6 @@
 [package]
 name = "configurant-tui"
-version = "0.5.11"
+version = "0.5.12"
 edition = "2024"
 rust-version = "1.95"
 description = "Terminal front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
@@ -15,10 +15,10 @@ name = "configurant-tui"
 path = "src/main.rs"
 
 [dependencies]
-configurant = { version = "0.5.11", path = "../..", features = ["persistant-blocking"] }
+configurant = { version = "0.5.12", path = "../..", features = ["persistant-blocking"] }
 clap = { version = "4.6.7", features = ["derive"] }
 ratatui = "0.30.2"
-configurant-scan = { version = "0.5.11", path = "../configurant-scan", optional = true }
+configurant-scan = { version = "0.5.12", path = "../configurant-scan", optional = true }
 
 [features]
 # "Add from scan" (key `a`, flag `--scan <root>`): propose schema entries from the variables a Rust project reads.

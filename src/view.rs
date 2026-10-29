@@ -9,6 +9,11 @@
 //! error, and nothing is written or executed. The host takes the [`Confirmed`] from
 //! [`Driver::take_confirmed`] after a `confirm` event and does the writing and the plan itself.
 //!
+//! A form draws `sections` (a title and the keys under it) and looks each key up in `fields`. A section's title
+//! is the key's first segment (`server` for `server.port`) unless the schema gives the value `section = "Network"`;
+//! a schema author marks a rarely-changed value with `advanced = true`, and the renderer decides how to fold it
+//! (the view only says which fields are advanced). `file_only` lists tables and maps, which are edited in the file.
+//!
 //! In short: a renderer shows `view()`, turns each click or keystroke into an [`Event`] (JSON works), and
 //! calls `apply`; the host writes the file once `take_confirmed` returns something.
 //!
@@ -23,6 +28,7 @@
 //! // `Needs` ranks a provider module's choices (none here); `None` is the module registry (none here).
 //! let mut driver = Driver::new(Session::new(&config, None), Needs::default());
 //! println!("{}", driver.view().fields[0].prompt); // Which port?
+//! println!("{}", driver.view().sections[0].title); // server: fields are grouped for a form
 //! let event: Event = serde_json::from_str(r#"{"event":"set","key":"server.port","text":"9000"}"#).unwrap();
 //! assert!(driver.apply(event).refused.is_none());
 //! assert!(driver.apply(Event::Confirm).confirmed);
@@ -54,6 +60,10 @@ pub struct FieldView {
     pub prompt: String,
     pub example: Option<String>,
     pub hint: Option<String>,
+    /// The section it is listed under (one of the view's `sections`).
+    pub section: String,
+    /// A form may fold it away until asked.
+    pub advanced: bool,
     pub secret: bool,
     pub source: Option<String>,
     pub restart: bool,
@@ -91,10 +101,30 @@ pub struct ReviewView {
     pub actions: Vec<ActionView>,
 }
 
+/// A group of fields in a form. It names keys only; the values are in `fields`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SectionView {
+    pub title: String,
+    pub keys: Vec<String>,
+}
+
+/// A table or map, which only the configuration file can set.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FileOnlyView {
+    pub key: String,
+    /// `table` or `map`.
+    pub kind: &'static str,
+    pub description: String,
+}
+
 /// Everything a renderer draws.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct View {
     pub fields: Vec<FieldView>,
+    /// The fields grouped for a form: sections in order of first appearance, keys in schema order.
+    pub sections: Vec<SectionView>,
+    /// Tables and maps: show where they are edited, not an editor.
+    pub file_only: Vec<FileOnlyView>,
     pub review: ReviewView,
 }
 
@@ -146,7 +176,7 @@ impl<'a> Driver<'a> {
 
     /// The current state, as data.
     pub fn view(&self) -> View {
-        let fields = self
+        let fields: Vec<FieldView> = self
             .session
             .fields()
             .into_iter()
@@ -166,6 +196,8 @@ impl<'a> Driver<'a> {
                 prompt: f.prompt,
                 example: f.example,
                 hint: f.hint,
+                section: f.section,
+                advanced: f.advanced,
                 secret: f.secret,
                 source: f.source,
                 restart: f.restart,
@@ -173,6 +205,26 @@ impl<'a> Driver<'a> {
                 provider: f.provider,
                 current: f.current,
                 staged: f.staged,
+            })
+            .collect();
+        let mut sections: Vec<SectionView> = Vec::new();
+        for f in &fields {
+            match sections.iter_mut().find(|s| s.title == f.section) {
+                Some(s) => s.keys.push(f.key.clone()),
+                None => sections.push(SectionView {
+                    title: f.section.clone(),
+                    keys: vec![f.key.clone()],
+                }),
+            }
+        }
+        let file_only = self
+            .session
+            .file_only()
+            .into_iter()
+            .map(|t| FileOnlyView {
+                key: t.key,
+                kind: t.kind,
+                description: t.description,
             })
             .collect();
         let review = self.session.review();
@@ -197,6 +249,8 @@ impl<'a> Driver<'a> {
             .collect();
         View {
             fields,
+            sections,
+            file_only,
             review: ReviewView {
                 changes: review
                     .changes()
