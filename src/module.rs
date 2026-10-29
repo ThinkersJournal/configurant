@@ -48,6 +48,8 @@ pub enum ActionKind {
     Note,
     /// Copy data between two ids of the module's choice list.
     DataTransfer { from: String, to: String },
+    /// A step an [`crate::exec::ExecPlan`] can run after confirmation (directory, file, command, service).
+    Step(Box<crate::exec::Step>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -811,12 +811,13 @@ dependencies = [
 
 [[package]]
 name = "configurant"
-version = "0.5.18"
+version = "0.5.19"
 dependencies = [
  "clap",
  "persistant",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "thiserror 2.0.21",
  "tokio",
  "toml",
@@ -825,7 +826,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-gui"
-version = "0.5.18"
+version = "0.5.19"
 dependencies = [
  "clap",
  "configurant",
@@ -838,7 +839,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-scan"
-version = "0.5.18"
+version = "0.5.19"
 dependencies = [
  "clap",
  "configurant",
@@ -852,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-secrets"
-version = "0.5.18"
+version = "0.5.19"
 dependencies = [
  "configurant",
  "tempfile",
@@ -862,7 +863,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-tui"
-version = "0.5.18"
+version = "0.5.19"
 dependencies = [
  "clap",
  "configurant",
@@ -4080,6 +4081,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha2"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d7069beb7d6ac7b9acd1039986e73443f24234f41074da099d6f994ac9ad19"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.3.1",
+ "digest 0.11.3",
+]
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4406,7 +4418,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "phf 0.11.3",
- "sha2",
+ "sha2 0.10.9",
  "signal-hook",
  "siphasher",
  "terminfo",
@@ -5120,7 +5132,7 @@ checksum = "692daff6d93d94e29e4114544ef6d5c942a7ed998b37abdc19b17136ea428eb7"
 dependencies = [
  "getrandom 0.3.4",
  "mac_address",
- "sha2",
+ "sha2 0.10.9",
  "thiserror 1.0.69",
  "uuid",
 ]

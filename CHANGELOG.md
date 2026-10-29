@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.19
+
+- Plan executor, part a (ROADMAP row 28, `docs/PLAN-EXECUTOR.md`). New `configurant::exec`: `Step` (`Mkdir`, `WriteFile` with `Content::{Inline,Hash,Secret}`, `Run` with argv only, `Service`) with `check`, `verify` and `undo`; `ExecPlan::new(roots, steps, secrets)` validates (declared roots, no `..`, unique ids, inline text at most 64 KiB, SHA-256 shape, mode, timeout, names) and refuses a plan that contains any known secret value in a title, path, argv, environment literal, inline content or service name. The error names the step and field, never the value. `ExecPlan::hash()` (SHA-256 of the canonical plan) and an inert `describe()` (create / overwrite / unchanged / conflict, secrets shown as `<redacted ref NAME>`, a note that modes are advisory on Windows and that some steps are forward-only). `ActionKind::Step` carries a step in a module `Plan` and `ExecPlan::from_plan` collects them. Nothing runs yet (parts b and c). New dependency: `sha2`. 16 tests in `tests/known_bad_exec.rs`, five mutations proven to bite; a doctest. All crates move to 0.5.19.
+
 ## 0.5.18
 
 - Hub card flipped to `ready` (ROADMAP row 30) after a fresh-eyes trial of the PUBLISHED 0.5.16 crate: the README snippet compiled and ran unchanged. README fixes from that trial: status line said 0.0.x; docs links are absolute (they broke on crates.io); `cargo install configurant` and the sibling crates are named; the schema value fields are listed; the `Settings` snippet says what it is. New test `the_readme_snippet_is_the_example` fails if the README hello-world drifts from `examples/quickstart.rs`. All crates move to 0.5.18.
