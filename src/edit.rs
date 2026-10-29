@@ -31,6 +31,8 @@ pub struct Field {
     pub prompt: String,
     /// A sample value as it would be typed (never present for a secret).
     pub example: Option<String>,
+    /// One short sentence of help for the person answering.
+    pub hint: Option<String>,
     pub secret: bool,
     /// The `<source>:<reference>` a secret declares: a name, never the secret.
     pub source: Option<String>,
@@ -83,6 +85,7 @@ impl<'a> Session<'a> {
                 description: d.description.clone(),
                 prompt: d.question().to_owned(),
                 example: d.example.clone(),
+                hint: d.hint.clone(),
                 secret: d.secret,
                 source: d.source.clone(),
                 restart: d.restart,

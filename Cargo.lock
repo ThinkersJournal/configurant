@@ -811,7 +811,7 @@ dependencies = [
 
 [[package]]
 name = "configurant"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "clap",
  "persistant",
@@ -824,7 +824,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-gui"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "clap",
  "configurant",
@@ -837,7 +837,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-scan"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "clap",
  "configurant",
@@ -851,7 +851,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-secrets"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "configurant",
  "tempfile",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-tui"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "clap",
  "configurant",
