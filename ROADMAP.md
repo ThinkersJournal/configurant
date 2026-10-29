@@ -39,7 +39,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 19 | Patent sweep of the 0.5.x line; re-sweep when a new family of capability lands and by 2027-10-25 | `PATENT-SWEEP-PROCESS.md` (CireSnave 2026-10-25) | done: `docs/PATENT-SWEEP.md` (11 hits claim-read, all clear); re-sweep standing |
 | 20 | Plain-language prompts: a question, an example and a hint per value, rendered by every front end | PM wave 0 (2026-10-28) | done: prompt and example (0.5.7, #46), hint (0.5.9) |
 | 21 | Serialisable view-model: `Session` fields, review, plan and an event set (set, unset, next, back, confirm) as serde data, secrets still `<redacted>` | PM wave 0; platform-fit finding (PM 2026-10-28) | done: `configurant::view` (`Driver`, `View`, `Event`, `Reply`), 0.5.10; `next`/`back` events arrive with the step engine, row 26 |
-| 22 | Library options as a schema fragment (`Schema::parse_with`, mounts) | `docs/SCHEMA-FRAGMENTS.md` | open: M, design written, needs no other Ant; builds after 20 and 21 |
+| 22 | Library options as a schema fragment (`Schema::parse_with`, mounts) | `docs/SCHEMA-FRAGMENTS.md` | done: `Schema::parse_with` and `Mount` (0.5.11) |
 | 23 | Projection of settings into a form: sections, order and visibility derived from the schema | PM wave 0 | open: S-M, needs 21 |
 | 24 | WebHostAnt options shipped as a fragment | `docs/SCHEMA-FRAGMENTS.md` | held: WebHostAnt lane, needs 22 |
 | 25 | SecretAnt connector (`SecretSource` adapter crate); same as row 4 | `SECRET-SOURCES.md` s4 | held: S, SecretAnt is a 0.0.0 placeholder on crates.io |
@@ -48,5 +48,6 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 28 | Plan executor with confirmation (dirs, files, commands) for installers | ant-fit finding | open: M-L, needs 26 |
 | 29 | Browser wizard renderer | platform-fit finding (PM 2026-10-28) | held: L, needs 21, 26 and HTTPAnt or WebHostAnt to serve it |
 | 30 | Easy-gate: README hello-world, examples compiled and run in CI, fresh-eyes trial before a first or breaking release; hub card `easyants-card.toml` | EXPECTATIONS 6.24 (CireSnave 2026-10-28) | README, example and CI run done (0.5.8); card is `not-ready` (PM hold on #47) until (a) the fresh-eyes trial has run and (b) the example test also checks the crates.io version once the publish batch (row 17) is out; then the card gets `ready`, `install_url`, `example_path` back |
+| 31 | Fragment migrations: a fragment carries its own `[[migration]]` steps and `config_version` under the mount | `docs/SCHEMA-FRAGMENTS.md` item 5 | open: M, no design beyond the doc; not needed until a library renames an option |
 
 Rows needing a CireSnave call: 8 (a person), 13. Rows needing a PM call: none open (5 ruled: flags only; 15 ruled: validate defaults through the module).
