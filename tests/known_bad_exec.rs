@@ -243,10 +243,8 @@ fn a_secret_ref_is_accepted_and_nothing_shows_a_value() {
     let all = format!("{d:?} {plan:?} {}", serde_json::to_string(&d).unwrap());
     assert!(!all.contains(CANARY));
     let cmd = d.steps[0].command.as_ref().unwrap().join(" ");
-    assert!(
-        cmd.contains("DB_PASSWORD=<redacted ref db.password>"),
-        "{cmd}"
-    );
+    assert_eq!(cmd, "app migrate");
+    assert_eq!(d.steps[0].env, ["DB_PASSWORD=<redacted ref db.password>"]);
 }
 
 #[test]

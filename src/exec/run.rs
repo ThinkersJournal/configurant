@@ -51,8 +51,11 @@ pub trait Host {
     /// The value of a secret by name, or `None` if the host has none. Called at the moment of use.
     fn secret(&self, name: &str) -> Option<Secret>;
 
-    /// The bytes whose SHA-256 is `sha256` (for `Content::Hash`), or `None`. The executor checks the hash.
-    fn content(&self, sha256: &str) -> Option<Vec<u8>>;
+    /// The bytes whose SHA-256 is `sha256` (for `Content::Hash`), or `None` (the default, for a plan that has no
+    /// such step). The executor checks the hash.
+    fn content(&self, _sha256: &str) -> Option<Vec<u8>> {
+        None
+    }
 
     /// Is `path` protected so that only its owner can read it? Asked on Windows before a secret file is
     /// written. The default is `false`, so a host that does not implement it never gets a secret file there.

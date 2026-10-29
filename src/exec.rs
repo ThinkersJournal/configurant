@@ -5,7 +5,9 @@
 //! A [`Step`] is a directory to make, a file to write, a command to run (an argv array, never a shell
 //! string) or a service to bring up or down. An [`ExecPlan`] is a validated list of steps inside declared
 //! roots. Building one and describing it changes nothing: `describe` reads the filesystem and writes nothing.
-//! Running and undoing a plan come in later parts; this part only decides what a plan may contain.
+//! [`Executor::run`] (part b) applies a plan; undo and real service control are part c. Pass the plan hash that the
+//! user confirmed (`plan.hash()`, the same value `describe()` shows) to `run`; keep the state file outside the
+//! roots or inside them, as you like, but on a path of your own.
 //!
 //! Roots and paths are plain `String`s. The root check is lexical (a path must start with a root, with no `..`):
 //! it does not follow symlinks or fold case, so the run step (a later part) must check the real path again.
@@ -244,8 +246,10 @@ pub struct StepDescription {
     pub effect: Effect,
     pub path: Option<String>,
     pub mode: Option<u32>,
-    /// A command line for display; every secret is a `<redacted ref NAME>` marker.
+    /// The program and its arguments, as the plan holds them (never a secret value).
     pub command: Option<Vec<String>>,
+    /// Environment variables of a `Run` step as `NAME=value`; a secret is `NAME=<redacted ref SECRET>`.
+    pub env: Vec<String>,
     pub service: Option<String>,
     pub reversible: bool,
 }
@@ -559,6 +563,7 @@ fn describe_step(s: &Step) -> StepDescription {
         path: None,
         mode: None,
         command: None,
+        env: Vec::new(),
         service: None,
         reversible: s.undo != Undo::None,
     };
@@ -597,7 +602,7 @@ fn describe_step(s: &Step) -> StepDescription {
         }
         StepAction::Run { argv, env, .. } => {
             d.kind = "run";
-            let mut shown = argv.clone();
+            let mut shown = Vec::new();
             for e in env {
                 match &e.value {
                     EnvValue::Literal { text } => shown.push(format!("{}={}", e.name, text)),
@@ -606,7 +611,8 @@ fn describe_step(s: &Step) -> StepDescription {
                     }
                 }
             }
-            d.command = Some(shown);
+            d.command = Some(argv.clone());
+            d.env = shown;
             d.effect = Effect::Run;
         }
         StepAction::Service { name, state } => {
