@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.14
+
+- Step engine, part a (ROADMAP row 26, `docs/STEP-ENGINE.md`). A schema may declare `[[step]]` entries (`id`, `title`, `intro`, `keys`, optional `when`); `when` is one data test on a value, `equals`, `not_equals` or `set`, read as text. `Schema::effective_steps()` gives the order a wizard walks: the declared steps then a final "More settings" step with every unlisted value, or, with no `[[step]]`, one step per form section. `Step::visible(lookup)` decides a step by data alone. New `Step`, `When` and `SchemaError::{BadStepId, DuplicateStep, EmptyStepTitle, StepUnknownKey, StepKeyTwice, BadWhen}`: a step naming an unknown key or a table, a key in two steps, an empty title, a bad or repeated id, and a `when` that reads an unknown key or makes zero or several tests are refused. 9 tests in `tests/known_bad_steps.rs` (the `not_equals` test proven to bite by mutation). Part b (`Wizard`, `next`/`back`/`goto`, `View.wizard`, resume) is next. All crates move to 0.5.14.
+
 ## 0.5.13
 
 - Docs only: `docs/STEP-ENGINE.md`, the design for the step engine (ROADMAP row 26): `[[step]]` in the schema, `when` as data, `next`/`back`/`goto` events, `View.wizard`, resume by step id, one step per section when none are declared. Nothing built. All crates move to 0.5.13.
