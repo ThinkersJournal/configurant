@@ -43,7 +43,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 23 | Projection of settings into a form: sections, order and visibility derived from the schema | PM wave 0 | done: `View::sections`, `file_only`, schema `section` and `advanced` (0.5.12) |
 | 24 | WebHostAnt options shipped as a fragment | `docs/SCHEMA-FRAGMENTS.md` | held: WebHostAnt lane, needs 22 |
 | 25 | SecretAnt connector (`SecretSource` adapter crate); same as row 4 | `SECRET-SOURCES.md` s4 | held: S, SecretAnt is a 0.0.0 placeholder on crates.io |
-| 26 | Step engine: ordered steps, conditions, back/next, resume; one engine for TUI, GUI and browser | PM wave 0 | open: L, needs 20, 21, 23 |
+| 26 | Step engine: ordered steps, conditions, back/next, resume; one engine for TUI, GUI and browser | PM wave 0 | open: L, needs 20, 21, 23 (all done); design in `docs/STEP-ENGINE.md`, two PRs (schema `[[step]]` + ordering, then `Wizard` + events + view) |
 | 27 | Hand redaction to RedactAnt and delete our copy (`src/config.rs` `REDACTED` and the substring redaction) | ant-fit finding | held: S-M, RedactAnt does not exist yet |
 | 28 | Plan executor with confirmation (dirs, files, commands) for installers | ant-fit finding | open: M-L, needs 26 |
 | 29 | Browser wizard renderer | platform-fit finding (PM 2026-10-28) | held: L, needs 21, 26 and HTTPAnt or WebHostAnt to serve it |

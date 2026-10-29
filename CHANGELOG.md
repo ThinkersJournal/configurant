@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.13
+
+- Docs only: `docs/STEP-ENGINE.md`, the design for the step engine (ROADMAP row 26): `[[step]]` in the schema, `when` as data, `next`/`back`/`goto` events, `View.wizard`, resume by step id, one step per section when none are declared. Nothing built. All crates move to 0.5.13.
 ## 0.5.12
 
 - Form projection (ROADMAP row 23). `View` now groups the fields for a form: `sections` (title and keys, in order of first appearance, schema order inside) and `file_only` (the tables and maps only a configuration file can set, with their descriptions, so a form says where to edit them). New schema keys on a `[[value]]`: `section` (the title; default the key's first segment, or `General`) and `advanced` (a form may fold it away); an empty `section` is refused (`SchemaError::EmptySection`) and a fragment override may not set either. `edit::Field` and `view::FieldView` carry `section` and `advanced`; `Session::file_only()`. The grouping carries keys only, never a value. 6 tests in `tests/known_bad_form.rs` (the section override proven to bite by mutation). All crates move to 0.5.12.
