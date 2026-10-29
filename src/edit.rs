@@ -87,6 +87,27 @@ impl<'a> Session<'a> {
         }
     }
 
+    /// The schema being edited.
+    pub fn schema(&self) -> &crate::schema::Schema {
+        self.config.schema()
+    }
+
+    /// The value in force for `key` (staged if any, else current) as plain text, which is what a step's
+    /// `when` compares: no quotes around a string. A secret is `<redacted>`, so a `when` on a secret can only
+    /// test that it is set.
+    pub fn plain(&self, key: &str) -> Option<String> {
+        let def = self.config.schema().get(key)?;
+        let v = self.staged.get(key).or_else(|| self.config.value(key))?;
+        if def.secret {
+            return Some(REDACTED.to_owned());
+        }
+        Some(match v {
+            Value::String(s) | Value::Enum(s) => s.clone(),
+            Value::Path(p) => p.display().to_string(),
+            other => other.shown(),
+        })
+    }
+
     /// Every value of the schema, in schema order.
     pub fn fields(&self) -> Vec<Field> {
         self.config

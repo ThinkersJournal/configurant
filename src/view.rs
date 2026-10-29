@@ -126,6 +126,8 @@ pub struct View {
     /// Tables and maps: show where they are edited, not an editor.
     pub file_only: Vec<FileOnlyView>,
     pub review: ReviewView,
+    /// Where the person is in the steps; present only in a [`Wizard`](crate::wizard::Wizard)'s view.
+    pub wizard: Option<crate::wizard::WizardView>,
 }
 
 /// What a renderer can ask for.
@@ -138,6 +140,12 @@ pub enum Event {
     Unset { key: String },
     /// The user said yes to the review.
     Confirm,
+    /// To the next step that is shown, or the review after the last. A wizard only.
+    Next,
+    /// To the previous step that is shown. A wizard only.
+    Back,
+    /// Back to a step already reached. A wizard only.
+    Goto { step: String },
 }
 
 /// Why an event changed nothing.
@@ -172,6 +180,16 @@ impl<'a> Driver<'a> {
             needs,
             confirmed: None,
         }
+    }
+
+    /// The value in force for `key` as plain text (see [`Session::plain`]).
+    pub fn plain(&self, key: &str) -> Option<String> {
+        self.session.plain(key)
+    }
+
+    /// The schema being edited.
+    pub fn schema(&self) -> &crate::schema::Schema {
+        self.session.schema()
     }
 
     /// The current state, as data.
@@ -248,6 +266,7 @@ impl<'a> Driver<'a> {
             })
             .collect();
         View {
+            wizard: None,
             fields,
             sections,
             file_only,
@@ -284,6 +303,13 @@ impl<'a> Driver<'a> {
             Event::Unset { key } => {
                 self.confirmed = None;
                 self.session.unstage(&key);
+            }
+            Event::Next | Event::Back | Event::Goto { .. } => {
+                refused = Some(Refusal {
+                    key: String::new(),
+                    error: "this session has no steps: wrap the driver in a Wizard to use next, back and goto"
+                        .into(),
+                });
             }
             Event::Confirm => {
                 let review = self.session.review();
