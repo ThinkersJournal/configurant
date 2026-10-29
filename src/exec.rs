@@ -32,6 +32,9 @@
 //! assert_eq!(shown.steps[0].id, "dir");
 //! ```
 
+mod run;
+pub use run::{Executor, Failure, Host, Report, RunError, Secret, StepReport, StepStatus};
+
 use std::collections::BTreeSet;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
