@@ -811,11 +811,12 @@ dependencies = [
 
 [[package]]
 name = "configurant"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "clap",
  "persistant",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
  "tokio",
  "toml",
@@ -824,7 +825,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-gui"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "clap",
  "configurant",
@@ -837,7 +838,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-scan"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "clap",
  "configurant",
@@ -851,7 +852,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-secrets"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "configurant",
  "tempfile",
@@ -861,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-tui"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "clap",
  "configurant",

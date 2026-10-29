@@ -38,7 +38,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 18 | Re-check the CodeRipper waiver on every `eframe`/`accesskit` bump | this file | standing |
 | 19 | Patent sweep of the 0.5.x line; re-sweep when a new family of capability lands and by 2027-10-25 | `PATENT-SWEEP-PROCESS.md` (CireSnave 2026-10-25) | done: `docs/PATENT-SWEEP.md` (11 hits claim-read, all clear); re-sweep standing |
 | 20 | Plain-language prompts: a question, an example and a hint per value, rendered by every front end | PM wave 0 (2026-10-28) | done: prompt and example (0.5.7, #46), hint (0.5.9) |
-| 21 | Serialisable view-model: `Session` fields, review, plan and an event set (set, unset, next, back, confirm) as serde data, secrets still `<redacted>` | PM wave 0; platform-fit finding (PM 2026-10-28) | open: M, needs no other Ant; builds first |
+| 21 | Serialisable view-model: `Session` fields, review, plan and an event set (set, unset, next, back, confirm) as serde data, secrets still `<redacted>` | PM wave 0; platform-fit finding (PM 2026-10-28) | done: `configurant::view` (`Driver`, `View`, `Event`, `Reply`), 0.5.10; `next`/`back` events arrive with the step engine, row 26 |
 | 22 | Library options as a schema fragment (`Schema::parse_with`, mounts) | `docs/SCHEMA-FRAGMENTS.md` | open: M, design written, needs no other Ant; builds after 20 and 21 |
 | 23 | Projection of settings into a form: sections, order and visibility derived from the schema | PM wave 0 | open: S-M, needs 21 |
 | 24 | WebHostAnt options shipped as a fragment | `docs/SCHEMA-FRAGMENTS.md` | held: WebHostAnt lane, needs 22 |
