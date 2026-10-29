@@ -87,7 +87,7 @@ pub struct ChangeView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ActionView {
     pub description: String,
-    /// `note` or `data-transfer`.
+    /// `note`, `data-transfer` or `step`.
     pub kind: &'static str,
     pub from: Option<String>,
     pub to: Option<String>,
@@ -256,6 +256,7 @@ impl<'a> Driver<'a> {
                     ActionKind::DataTransfer { from, to } => {
                         ("data-transfer", Some(from.clone()), Some(to.clone()))
                     }
+                    ActionKind::Step(_) => ("step", None, None),
                 };
                 ActionView {
                     description: a.description.clone(),
