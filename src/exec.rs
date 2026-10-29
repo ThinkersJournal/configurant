@@ -7,6 +7,10 @@
 //! roots. Building one and describing it changes nothing: `describe` reads the filesystem and writes nothing.
 //! Running and undoing a plan come in later parts; this part only decides what a plan may contain.
 //!
+//! Roots and paths are plain `String`s. The root check is lexical (a path must start with a root, with no `..`):
+//! it does not follow symlinks or fold case, so the run step (a later part) must check the real path again.
+//! A `Literal` environment value is shown as written, so it is for non-secret text only.
+//!
 //! A plan never holds a secret. A secret enters as a [`SecretRef`] (a name the host resolves at run time),
 //! and [`ExecPlan::new`] refuses a plan in which any known secret value appears in a title, path, argv,
 //! environment literal, inline content or service name. An error names the step and the field, never the value.
