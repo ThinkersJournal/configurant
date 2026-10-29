@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.16
+
+- Docs only: `docs/PATENT-SWEEP.md` gains an addendum (2026-10-29) for rows 20 to 26 (prompts, view-model, schema fragments, form projection, step engine and wizard): 6 new ideas, 8 queries, 14 hits whose independent claims were read, all "outside, as read" (none "clear"), 14 found-but-not-read patents listed without a verdict, nothing needing review. All crates move to 0.5.16.
+
 ## 0.5.15
 
 - Step engine, part b (ROADMAP row 26, `docs/STEP-ENGINE.md`). New `configurant::wizard`: `Wizard` wraps a `view::Driver` and walks `Schema::effective_steps()`. New events `next`, `back` and `goto { step }` (a plain `Driver` refuses them); a step whose `when` does not hold is skipped both ways and `goto` only returns to a step already reached; `confirm` works only at the review. `View.wizard` (`WizardView`: the step list as `done`/`current`/`todo`/`hidden`, the current step's title, intro and keys, `can_back`, `can_next`, `at_review`, a one-time `note`). `WizardState` (step ids only, never a value) is serialisable and `Wizard::resume` continues from it; a stale step id starts at the first step with a note. `Session::plain(key)` gives a value as plain text (no quotes; a secret is `<redacted>`) for a `when` to compare. A `required` value is already guaranteed by load, so `next` refuses only at the review (`docs/STEP-ENGINE.md` corrected). 9 tests in `tests/known_bad_wizard.rs` (the visibility check proven to bite by mutation: 5 fail) and a doctest. All crates move to 0.5.15.
