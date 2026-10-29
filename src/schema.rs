@@ -181,6 +181,49 @@ struct Raw {
     migrations: Vec<Migration>,
 }
 
+/// A library's options, mounted into an application's schema under a name. See
+/// `docs/SCHEMA-FRAGMENTS.md`: the library ships the fragment text, the application mounts it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mount {
+    name: String,
+    fragment: String,
+}
+
+impl Mount {
+    /// `name` becomes the prefix of every mounted key (`webhost` gives `webhost.port`); `fragment` is
+    /// the library's schema fragment text.
+    pub fn new(name: &str, fragment: &str) -> Self {
+        Mount {
+            name: name.to_owned(),
+            fragment: fragment.to_owned(),
+        }
+    }
+}
+
+/// The `[fragment]` table: what a fragment is, in place of a project.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct FragmentInfo {
+    name: String,
+    version: String,
+    #[serde(default)]
+    summary: String,
+    schema_version: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawFragment {
+    fragment: FragmentInfo,
+    #[serde(default, rename = "value")]
+    values: Vec<ValueDef>,
+    #[serde(default, rename = "table")]
+    tables: Vec<TableDef>,
+    #[serde(default, rename = "map")]
+    maps: Vec<MapDef>,
+}
+
 /// Why a schema was refused.
 #[derive(Debug, PartialEq, thiserror::Error)]
 #[non_exhaustive]
@@ -245,6 +288,14 @@ pub enum SchemaError {
     },
     #[error("map `{0}` has a value_type that is not string, int, float, bool or path")]
     BadMapValueType(String),
+    #[error("mount `{0}` is mounted twice")]
+    DuplicateMount(String),
+    #[error("fragment mounted as `{mount}` is not valid: {reason}")]
+    FragmentParse { mount: String, reason: String },
+    #[error(
+        "`{key}` is mounted from a fragment; the application may change only its default and wording: {reason}"
+    )]
+    MountOverride { key: String, reason: String },
     #[error("migrations do not form a chain to config_version {current}: {reason}")]
     MigrationChain { current: u32, reason: String },
     #[error("migration {from} -> {to}: {reason}")]
@@ -326,9 +377,46 @@ pub(crate) enum Violation {
 
 impl Schema {
     pub fn parse(text: &str) -> Result<Schema, SchemaError> {
+        Schema::parse_with(text, &[])
+    }
+
+    /// Parse `text` with each library fragment in `mounts` added under its mount name. The application
+    /// may restate a mounted value to change its default and its wording; anything else is refused.
+    ///
+    /// ```
+    /// use configurant::{Loader, Mount, Schema};
+    /// // What a library ships (a `&str` in the library, behind a feature): keys are relative.
+    /// let fragment = r#"
+    /// fragment = { name = "webhost", version = "1", schema_version = 1 }
+    /// value = [{ key = "port", type = "int", default = 8080, env = "PORT", description = "listen port" }]
+    /// "#;
+    /// // What the application writes: its own schema, plus a mount name for the library's options.
+    /// let app = r#"
+    /// project = { name = "app", version = "1", summary = "demo", schema_version = 1, env_prefix = "APP_" }
+    /// "#;
+    /// let schema = Schema::parse_with(app, &[Mount::new("webhost", fragment)]).unwrap();
+    /// let config = Loader::new(&schema).build().unwrap();
+    /// assert_eq!(config.get::<i64>("webhost.port").unwrap(), 8080); // the library's option, no code of ours
+    /// // The fragment's `env = "PORT"` becomes <env_prefix><mount>_<env>. A loader reads the variables you give it:
+    /// let vars = [("APP_WEBHOST_PORT".to_string(), "9000".to_string())].into();
+    /// let config = Loader::new(&schema).env(vars).build().unwrap(); // or `std::env::vars().collect()`
+    /// assert_eq!(config.get::<i64>("webhost.port").unwrap(), 9000);
+    /// ```
+    pub fn parse_with(text: &str, mounts: &[Mount]) -> Result<Schema, SchemaError> {
         let mut raw: Raw = toml::from_str(text)?;
         if raw.project.schema_version != SCHEMA_VERSION {
             return Err(SchemaError::UnsupportedVersion(raw.project.schema_version));
+        }
+        let mut mounted = BTreeSet::new();
+        for m in mounts {
+            check_key(&m.name)?;
+            if m.name.contains('.') {
+                return Err(SchemaError::BadKey(m.name.clone()));
+            }
+            if !mounted.insert(m.name.clone()) {
+                return Err(SchemaError::DuplicateMount(m.name.clone()));
+            }
+            splice(&mut raw, m)?;
         }
         let mut keys = BTreeSet::new();
         let mut envs = BTreeSet::new();
@@ -591,6 +679,87 @@ impl ValueDef {
 
 /// What can be checked about one definition alone: secret rules, enum choices, range, and the default
 /// (converted and checked). Shared by `[[value]]` and the fields of a `[[table]]`.
+/// Add a fragment's values, tables and maps to `raw` under the mount name.
+fn splice(raw: &mut Raw, m: &Mount) -> Result<(), SchemaError> {
+    let frag: RawFragment =
+        toml::from_str(&m.fragment).map_err(|e| SchemaError::FragmentParse {
+            mount: m.name.clone(),
+            reason: e.to_string(),
+        })?;
+    if frag.fragment.schema_version != SCHEMA_VERSION {
+        return Err(SchemaError::UnsupportedVersion(
+            frag.fragment.schema_version,
+        ));
+    }
+    let env_prefix = raw.project.env_prefix.clone().unwrap_or_default();
+    let name = &m.name;
+    for mut v in frag.values {
+        v.key = format!("{name}.{}", v.key);
+        v.env = v.env.map(|e| {
+            format!("{env_prefix}{name}_{e}")
+                .replace('-', "_")
+                .to_uppercase()
+        });
+        v.flag = v
+            .flag
+            .map(|f| format!("--{name}-{}", f.trim_start_matches("--")));
+        if let Some(i) = raw.values.iter().position(|a| a.key == v.key) {
+            let a = raw.values.remove(i);
+            v = override_of(v, a)?;
+        }
+        raw.values.push(v);
+    }
+    for mut t in frag.tables {
+        t.key = format!("{name}.{}", t.key);
+        raw.tables.push(t);
+    }
+    for mut mp in frag.maps {
+        mp.key = format!("{name}.{}", mp.key);
+        raw.maps.push(mp);
+    }
+    Ok(())
+}
+
+/// The application restates a mounted value: it may set the default and the wording only.
+fn override_of(mut from_fragment: ValueDef, app: ValueDef) -> Result<ValueDef, SchemaError> {
+    let refuse = |reason: &str| SchemaError::MountOverride {
+        key: app.key.clone(),
+        reason: reason.into(),
+    };
+    if app.ty != from_fragment.ty {
+        return Err(refuse("the type differs from the fragment's"));
+    }
+    if app.min.is_some()
+        || app.max.is_some()
+        || !app.choices.is_empty()
+        || app.secret
+        || app.env.is_some()
+        || app.source.is_some()
+        || app.flag.is_some()
+        || app.restart
+        || app.provider.is_some()
+        || app.required
+    {
+        return Err(refuse(
+            "it sets something other than default, description, prompt, example or hint",
+        ));
+    }
+    if app.default.is_some() {
+        from_fragment.default = app.default;
+    }
+    from_fragment.description = app.description;
+    if app.prompt.is_some() {
+        from_fragment.prompt = app.prompt;
+    }
+    if app.example.is_some() {
+        from_fragment.example = app.example;
+    }
+    if app.hint.is_some() {
+        from_fragment.hint = app.hint;
+    }
+    Ok(from_fragment)
+}
+
 fn check_def(d: &ValueDef) -> Result<Option<Value>, SchemaError> {
     if d.secret && d.default.is_some() {
         return Err(SchemaError::SecretWithDefault(d.key.clone()));

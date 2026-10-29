@@ -24,5 +24,7 @@ pub use module::{
     Action, ActionKind, Choice, ChoiceList, INTERFACE_VERSION, Module, ModuleError, Modules, Needs,
     Plan,
 };
-pub use schema::{Bound, MapDef, Migration, Op, Project, Schema, SchemaError, TableDef, ValueDef};
+pub use schema::{
+    Bound, MapDef, Migration, Mount, Op, Project, Schema, SchemaError, TableDef, ValueDef,
+};
 pub use value::{Row, Value, ValueType};

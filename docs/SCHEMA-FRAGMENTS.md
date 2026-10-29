@@ -1,7 +1,8 @@
 # Library options as a schema fragment
 
-Status: **design, nothing built** (ROADMAP row 22). Written 2026-10-28 for the PM's wave-0 order. Everything
-below the heading "What exists today" is read from `src/schema.rs` at 0.5.5; everything else is proposed.
+Status: **built in 0.5.11** (ROADMAP row 22): `Schema::parse_with(text, &[Mount::new(name, fragment)])`, tests in
+`tests/known_bad_fragments.rs`. Designed 2026-10-28 for the PM's wave-0 order. Where the build differs from the
+design below, a **Built:** note says so. "What exists today" describes 0.5.5, before the build.
 
 ## The idea
 
@@ -37,9 +38,10 @@ documents, and a library cannot contribute keys. That is the one missing piece.
    `port`, `tls.cert_dir`. Same `[[value]]` syntax, same checks, same `secret` rule.
 
 3. **The application mounts it.** A new call, `Schema::parse_with(text, &[Mount::new("webhost", FRAGMENT)])`,
-   adds every fragment key under the mount name (`webhost.port`, `webhost.tls.cert_dir`). Environment names get
-   the project's `env_prefix` plus the mount (`MYAPP_WEBHOST_PORT`) unless the fragment's `env` says otherwise,
-   and flags become `--webhost-port`. A default in the application's own `[[value]]` for a mounted key overrides
+   adds every fragment key under the mount name (`webhost.port`, `webhost.tls.cert_dir`). A fragment value that
+   declares `env = "PORT"` gets the project's `env_prefix`, the mount and that name (`MYAPP_WEBHOST_PORT`), and a
+   `flag = "--port"` becomes `--webhost-port`. **Built:** a value that declares no `env` or `flag` gets none (nothing
+   is derived from the key), as in an application's own schema. A default in the application's own `[[value]]` for a mounted key overrides
    the fragment's default (the application knows its context); it may not change the key's type, choices or
    `secret` mark.
 
@@ -48,9 +50,10 @@ documents, and a library cannot contribute keys. That is the one missing piece.
    a type are named schema errors with a suggestion, never silently merged. Two mounts of the same fragment
    under different names (two listeners) are allowed; the same name twice is not.
 
-5. **Migrations stay with the owner.** A fragment may carry its own `[[migration]]` steps; they run against
-   the mounted keys, so the library can rename an option and an application's existing file still loads.
-   The fragment declares its own `config_version`, kept in the file under the mount name.
+5. **Migrations stay with the owner (not built).** A fragment may carry its own `[[migration]]` steps; they run
+   against the mounted keys, so the library can rename an option and an application's existing file still loads.
+   The fragment declares its own `config_version`, kept in the file under the mount name. **Built:** a fragment
+   with `[[migration]]` is refused (`FragmentParse`) until this is designed; ROADMAP row 31.
 
 6. **Tests the library ships.** A library with a fragment adds one test that parses the fragment alone and
    one that mounts it into a toy application schema, so a fragment that stops parsing fails in the library's
@@ -73,5 +76,5 @@ documents, and a library cannot contribute keys. That is the one missing piece.
 
 ## Size and dependencies
 
-M. Needs nothing from another Ant. It is a precondition for "WebHostAnt and SecretAnt are configured through
+Done (M). Needed nothing from another Ant. It is a precondition for "WebHostAnt and SecretAnt are configured through
 ConfigurAnt" (ROADMAP rows 24 and 25).
