@@ -28,7 +28,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 8 | Check the GUI with a real screen reader (only the accessibility tree is tested) | `GUI.md` | held: needs a person with a screen reader (CireSnave) |
 | 9 | GUI arrow-key navigation inside the value list | `GUI.md` "does not give" | done: arrows move the focused row, the detail follows (0.5.1) |
 | 10 | Scan assist for Python/TypeScript (Rust only so far) | `SCAN.md` q2 | held: not wanted yet (PM 2026-10-23: Rust only first) |
-| 11 | Other modules: ports, paths, logging | spec s4 "Other modules" | open, no design yet |
+| 11 | Other modules: ports, paths, logging | spec s4 "Other modules" | design in `docs/MODULES.md` (0.5.24): slice 1 = ports P1-P4, then interface v2 + P5, logging, paths; PM accepted slice 1 (2026-10-30); waits on the synapse lane naming itself first customer |
 | 12 | Further customers: lanes' tooling, direct-backend projects through PersistAnt | spec "First customers" | held: each project's own lane adopts |
 | 13 | Export a schema as JSON Schema for editors | `PRIOR-ART.md` (schemars) | held: not scheduled, needs a CireSnave call |
 | 14 | Env/CLI list items containing a comma | HANDOFF "Known gaps" | done: backslash escape `\,` (PM 2026-10-25), 0.3.0 |

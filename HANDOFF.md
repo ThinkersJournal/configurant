@@ -6,12 +6,15 @@ pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Ru
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.22 at 64e090a; crates.io has 0.5.22, tag v0.5.22, published by the PM 2026-10-30)
+## State (main = 0.5.23 at 6914a18; crates.io has 0.5.22; row 11 design PR open as 0.5.24)
 - Done and merged: wave 0 (rows 20-23), step engine (26), patent re-sweep (19) and its row-28 addendum (#61),
   plan executor a/b/c (row 28: #58, #59, #60), hub card `ready` (#57), SECURITY.md supported-versions text (#60).
-- Row 28 is DONE. No worktrees of ours remain besides this one. The primary checkout may still be behind origin/main with
-  an old uncommitted HANDOFF.md (a discard was denied by the classifier; it equals a merged version): ask CireSnave/PM or
-  `git checkout HANDOFF.md` then fast-forward.
+- Row 28 is DONE. Row 11 (PM TASK 2026-10-30): design note `docs/MODULES.md` in PR branch `modules-design` (worktree
+  `../configurant-wt-modules`; remove after merge). Slice 1 proposed = ports P1-P4; PM accepted it (privileged ports need a schema `privileged = "reason"`)
+  but the synapse lane has not answered (the Synapse send failed: synapsed would not start). After a yes: build ports (known-bad tests first, `tests/known_bad_modules.rs`).
+- SOAK WAVE 1 (PM 2026-10-30, CireSnave): after the relaunch run ToolSearch "synapse" (tools must be found), send the PM
+  "soak configurant #1" on synapse, and reply on the channel a message arrived on. #63 is in the PM's gate; when the synapse
+  lane's answer on listen.addr arrives (via the PM), record it in docs/MODULES.md s7 (new PR if #63 merged).
 - Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`, a breaking jump to 0.5.x): Synapse lane's call;
   reported to the PM, not edited by us.
 - After part c: row 28 is done. Remaining: 29 browser renderer (held), 25 SecretAnt connector (crate is a 0.0.0
@@ -42,6 +45,3 @@ an anchor. A bash heredoc with `'` in a Rust doc comment broke once: write sourc
 PowerShell is the WSL launcher: run `.github/spdx_gate.sh` from the Bash tool. Never grep all of `C:\Projects`: name the
 repo. Bump versions with `sed` on the Cargo.toml files plus a regex on Cargo.lock; check with `cargo metadata --locked`.
 Test runs: grep for `FAILED|^error`, not "failed". Windows junctions stand in for symlinks in tests (`mklink /J`).
-
-Note: this HANDOFF is uncommitted in the primary checkout (the stop left no time for a PR) and is also in the local
-`exec-c` commit. Before fast-forwarding the primary, run `git checkout HANDOFF.md` there; the exec-c PR carries it to main.
