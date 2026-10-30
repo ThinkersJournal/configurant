@@ -12,6 +12,9 @@ entry in each (breaking = second number pre-1.0).
 - Row 28 is DONE. Row 11 (PM TASK 2026-10-30): design note `docs/MODULES.md` in PR branch `modules-design` (worktree
   `../configurant-wt-modules`; remove after merge). Slice 1 proposed = ports P1-P4; PM accepted it (privileged ports need a schema `privileged = "reason"`)
   but the synapse lane has not answered (the Synapse send failed: synapsed would not start). After a yes: build ports (known-bad tests first, `tests/known_bad_modules.rs`).
+- SOAK WAVE 1 (PM 2026-10-30, CireSnave): after the relaunch run ToolSearch "synapse" (tools must be found), send the PM
+  "soak configurant #1" on synapse, and reply on the channel a message arrived on. #63 is in the PM's gate; when the synapse
+  lane's answer on listen.addr arrives (via the PM), record it in docs/MODULES.md s7 (new PR if #63 merged).
 - Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`, a breaking jump to 0.5.x): Synapse lane's call;
   reported to the PM, not edited by us.
 - After part c: row 28 is done. Remaining: 29 browser renderer (held), 25 SecretAnt connector (crate is a 0.0.0
