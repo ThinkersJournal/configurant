@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.24
+
+- Docs only: `docs/MODULES.md`, the design for ROADMAP row 11 (ports, paths, logging modules): what a project declares, the loader rules with a negative control each, the first customer of each, and slice 1 = ports (P1 to P4, no interface change). Nothing built. All crates move to 0.5.24.
+
 ## 0.5.23
 
 - Docs only: HANDOFF refreshed after the 0.5.22 publish. All crates move to 0.5.23.
