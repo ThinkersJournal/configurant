@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.22
+
+- Docs only: `docs/PATENT-SWEEP.md` gains an addendum (2026-10-30) for row 28, the plan executor (0.5.17 to 0.5.21): 6 new ideas (hash-bound confirmation, secrets by reference, the Windows owner-only rule, resumable state, argv-only with real-path checks, guarded undo), 6 queries, 6 hits whose independent claims were read (some cut off by the tool and marked), all "outside, as read", 16 found-but-not-read patents listed without a verdict, nothing needing review. All crates move to 0.5.22.
+
 ## 0.5.21
 
 - Plan executor, part c (ROADMAP row 28): `Executor::undo(confirmed_hash)` reverses the steps that ran, last first, bound to the plan hash, and goes on past one it cannot undo. New `Undo::Remove { path }`: a file is removed only while it still holds exactly what the step wrote (`Left(Failure::Changed)` otherwise), a directory only while it is empty (`NotEmpty`), and only for the path the step itself made (`NotOurs`), so a data store is never dropped; a plan whose undo would remove a declared root is refused (`Problem::IsRoot`). `UndoReport` lists each step as `Undone`, `ForwardOnly`, `NotApplied`, `Left(..)` or `Failed(..)`; `complete()` is true only if every step that ran was reversed. An undone step is pending again, so the plan can run again. Services go through `Host::service` (down for an undo `Action`). `StepAction`, `Check`, `Content` and `Undo` are `#[non_exhaustive]`. 11 tests in `tests/known_bad_exec_undo.rs`; mutations proven to bite (see the PR). SECURITY.md: "Supported versions" now says the latest line gets fixes, an older line only when the backport is small, and no support period is promised (CireSnave, 2026-10-29). All crates move to 0.5.21.

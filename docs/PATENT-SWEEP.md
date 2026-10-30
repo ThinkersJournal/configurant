@@ -2,7 +2,7 @@
 
 Date: 2026-10-25; Run by: the configurant lane, Claude Sonnet 5.5; Method: AI-assisted search and read; NOT legal advice; NOT a freedom-to-operate opinion.
 
-Covers the 0.5.x line: the first sweep below at `ad5700c` (version 0.5.0), and the addendum at the end for rows 20 to 26 (0.5.7 to 0.5.15, 2026-10-29). First sweep: the core crate, `configurant-secrets`, `configurant-tui`, `configurant-gui`, `configurant-scan`. Process: `C:\Projects\PATENT-SWEEP-PROCESS.md` (CireSnave, 2026-10-25, board 286). Re-sweep when a new family of capability is added, and by 2027-10-25.
+Covers the 0.5.x line: the first sweep below at `ad5700c` (version 0.5.0), the addendum for rows 20 to 26 (0.5.7 to 0.5.15, 2026-10-29), and the last addendum for row 28, the plan executor (0.5.17 to 0.5.21, 2026-10-30). First sweep: the core crate, `configurant-secrets`, `configurant-tui`, `configurant-gui`, `configurant-scan`. Process: `C:\Projects\PATENT-SWEEP-PROCESS.md` (CireSnave, 2026-10-25, board 286). Re-sweep when a new family of capability is added, and by 2027-10-25.
 
 ## Ideas swept
 
@@ -149,3 +149,54 @@ None. Every hit that was read is outside, as read, with the reason in the table.
 - Legal status and expiry are Google's labels. A lapsed or expired patent can have family members or continuations that are in force; none were checked.
 - The idea list was written by the lane that owns the project and may omit a mechanism. The view-model and wizard are libraries, not user interfaces; a renderer built on them (the TUI, the GUI, a future browser page) is a different thing to sweep, and the browser renderer (row 29) will need its own.
 - This is a due-diligence read. It is not legal advice and not a freedom-to-operate opinion; a lawyer's review is a separate, later purchase.
+
+## Addendum for row 28, the plan executor (0.5.17 to 0.5.21, 2026-10-30)
+
+Covers `configurant::exec` as built in 0.5.19 (steps, validation, hash, inert `describe`), 0.5.20 (`run`, state file, `Host`, Windows ACL rule) and 0.5.21 (`undo`, `Undo::Remove`), at `daa0fd1`. Run by the configurant lane, Claude Sonnet 5.5. Wording as above: "outside, as read"; not legal advice.
+
+### Ideas swept (new since the sections above)
+
+21. A plan of steps (make a directory, write a file, run a command, control a service) is shown to the user as data, and execution is refused unless the caller presents the hash of the exact plan that was shown; showing the plan changes nothing.
+22. A plan that contains any known secret value anywhere (title, path, argument, environment literal, inline content) is refused at construction; a secret is resolved only at run time and goes only to a child environment variable or a file created owner-only, and a state file, report or error never holds a value.
+23. On Windows a file that carries a secret is written only if the host reports an owner-only access list; otherwise the step is refused, never downgraded.
+24. A run records each step as pending, applied, verified or failed in a state file that holds the plan hash and step identifiers only; a re-run skips verified steps and resumes at the first failure, and a state file for another plan is refused.
+25. A command is an argument array run with no shell and no stdin and killed at a timeout; every path is checked again against the real filesystem (symlinks and junctions followed) and must stay inside the roots the plan declared.
+26. Undo reverses the steps that ran, last first, and removes a file only while it still holds exactly what the step wrote, a directory only while it is empty, and only a path the step itself made; what cannot be undone is reported, and the run goes on.
+
+### Queries (source, query, date)
+
+All run 2026-10-30 against Google Patents (through a web search tool restricted to `patents.google.com`; results are search-engine ranked). One search per query; the closest hits were then read with `patent-claims.py`.
+
+| # | idea | query |
+|---|---|---|
+| Q23 | 21 | installation plan hash confirmed by user execution refused if plan differs from displayed plan declarative steps |
+| Q24 | 22, 23 | secret credential provided to child process environment variable or file with owner-only permissions never stored in script or log deployment steps |
+| Q25 | 26 | rollback installation undo removes file only if unchanged since installation content hash matches directory removed only if empty |
+| Q26 | 24 | resumable deployment state file records step status pending applied verified failed skip completed steps idempotent re-run |
+| Q27 | 25 | command execution argument array no shell interpretation path confined to declared directories symlink resolved real path check before write |
+| Q28 | 21, 22 | dry run preview of changes create overwrite unchanged per step configuration management plan before apply secrets redacted |
+
+### Hits
+
+Claims were read with the shared tool; where the tool output was cut short, only the independent claims that were shown are listed as read. Status is Google's own label.
+
+| # | patent | title | assignee | status | claim(s) read | overlap | our difference | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 26 | US10620933B2 | Techniques for efficient application configuration patching | Oracle | active, expires 2037-01-03 | indep. 1 (8 begins alike; its end was cut) | The closest hit. A configuration patching execution plan of steps (ideas 21, 24); dependent claims 3, 4 and 7 drop steps found in an inventory of previously executed steps and record each executed step (idea 24). | Claim 1 needs binary patches plus patch metadata declarations that say how to modify configuration data, and a plan with an online phase and an offline phase, each running binary patching and configuration patching on a server. We patch no binaries, have no online and offline phases, and our state file is bound to a plan hash and holds step status, not an inventory of patches. Recheck if we ever apply binary patches or split a run by whether a server is up. | outside, as read |
+| 27 | US8719809B2 | Point in time rollback and un-installation of software | Commvault | expired (fee related), 2031-09-13 | indep. 1 (6 was cut) | Rollback of an update, files restored to a prior state (idea 26). | Claim 1 intercepts update commands, copies the files before they are updated, keeps a rollback data structure with storage locations and copy times, and restores by a point-in-time request. We copy nothing; undo removes what a step created, and only while it still holds what the step wrote. Also expired. | outside, as read |
+| 28 | US5857204A | Restoring the state of a set of files | Ab Initio | expired (lifetime) | indep. 1, 2 (9 was cut) | Perform, finalize and undo routines for file operations, with a transaction log that rollback reads (idea 26). | Claims 1 and 2 are a library of routines that stand in for native file operations and preserve what is needed to roll them back, with a transaction master and a log naming the finalize and undo routines. We wrap no native operation and keep no preserved copy; a step is data checked by hash. Also expired. | outside, as read |
+| 29 | US9348738B2 | Testing functional correctness and idempotence of software automation scripts | IBM | expired (fee related) | indep. 1 | Idempotence of an automation script that puts a system into a target state (idea 24). | Claim 1 is a testing module that builds a state transition graph from a script and runs test cases to decide whether the script is idempotent or convergent. We test no script; each step checks for itself whether it is done. Also expired. | outside, as read |
+| 30 | US20130167200A1 | Techniques to store secret information for global data centers | Microsoft | active, expires 2032-07-21 | indep. 1, 9 (16 was cut) | A secret generated and used by a service rather than passed in a request (idea 22). | Claims are a front end service that generates a secret for a data center, keeps it on back end storage the data center cannot reach, and uses it for a validated request. Our executor generates no secret, runs no front end or back end service and stores none. | outside, as read |
+| 31 | US7051211B1 | Secure software distribution and installation | IBM | expired (fee related), 2023-05-19 | indep. 1 | A secret used while installing (idea 22). | Claim 1 is a server and client holding two secret values from which a key decrypts the software to install. We decrypt nothing and hold no installation keys. Also expired. | outside, as read |
+
+### Found but not read (no verdict claimed) for row 28
+
+Opened only by title and snippet from the results: WO2005106654A1 (installation from removable media with signed metadata and per-file hashes), US7003672B2 and US9223967B2 (hash checks of program code before execution), US20090006260A1 and US8266062B2 (licensing hash that refuses installation on mismatch), US7434259B2 (prompt before installing an unsigned application), US8978160B2 (selective software rollback), EP3039534A1 (idempotent workflow), US9589042B1 (status flag to avoid repeated work), US9996331 and US12632240 (deployment status), US7797534B2 (controlled path-based process execution), US9553855B2 and US7545931B2 (keys and secrets kept for the owning process), US8161544B2 (security descriptor on a child process), US9092576B2 (dry runs with roll-back). Their subjects differ from the ideas above or the snippet showed no matching mechanism; a read is owed if the executor grows toward them. For idea 21's hash-bound confirmation, idea 25's real-path check and idea 23's Windows owner-only rule, the searches found no patent with a matching mechanism (a null from one search each, not a clearance).
+
+### Needs review (to the PM) for row 28
+
+None. Every hit read is outside, as read, with the reason in the table. Hit 26 (US10620933B2, active to 2037) is the closest; its row says when to read it again. No design change was made.
+
+### Limitations for row 28
+
+Same as above: AI-assisted, one engine, 6 queries with one search each, 2026-10-30; Espacenet, WIPO and the USPTO were not queried and no CPC-class search was run (for example G06F 8/60 for software installation, G06F 21/60 for protecting data). Several independent claims were cut off in the tool output and were not read (marked in the table). Status and expiry are Google's labels; continuations and family members were not checked. Not legal advice and not a freedom-to-operate opinion.
