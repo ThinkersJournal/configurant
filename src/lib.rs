@@ -11,6 +11,7 @@ pub mod exec;
 pub mod keycheck;
 pub mod migrate;
 pub mod module;
+pub mod modules;
 #[cfg(feature = "persistant")]
 pub mod persistant;
 pub mod schema;

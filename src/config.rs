@@ -627,7 +627,7 @@ pub(crate) fn check_value(
                 });
             }
             Some(m) => {
-                if let Err(reason) = m.validate(value) {
+                if let Err(reason) = m.validate_for(def, value) {
                     return Err(ConfigError::ModuleRejected {
                         key: def.key.clone(),
                         module: module.clone(),
@@ -818,6 +818,7 @@ impl Config {
             secret,
             restart,
             source: self.schema.get(key).and_then(|d| d.source.clone()),
+            privileged: self.schema.get(key).and_then(|d| d.privileged.clone()),
             chain: chain
                 .iter()
                 .enumerate()
@@ -877,6 +878,8 @@ pub struct Explanation {
     pub restart: bool,
     /// The `<source>:<reference>` a secret declares (a reference, not a value).
     pub source: Option<String>,
+    /// Why this port may be below 1024, when the schema key declares it.
+    pub privileged: Option<String>,
     pub chain: Vec<ExplainLine>,
 }
 
@@ -888,6 +891,9 @@ impl fmt::Display for Explanation {
             if let Some(src) = &self.source {
                 write!(f, " [source: {src}]")?;
             }
+        }
+        if let Some(why) = &self.privileged {
+            write!(f, " [privileged port allowed: {why}]")?;
         }
         if self.restart {
             write!(f, " [restart needed]")?;

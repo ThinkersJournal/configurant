@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.25
+
+- The `ports` module (ROADMAP row 11, slice 1; `docs/MODULES.md` section 2), behind the new Cargo feature `ports`: `configurant::modules::ports::Ports`, registered under `provider = "ports"`. P1: an `int` port is 1 to 65535 (`0` only with `.allow_zero()`). P2: a `string` is `host:port` or `[v6]:port` with an IP literal or a DNS name (labels of 1 to 63, no leading or trailing `-`, 253 in all); a name of only digits and dots must be a valid IPv4 address. P3: a port below 1024 is refused unless the schema key declares the new optional field `privileged = "<reason>"` (valid only with `provider = "ports"`; empty is a schema error; shown by `help` and `explain`, new `Explanation::privileged`). P4: a refusal names the key and the rule and never quotes the value (a `secret` key's whole reason is `<redacted>` as for every module). `.suggest(&[..])` makes `list_choices` offer ports; it never probes. New defaulted trait method `Module::validate_for(&ValueDef, &Value)` (calls `validate` unless overridden; the interface stays version 1, every existing module is unchanged). 22 tests in `tests/known_bad_modules.rs`; six mutations proven to bite. P5 (two ports must not collide) is slice 2. First customer: `synapsed` `listen.addr` (`127.0.0.1:7920`), adopted by the Synapse lane in a latest-deps bump. All crates move to 0.5.25.
+
 ## 0.5.24
 
 - Docs only: `docs/MODULES.md`, the design for ROADMAP row 11 (ports, paths, logging modules): what a project declares, the loader rules with a negative control each, the first customer of each, and slice 1 = ports (P1 to P4, no interface change). Nothing built. All crates move to 0.5.24.
