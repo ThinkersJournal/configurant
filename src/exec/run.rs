@@ -272,6 +272,8 @@ impl<H: Host> fmt::Debug for Executor<'_, H> {
 }
 
 impl<'a, H: Host> Executor<'a, H> {
+    /// `state_path` is where progress is kept. Use the same path for `run`, a later `run` (to resume) and `undo`:
+    /// undo reverses what the state file says ran.
     pub fn new(plan: &'a ExecPlan, host: &'a H, state_path: impl Into<PathBuf>) -> Self {
         Executor {
             plan,
