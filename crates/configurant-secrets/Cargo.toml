@@ -1,6 +1,6 @@
 [package]
 name = "configurant-secrets"
-version = "0.5.19"
+version = "0.5.20"
 edition = "2024"
 rust-version = "1.95"
 description = "Secret sources for ConfigurAnt: fetch a secret by reference at load time, hand it to the loader as redacted text, never print, log or write it."
