@@ -10,8 +10,8 @@ entry in each (breaking = second number pre-1.0).
 - Done and merged: wave 0 (rows 20-23), step engine (26), patent re-sweep (19) and its row-28 addendum (#61),
   plan executor a/b/c (row 28: #58, #59, #60), hub card `ready` (#57), SECURITY.md supported-versions text (#60).
 - Row 28 is DONE. Row 11 (PM TASK 2026-10-30): design note `docs/MODULES.md` in PR branch `modules-design` (worktree
-  `../configurant-wt-modules`; remove after merge). Slice 1 proposed = ports P1-P4; awaits the PM's yes on its 3 questions
-  and the synapse lane saying it wants it. After a yes: build ports (known-bad tests first, `tests/known_bad_modules.rs`).
+  `../configurant-wt-modules`; remove after merge). Slice 1 proposed = ports P1-P4; PM accepted it (privileged ports need a schema `privileged = "reason"`)
+  but the synapse lane has not answered (the Synapse send failed: synapsed would not start). After a yes: build ports (known-bad tests first, `tests/known_bad_modules.rs`).
 - Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`, a breaking jump to 0.5.x): Synapse lane's call;
   reported to the PM, not edited by us.
 - After part c: row 28 is done. Remaining: 29 browser renderer (held), 25 SecretAnt connector (crate is a 0.0.0

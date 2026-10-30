@@ -14,8 +14,8 @@ Three limits shape everything below:
    a listen port from a client port.
 2. **A module's options are the application's, not the schema's.** The PersistAnt module's minimum durability is a
    setting on the module, because there is no schema field for it (DESIGN item 12, ROADMAP row 5). The same rule
-   here: a project that wants to allow privileged ports builds `Ports::new().allow_privileged()` and registers it.
-   No new schema field in any slice.
+   here: a project that wants `.allow_zero()` or `.suggest(..)` builds that on the module and registers it. The one
+   exception, ruled by the PM on 2026-10-30, is privileged ports (P3): the schema key declares it, with a reason.
 3. **The loader is pure.** It takes its inputs as data and touches no file and no socket. A rule that needs the
    machine (does the directory exist, is the port free) is therefore a **check run by a front end** (`configurant
    check`, `Plan` steps), never a load error. This keeps every load test deterministic and every load safe on a
@@ -43,7 +43,7 @@ default = "127.0.0.1:7878"
 |---|---|---|
 | P1 | An `int` is 1 to 65535; `0` ("any port") only with `.allow_zero()` | `port = 0`; `port = 65536`; `port = -1` |
 | P2 | A `string` is `host:port` or `[v6]:port`, the port by P1, the host an IP literal or a DNS name (labels of 1 to 63 of letters, digits, `-`, no leading/trailing `-`, 253 total) | `7878` (no host), `localhost:` , `:80`, `::1:80` (unbracketed v6), `a b:80`, `-x.test:80`, `[::1]:99999` |
-| P3 | A port below 1024 is refused unless `.allow_privileged()` | `127.0.0.1:80` under the default; accepted with the option (the control for the control) |
+| P3 | A port below 1024 is refused unless the schema key declares `privileged = "<reason>"` (a non-empty reason string; the error for a refused port names the key and says how to declare it, and `explain()` and `help` show the reason for a key that declares it) | `127.0.0.1:80` without the declaration; the same value accepted with `privileged = "public web port, runs as a service"`; `privileged = ""` is a schema error |
 | P4 | The error names the key and the rule and never echoes a value that is `secret` (a port is not secret, but an address string can hold a credential by mistake: `user:pw@host:80` is refused by P2 and the text is `<redacted>` if the key is secret) | a `secret` key holding `user:pw@h:80` leaks nothing in `Display`, `Debug`, `explain` |
 | P5 | Two ports in one schema must not collide (see below) | `listen.addr` and `admin.addr` both `:7878` |
 
@@ -142,10 +142,17 @@ add is mostly L2, with less to prove. Paths is the largest: the rules differ by 
 - A module never acts: anything beyond validation is a `Plan`, shown and confirmed by a front end.
 - Adoption in a project's schema is that project's lane's call; ConfigurAnt only ships the module.
 
-## 7. Questions for the PM
+## 7. Decisions and answers
 
-1. Is "slice 1 = ports P1 to P4" accepted, with interface version 2 (`validate_all`) as slice 2?
-2. P3 refuses privileged ports by default. Is the default right, or should the default be permissive with
-   `.deny_privileged()`? (Recommend refusing: a daemon asking for port 80 on a laptop is almost always a mistake.)
-3. Should the `synapse` lane be asked now to say whether it wants `listen.addr` and `log_level` checked this way, so
-   slice 1 is built for a customer who has said yes?
+PM, 2026-10-30, on PR #63:
+
+1. **Accepted:** slice 1 = ports P1 to P4; interface version 2 (`validate_all`) is slice 2.
+2. **Privileged ports (below 1024) are refused by default** and allowed only where the schema key declares it
+   explicitly, with a reason string that the error and `explain()` show. Negative control: the same value accepted
+   with the declaration and refused without (P3). This adds one optional schema field, `privileged` (a string),
+   which is valid only on a value whose `provider` is `ports`; a schema that sets it elsewhere fails its own check.
+3. **Ask the synapse lane** whether `synapsed`'s `listen.addr` wants this as first customer. Sent over Synapse
+   (`synapse send --to synapse@ciresnave`) on 2026-10-30: **the send failed**, `synapsed` could not start from the
+   configurant lane's shell ("The directory name is invalid", os error 267), so the question has not been
+   delivered. **Synapse lane's answer: not yet received.** This section gets the answer when it comes; slice 1 is not
+   built until it says yes.
