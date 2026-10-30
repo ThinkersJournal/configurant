@@ -1,4 +1,4 @@
-# configurant HANDOFF (rewritten 2026-10-30 by the configurant lane after 0.5.25)
+# configurant HANDOFF (rewritten 2026-10-30 by the configurant lane after the logging module, 0.5.29)
 
 You are the `configurant` lane (cwd `C:\Projects\configurant`, repo `ThinkersJournal/configurant`). Tasks come
 from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`; `send_message` takes `to_id`) and the
@@ -6,14 +6,17 @@ pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Ru
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.27 at 81e5f93; crates.io has 0.5.22; the PM publishes)
+## State (main = 0.5.28 at 4ad3bb7, PR for 0.5.29 open; crates.io has 0.5.22; the PM publishes)
 - Done and merged: wave 0 (rows 20-23), step engine (26), patent re-sweep (19), plan executor a/b/c (row 28), hub card
   `ready` (#57), row 11 design (#63), ports slice 1 (#64, 0.5.25), **ports slice 2 (#66, 0.5.27)**: interface version 2
   (`Module::validate_all`, `MIN_INTERFACE_VERSION` 1; default `interface_version()` stays 1, `Ports` returns 2) and
   rule P5. Known gap: `edit::Session` does not run `validate_all`.
-- NEXT (row 11 slice 3, unblocked, start without a [TASK]): the `logging` module, design `docs/MODULES.md` section 4
-  (order in section 5), then `paths` (section 3). Known-bad tests first (`tests/known_bad_modules.rs` or a sibling),
-  mutate to prove they bite, version bump + CHANGELOG (next number 0.5.29, PM allocates), fresh-eyes trial in the PR body.
+- **Logging module (row 11 slice 3, 0.5.29)**: built on branch `logging-module` (worktree `C:\Projects\configurant-wt-logging`),
+  `src/modules/logging.rs`, `tests/known_bad_logging.rs`, feature `logging`. If the PR is merged, remove the worktree
+  and branch (CLAUDE.md section 3).
+- NEXT (row 11 slice 4, unblocked, start without a [TASK]): `paths` (`docs/MODULES.md` section 3: T1 to T5, per-platform
+  test matrix, `on_change` returns a `Mkdir` plan). Known-bad tests first (sibling file `tests/known_bad_paths.rs`), mutate
+  to prove they bite, version bump + CHANGELOG (PM allocates the number), fresh-eyes trial in the PR body.
 - Soak wave 1 is done (replied on both channels; you hear peers and Synapse both).
 - Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`, a breaking jump to 0.5.x): Synapse lane's call;
   reported to the PM, not edited by us.
