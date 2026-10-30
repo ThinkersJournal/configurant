@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.35
+
+- Docs only: ROADMAP gains a "Blocked on" column (every open row names its blocker: a board item, a lane or a dependency; row 31 says it has none beyond missing demand); rows 17 (0.5.33 published) and 30 (card `ready`) now read done. All crates move to 0.5.35.
+
 ## 0.5.34
 
 - Docs only: ROADMAP rows 11 (modules) and 28 (plan executor) now read done with their PR numbers; HANDOFF refreshed after the 0.5.33 publish. All crates move to 0.5.34.
