@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.30
+
+- Docs only: HANDOFF refreshed after the logging module (0.5.29); next is `paths`. All crates move to 0.5.30.
+
 ## 0.5.29
 
 - The `logging` module (ROADMAP row 11, slice 3; `docs/MODULES.md` section 4), behind the new Cargo feature `logging`: `configurant::modules::logging::{Logging, Level}`, registered under `provider = "logging"` on a `string` or `enum`. L1: a level is `off error warn info debug trace` in any case, a near miss (`inf`, `warning`) gets a `did you mean`. L2: a filter is comma-separated `target=level` directives (a target is a Rust path) plus at most one bare default level; an empty directive, a second default, a bare non-level word and a bad target are refused. L3: `.max_level(Level)` refuses a more verbose level in a bare level and in every directive. `.levels_only()` refuses a filter. `list_choices` returns the levels least to most verbose with a "what you see" reason, cut at the ceiling. The module changes no text and adds no dependency; a refusal quotes the token escaped and cut at 32 characters, and a `secret` key is `<redacted>`. 14 tests in `tests/known_bad_logging.rs`; seven mutations proven to bite (see the PR). All crates move to 0.5.29.
