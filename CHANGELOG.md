@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.23
+
+- Docs only: HANDOFF refreshed after the 0.5.22 publish. All crates move to 0.5.23.
+
 ## 0.5.22
 
 - Docs only: `docs/PATENT-SWEEP.md` gains an addendum (2026-10-30) for row 28, the plan executor (0.5.17 to 0.5.21): 6 new ideas (hash-bound confirmation, secrets by reference, the Windows owner-only rule, resumable state, argv-only with real-path checks, guarded undo), 6 queries, 6 hits whose independent claims were read (some cut off by the tool and marked), all "outside, as read", 16 found-but-not-read patents listed without a verdict, nothing needing review. All crates move to 0.5.22.
