@@ -68,6 +68,10 @@ impl Module for Ports {
         "ports"
     }
 
+    fn interface_version(&self) -> u32 {
+        2 // implements `validate_all`
+    }
+
     fn list_choices(&self, _needs: &Needs) -> Vec<Choice> {
         self.suggested
             .iter()

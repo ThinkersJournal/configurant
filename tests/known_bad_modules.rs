@@ -576,6 +576,18 @@ fn interface_one_modules_still_register_and_two_is_the_current_version() {
             Ok(())
         }
     }
+    struct Relies;
+    impl Module for Relies {
+        fn name(&self) -> &str {
+            "relies"
+        }
+        fn list_choices(&self, _: &Needs) -> Vec<configurant::Choice> {
+            Vec::new()
+        }
+        fn validate(&self, _: &Value) -> Result<(), String> {
+            Ok(())
+        }
+    }
     struct Future;
     impl Module for Future {
         fn name(&self) -> &str {
@@ -593,6 +605,10 @@ fn interface_one_modules_still_register_and_two_is_the_current_version() {
     }
     assert_eq!((MIN_INTERFACE_VERSION, INTERFACE_VERSION), (1, 2));
     let mut m = Modules::new();
+    assert_eq!(Relies.interface_version(), 1, "the default must stay 1");
+    assert_eq!(Ports::new().interface_version(), 2);
+    assert!(m.register(Box::new(Relies)).is_ok());
+    assert!(m.register(Box::new(Ports::new())).is_ok());
     assert!(m.register(Box::new(Old)).is_ok());
     assert!(m.register(Box::new(Future)).is_err());
 }

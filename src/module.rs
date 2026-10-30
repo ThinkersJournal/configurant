@@ -75,9 +75,11 @@ pub trait Module {
     /// The name a schema's `provider` refers to.
     fn name(&self) -> &str;
 
-    /// The interface version this module was written against.
+    /// The interface version this module was written against. The default is 1 (`MIN_INTERFACE_VERSION`): a
+    /// module that is recompiled against a newer library must not start claiming a version it was not written
+    /// for. A module that overrides [`Module::validate_all`] returns 2 explicitly.
     fn interface_version(&self) -> u32 {
-        INTERFACE_VERSION
+        MIN_INTERFACE_VERSION
     }
 
     /// The choices for `needs`, best first, each with a reason.
