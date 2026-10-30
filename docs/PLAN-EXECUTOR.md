@@ -1,6 +1,6 @@
 # Plan executor
 
-Status: **design accepted, nothing built** (ROADMAP row 28). Written 2026-10-29. Facts about today's code are from
+Status: **built in 0.5.19 (types, `describe`), 0.5.20 (`run`), 0.5.21 (`undo`)**; the text below is the design they follow (ROADMAP row 28). Written 2026-10-29. Facts about today's code are from
 `src/module.rs` and `src/edit.rs` at 0.5.14. The must-haves below are the Humboldt installer lane's
 (`docs/INSTALLER-DESIGN.md`, Humboldt PR #148, read as a message on 2026-10-29, not from the file); the rest is proposed.
 

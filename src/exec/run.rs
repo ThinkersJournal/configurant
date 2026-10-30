@@ -15,6 +15,9 @@
 //!   ([`Host::owner_only_acl`], default `false`); otherwise the step fails with [`Failure::AclRequired`].
 //! - **No surprise overwrite.** A file that exists with different content is replaced only if its step id is in
 //!   the `approved_overwrites` the front end passes after showing the user the overwrite.
+//! - **Undoable, honestly.** [`Executor::undo`] reverses what ran, last first, and reports what it could not
+//!   (`ForwardOnly`, or left in place because a file changed, a directory has data in it, or the path is not
+//!   one the step made). It never removes more than the step made.
 //! - **Resumable.** The state file records each step as `pending`, `applied`, `verified` or `failed`. A run
 //!   skips verified steps, stops at the first failure and the next run continues there. A state file for a
 //!   different plan is refused.
@@ -27,7 +30,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    Check, Content, EnvValue, ExecPlan, SecretRef, ServiceState, Step, StepAction, is_sha256,
+    Check, Content, EnvValue, ExecPlan, SecretRef, ServiceState, Step, StepAction, Undo, is_sha256,
     sha256_hex,
 };
 
@@ -107,6 +110,12 @@ pub enum Failure {
     Timeout,
     /// The read-back after the step did not hold.
     VerifyFailed,
+    /// Undo: the file no longer holds what the step wrote, so it is left in place.
+    Changed,
+    /// Undo: the directory is not empty, so it is left in place.
+    NotEmpty,
+    /// Undo: the path is not one this step made.
+    NotOurs,
     /// An operating-system error, by kind only.
     Io(std::io::ErrorKind),
 }
@@ -135,6 +144,11 @@ impl fmt::Display for Failure {
             }
             Failure::Timeout => f.write_str("the program ran past its timeout"),
             Failure::VerifyFailed => f.write_str("the read-back after the step did not hold"),
+            Failure::Changed => {
+                f.write_str("the file changed since the step wrote it; left in place")
+            }
+            Failure::NotEmpty => f.write_str("the directory is not empty; left in place"),
+            Failure::NotOurs => f.write_str("the path is not one this step made; left in place"),
             Failure::Io(k) => write!(f, "operating-system error: {k}"),
         }
     }
@@ -161,6 +175,43 @@ impl Report {
     pub fn ok(&self, plan: &ExecPlan) -> bool {
         self.steps.len() == plan.steps().len()
             && self.steps.iter().all(|s| s.status == StepStatus::Verified)
+    }
+}
+
+/// What undo did with one step.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UndoOutcome {
+    /// Reversed; the step is pending again.
+    Undone,
+    /// The step has no undo (forward-only) and its effect stays.
+    ForwardOnly,
+    /// The step never ran, so there is nothing to undo.
+    NotApplied,
+    /// Deliberately left in place for safety ([`Failure::Changed`], [`Failure::NotEmpty`], [`Failure::NotOurs`]).
+    Left(Failure),
+    /// The undo itself failed.
+    Failed(Failure),
+}
+
+/// One step of an undo.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UndoStep {
+    pub id: String,
+    pub outcome: UndoOutcome,
+}
+
+/// The result of an undo: steps in the order they were undone (last first).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UndoReport {
+    pub steps: Vec<UndoStep>,
+}
+
+impl UndoReport {
+    /// Everything that ran was reversed: nothing is forward-only, left or failed.
+    pub fn complete(&self) -> bool {
+        self.steps
+            .iter()
+            .all(|s| matches!(s.outcome, UndoOutcome::Undone | UndoOutcome::NotApplied))
     }
 }
 
@@ -221,6 +272,8 @@ impl<H: Host> fmt::Debug for Executor<'_, H> {
 }
 
 impl<'a, H: Host> Executor<'a, H> {
+    /// `state_path` is where progress is kept. Use the same path for `run`, a later `run` (to resume) and `undo`:
+    /// undo reverses what the state file says ran.
     pub fn new(plan: &'a ExecPlan, host: &'a H, state_path: impl Into<PathBuf>) -> Self {
         Executor {
             plan,
@@ -316,6 +369,84 @@ impl<'a, H: Host> Executor<'a, H> {
             }
         }
         Ok(report)
+    }
+
+    /// Reverse the steps that ran, last first, bound to the same plan hash. It goes on past a step that cannot be
+    /// undone and reports it. A file is removed only while it holds what the step wrote, a directory only while
+    /// it is empty; nothing else is ever removed.
+    pub fn undo(&self, confirmed_hash: &str) -> Result<UndoReport, RunError> {
+        if confirmed_hash != self.plan.hash() {
+            return Err(RunError::HashMismatch);
+        }
+        let mut st = self.load()?;
+        let mut report = UndoReport { steps: Vec::new() };
+        for (i, step) in self.plan.steps().iter().enumerate().rev() {
+            let outcome = if st.step[i].state == StepStatus::Pending {
+                UndoOutcome::NotApplied
+            } else {
+                match &step.undo {
+                    Undo::None => UndoOutcome::ForwardOnly,
+                    Undo::Action { action } => match self.apply(action, false) {
+                        Ok(_) => UndoOutcome::Undone,
+                        Err(f) => UndoOutcome::Failed(f),
+                    },
+                    Undo::Remove { path } => match self.remove(step, path) {
+                        Ok(()) => UndoOutcome::Undone,
+                        Err(f @ (Failure::Changed | Failure::NotEmpty | Failure::NotOurs)) => {
+                            UndoOutcome::Left(f)
+                        }
+                        Err(f) => UndoOutcome::Failed(f),
+                    },
+                }
+            };
+            if outcome == UndoOutcome::Undone {
+                st.step[i].state = StepStatus::Pending;
+                self.save(&st)?;
+            }
+            report.steps.push(UndoStep {
+                id: step.id.clone(),
+                outcome,
+            });
+        }
+        Ok(report)
+    }
+
+    fn remove(&self, step: &Step, path: &str) -> Result<(), Failure> {
+        let p = Path::new(path);
+        self.inside(p)?;
+        let meta = match std::fs::symlink_metadata(p) {
+            Ok(m) => m,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(io(e)),
+        };
+        if meta.file_type().is_symlink() {
+            return Err(Failure::Symlink);
+        }
+        if meta.is_dir() {
+            match &step.action {
+                StepAction::Mkdir { path: made, .. } if made == path => {}
+                _ => return Err(Failure::NotOurs),
+            }
+            if std::fs::read_dir(p).map_err(io)?.next().is_some() {
+                return Err(Failure::NotEmpty);
+            }
+            return std::fs::remove_dir(p).map_err(io);
+        }
+        match &step.action {
+            StepAction::WriteFile {
+                path: wrote,
+                content,
+                ..
+            } if wrote == path => {
+                let want = self.bytes(content)?;
+                if std::fs::read(p).map_err(io)? == want {
+                    std::fs::remove_file(p).map_err(io)
+                } else {
+                    Err(Failure::Changed)
+                }
+            }
+            _ => Err(Failure::NotOurs),
+        }
     }
 
     fn one(

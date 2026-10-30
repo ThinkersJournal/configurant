@@ -35,7 +35,10 @@
 //! ```
 
 mod run;
-pub use run::{Executor, Failure, Host, Report, RunError, Secret, StepReport, StepStatus};
+pub use run::{
+    Executor, Failure, Host, Report, RunError, Secret, StepReport, StepStatus, UndoOutcome,
+    UndoReport, UndoStep,
+};
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -60,6 +63,7 @@ impl fmt::Debug for SecretRef {
 /// What a `WriteFile` writes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
+#[non_exhaustive]
 pub enum Content {
     /// Small non-secret text, up to [`INLINE_LIMIT`] bytes, hashed into the plan.
     Inline { text: String },
@@ -95,6 +99,7 @@ pub enum ServiceState {
 /// What a step does.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
+#[non_exhaustive]
 pub enum StepAction {
     /// Make a directory (and its parents). `mode` is advisory on Windows.
     Mkdir { path: String, mode: Option<u32> },
@@ -118,6 +123,7 @@ pub enum StepAction {
 /// A condition the executor evaluates: before a step to see whether it is already done, after it to verify.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
+#[non_exhaustive]
 pub enum Check {
     PathExists { path: String },
     FileHash { path: String, sha256: String },
@@ -127,11 +133,15 @@ pub enum Check {
 /// How a step is undone.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
+#[non_exhaustive]
 pub enum Undo {
     /// Forward-only: it cannot be undone, and the confirm screen says so.
     None,
     /// Undo by running this action.
     Action { action: Box<StepAction> },
+    /// Remove what the step made. A file is removed only while it still holds exactly what the step wrote; a
+    /// directory only while it is empty. Anything else is left in place and reported (a data store is never dropped).
+    Remove { path: String },
 }
 
 /// One step of an executable plan.
@@ -181,6 +191,8 @@ pub enum Problem {
     BadName,
     /// A known secret value appears in the field.
     SecretValue,
+    /// An undo would remove a declared root itself.
+    IsRoot,
 }
 
 impl fmt::Display for Problem {
@@ -199,6 +211,7 @@ impl fmt::Display for Problem {
             Problem::BadMode => f.write_str("a mode is at most 0o7777"),
             Problem::ZeroTimeout => f.write_str("the timeout must be at least one second"),
             Problem::BadName => f.write_str("the name has a character it must not have"),
+            Problem::IsRoot => f.write_str("an undo must not remove a declared root"),
             Problem::SecretValue => {
                 f.write_str("holds a secret value; pass it as a SecretRef instead")
             }
@@ -485,8 +498,17 @@ impl ExecPlan {
             if let Some(c) = &s.verify {
                 ctx.check(&s.id, "verify", c)?;
             }
-            if let Undo::Action { action } = &s.undo {
-                ctx.action(&s.id, action)?;
+            match &s.undo {
+                Undo::Action { action } => ctx.action(&s.id, action)?,
+                Undo::Remove { path } => {
+                    ctx.path(&s.id, "undo", path)?;
+                    ctx.text(&s.id, "undo", path)?;
+                    let c = clean(&s.id, "undo", path)?;
+                    if ctx.roots.contains(&c) {
+                        return Err(err(&s.id, "undo", Problem::IsRoot));
+                    }
+                }
+                Undo::None => {}
             }
         }
         let canon = Canon {
