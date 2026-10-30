@@ -1,4 +1,4 @@
-# configurant HANDOFF (rewritten 2026-10-30 by the configurant lane after the paths module merged, 0.5.32)
+# configurant HANDOFF (rewritten 2026-10-30 by the configurant lane after the 0.5.33 publish, 0.5.34)
 
 You are the `configurant` lane (cwd `C:\Projects\configurant`, repo `ThinkersJournal/configurant`). Tasks come
 from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`; `send_message` takes `to_id`) and the
@@ -6,7 +6,7 @@ pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Ru
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.31 at c864714; crates.io has 0.5.22; the PM publishes)
+## State (main = 0.5.33 at 17e098b, tagged v0.5.33; crates.io has 0.5.33, published 2026-10-30; the PM publishes)
 - Done and merged: wave 0 (rows 20-23), step engine (26), patent re-sweep (19), plan executor a/b/c (row 28), hub card
   `ready` (#57), row 11 design (#63), ports slice 1 (#64, 0.5.25), **ports slice 2 (#66, 0.5.27)**: interface version 2
   (`Module::validate_all`, `MIN_INTERFACE_VERSION` 1; default `interface_version()` stays 1, `Ports` returns 2) and
@@ -14,7 +14,8 @@ entry in each (breaking = second number pre-1.0).
 - **Logging module (row 11 slice 3, #68, 0.5.29) merged**: `src/modules/logging.rs`, `tests/known_bad_logging.rs`,
   feature `logging`; worktree and branch removed. Lesson from its fresh-eyes trial: a library `Loader` reads the
   environment only via `.env(map)`, so a doc example that shows an env var must pass it.
-- **Row 11 is complete**: ports (#64, #66), logging (#68), paths (#70, 0.5.31) are merged; worktrees and branches removed.
+- **Row 11 is complete**: ports (#64, #66), logging (#68), paths (#70, 0.5.31) and its patent re-sweep (#72, row 19) are merged and
+  published in 0.5.33; worktrees and branches removed. ROADMAP rows 11 and 28 now read done (the PM tasks from that text).
   Paths has its own parser (not `std::path`) under a `Platform`, so Windows rules are tested on every host.
 - NEXT: no unblocked row of mine. Check the issue sweep (due ~2026-11-01), `edit::Session` not running `validate_all`
   (known gap, small), and the "did you mean" for unknown schema fields (reported to the PM); otherwise ask the PM.

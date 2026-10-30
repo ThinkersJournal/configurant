@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.34
+
+- Docs only: ROADMAP rows 11 (modules) and 28 (plan executor) now read done with their PR numbers; HANDOFF refreshed after the 0.5.33 publish. All crates move to 0.5.34.
+
 ## 0.5.33
 
 - Docs only: `docs/PATENT-SWEEP.md` gains an addendum (2026-10-30) for row 11, the ports, logging and paths modules (0.5.25 to 0.5.31): 6 new ideas, 6 queries, 6 hits whose independent claims were read, all "outside, as read" (closest: US20040019670A1, active to 2029, which needs a server with a second in-memory representation and a change request), 28 found-but-not-read patents listed without a verdict, nothing needing review. ROADMAP row 19 updated. All crates move to 0.5.33.
