@@ -2,7 +2,7 @@
 
 Date: 2026-10-25; Run by: the configurant lane, Claude Sonnet 5.5; Method: AI-assisted search and read; NOT legal advice; NOT a freedom-to-operate opinion.
 
-Covers the 0.5.x line: the first sweep below at `ad5700c` (version 0.5.0), the addendum for rows 20 to 26 (0.5.7 to 0.5.15, 2026-10-29), and the last addendum for row 28, the plan executor (0.5.17 to 0.5.21, 2026-10-30). First sweep: the core crate, `configurant-secrets`, `configurant-tui`, `configurant-gui`, `configurant-scan`. Process: `C:\Projects\PATENT-SWEEP-PROCESS.md` (CireSnave, 2026-10-25, board 286). Re-sweep when a new family of capability is added, and by 2027-10-25.
+Covers the 0.5.x line: the first sweep below at `ad5700c` (version 0.5.0), the addendum for rows 20 to 26 (0.5.7 to 0.5.15, 2026-10-29), the addendum for row 28, the plan executor (0.5.17 to 0.5.21, 2026-10-30), and the last addendum for row 11, the ports, logging and paths modules (0.5.25 to 0.5.31, 2026-10-30). First sweep: the core crate, `configurant-secrets`, `configurant-tui`, `configurant-gui`, `configurant-scan`. Process: `C:\Projects\PATENT-SWEEP-PROCESS.md` (CireSnave, 2026-10-25, board 286). Re-sweep when a new family of capability is added, and by 2027-10-25.
 
 ## Ideas swept
 
@@ -200,3 +200,54 @@ None. Every hit read is outside, as read, with the reason in the table. Hit 26 (
 ### Limitations for row 28
 
 Same as above: AI-assisted, one engine, 6 queries with one search each, 2026-10-30; Espacenet, WIPO and the USPTO were not queried and no CPC-class search was run (for example G06F 8/60 for software installation, G06F 21/60 for protecting data). Several independent claims were cut off in the tool output and were not read (marked in the table). Status and expiry are Google's labels; continuations and family members were not checked. Not legal advice and not a freedom-to-operate opinion.
+
+## Addendum for row 11, the ports, logging and paths modules (0.5.25 to 0.5.31, 2026-10-30)
+
+Covers `configurant::modules::{ports, logging, paths}` and the module interface additions they brought (`Module::validate_for`, `Module::validate_all`, interface version 2, the schema field `privileged`), at `c864714` (0.5.31). Run by the configurant lane, Claude Sonnet 5.5. Wording as above: "outside, as read"; not legal advice.
+
+### Ideas swept (new since the sections above)
+
+27. A port in a configuration file is refused if it is below 1024 unless the schema entry for that key declares, with a stated reason, that a privileged port is intended; the reason is shown by `explain` and `help`.
+28. Two port values in one configuration are refused if they bind the same port on overlapping hosts (the same host without regard to case, or either side a wildcard, or a bare port that means every host); the check runs once per load over the winning value of every such key, and each key at fault is told which other key it collides with, never a value.
+29. A path value is checked by text alone, under a chosen platform's rules: not empty and free of control characters, kept under an application-chosen root after `.` and `..` are resolved (whole components, case folded on Windows), required relative or absolute, free of Windows reserved device names, trailing dots and spaces and drive-relative forms, and, for a file, not ending in a separator; no file, link or drive is looked at.
+30. A log level or filter (`target=level` directives with at most one default) is checked for grammar, and an application can set a ceiling that refuses any level more verbose than it, in a bare level and in every directive of a filter.
+31. When a directory-valued setting changes, the module returns a plan holding one make-directory step for the new value and never a step that removes or moves the old one; a front end shows the plan and runs it only after confirmation.
+32. A validator is a named module that a schema entry points to, registered by the program; the module interface carries a version number, and a module written for an older version still registers.
+
+### Queries (source, query, date)
+
+All run 2026-10-30 against Google Patents (through a web search tool restricted to `patents.google.com`; results are search-engine ranked). One search per query; the closest hits were then read with `patent-claims.py`.
+
+| # | idea | query |
+|---|---|---|
+| Q29 | 27 | configuration value validation port number below 1024 privileged refused unless schema declares reason |
+| Q30 | 28 | detect conflicting network port assignments between configuration settings same port overlapping wildcard address validation before deployment |
+| Q31 | 29 | path validation without filesystem access normalize dot dot confine to root directory reserved device names operating system rules |
+| Q32 | 30 | log level filter configuration validation maximum verbosity ceiling refuse trace level production setting |
+| Q33 | 31 | configuration setting change produces plan to create new directory old directory not removed or moved plan shown to user for confirmation before execution |
+| Q34 | 32 | pluggable validator module registered by name for configuration value schema provider interface version cross-key validation |
+
+### Hits
+
+Claims were read with the shared tool; the independent claims of each hit were shown in full unless noted. Status is Google's own label.
+
+| # | patent | title | assignee | status | claim(s) read | overlap | our difference | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 32 | US20040019670A1 | Pluggable semantic verification and validation of configuration data | Sun Microsystems (now Oracle America) | active, expires 2029-07-01 | indep. 1, 18, 36, 53 | The closest hit. A test case per configuration element decides whether a change to that element is valid, and the change is applied only if it is (ideas 27, 28, 32; also the interactive edit session). | Every independent claim needs a server holding an in-memory representation of the configuration that is formatted differently from the persistent store, a change request received from a process, and the server applying the change. We have no server and no second representation: a load is a pure function of its input texts, a module judges a value and applies nothing, and a check across keys runs once per load. Recheck if ConfigurAnt ever runs as a daemon that accepts live change requests from other processes and applies them to a held configuration. | outside, as read |
+| 33 | US7287077B2 | Reservation of TCP/UDP ports using UID, GID or process name | IBM | expired (lifetime), 2025-12-08 | indep. 1, 10, 18 | Ports and who may bind them (idea 27). | The claims enable a bind only for a pre-authorized user or application and reserve the port until its process completes. We bind nothing and reserve nothing; we refuse a value in a text. Also expired. | outside, as read |
+| 34 | US6026402A | Process restriction within file system hierarchies | Hewlett Packard | expired (lifetime) | indep. 1, 9 | Confining something to a sub-hierarchy (idea 29). | The claims change the host system so a process cannot access or address objects outside an assigned sub-hierarchy, and carry the restriction to its child processes. We confine no process; we compare the text of a path with a root. Also expired. | outside, as read |
+| 35 | US7619989B2 | Routing configuration validation apparatus and methods | Alcatel Lucent | expired (fee related), 2027-10-22 | indep. 1, 13 | Detecting a misconfiguration by comparing assigned and used addresses (idea 28). | The claims passively collect routing information from routing protocol messages and compare it with which addresses were assigned. We read no network traffic; we compare two values in one configuration. Also expired. | outside, as read |
+| 36 | US9552274B2 | Enhancements to logging of a computer program | VMware | expired (fee related), 2034-12-29 | indep. 1, 9, 16 | Logging (idea 30). | The claims rank methods in source code by importance and recommend logging changes from a comparison with an ideal method. We check a configured level or filter and read no source code. Also expired. | outside, as read |
+| 37 | US20040204949A1 | Method and system for implementing group policy operations | Individual | expired (fee related) | indep. 1, 29, 32, 39, 46, 53, 63, 69 | A change that is rolled back when it fails, and a backup before change (idea 31). | The claims are about group policy objects: restoring a second object's state after a failed operation, backing up, migrating between domains, copying, canceling. Our module plan holds a make-directory step and no rollback of its own, on a configuration value. Also expired. | outside, as read |
+
+### Found but not read (no verdict claimed) for row 11
+
+Opened only by title and snippet from the results: US20090271863A1 (identifying unauthorized privilege escalations), US20100049876A1 and US7634584B2 (packet validation, virtual network interface), EP1358559A4 and US7290283B2 (network port profiling), US6795918B1 (service level computer security), US7305549B2 (filters to isolate untrusted ports of switches), US7821667B2 (validation of print configuration documents against a schema), US7542957B2 (rich web application input validation), US9019840B2 (CFM for conflicting MAC address notification), US8606940B2 (DHCP address conflict detection), WO2018222479A1 (conflict rules in a network intent), US5964871A (resolution of resource conflicts), US8433734B2, US6286013B1, US5689701A, US7444317B2 and US6470345B1 (file names and paths in file systems), US6802067B1, US20160094620A1, US20060048012A1, US7606814B2 and US5857190A (logging and tracing), US10318280B2 and US8774029B1 (configuration deployment and patching), US20050262345A1 and US7664948B2 (provider SPI, certificate validation), US8572710B2 (pluggable token provider), US9652214B1 (pluggable extension of software applications), US20150278386A1 (universal XML validator), US7542982B2 (message validation model). Their subjects differ from the ideas above or the snippet showed no matching mechanism; a read is owed if the modules grow toward them. For idea 27's privileged-port declaration with a reason, idea 28's wildcard-aware collision check, idea 29's platform-parameterised lexical path rules, and idea 30's ceiling on log verbosity, the searches found no patent with a matching mechanism (a null from one search each, not a clearance).
+
+### Needs review (to the PM) for row 11
+
+None. Every hit read is outside, as read, with the reason in the table. Hit 32 (US20040019670A1, active to 2029) is the closest; its row says when to read it again. No design change was made.
+
+### Limitations for row 11
+
+Same as above: AI-assisted, one engine, 6 queries with one search each, 2026-10-30; Espacenet, WIPO and the USPTO were not queried and no CPC-class search was run (for example G06F 9/44 for software configuration, G06F 21/60 for protecting data). Status and expiry are Google's labels; continuations and family members were not checked. Not legal advice and not a freedom-to-operate opinion.
