@@ -6,20 +6,20 @@ pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Ru
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.19 at c7cf82d; crates.io has 0.5.16)
+## State (main = 0.5.20 at 163249a after #59 merged 2026-10-30 00:49Z; crates.io has 0.5.16)
 - Done and merged: wave 0 (rows 20-23), step engine (26, #53/#54), patent re-sweep (19, #55), plan-executor design
   (#56), hub card flipped to `ready` + README fixes from the published-crate trial (#57), executor part a (#58).
-- OPEN PR #59 `exec-b` (0.5.20): executor part b (`Executor::run`, state file, resume, `Host`, Windows ACL rule). CI was
-  all green (incl. ubuntu). [READY] sent; waiting for pm-assist's [MERGED].
+- MERGED #59 (0.5.20): executor part b (`Executor::run`, state file, resume, `Host`, Windows ACL rule). Worktree
+  `../configurant-wt-exec-b` and local branch `exec-b` still exist: remove them.
 - LOCAL, NOT PUSHED: worktree `../configurant-wt-exec-c`, branch `exec-c` (2 commits on top of exec-b): executor part c
   (`Executor::undo`, `Undo::Remove`, `UndoReport`, 11 tests in `tests/known_bad_exec_undo.rs`, 9 mutations proven) at
   0.5.21, PLUS the PM's TASK (2026-10-30): SECURITY.md "Supported versions" = exactly
   `C:\Projects\.lane-state\support-text.md` (already in the commit, with its CHANGELOG line). Local workspace tests,
   clippy -D warnings, fmt, SPDX, lock all passed; fresh-eyes trial of undo passed (compiled first try; one doc gap,
-  fixed). TO DO after #59 merges: fast-forward the primary, `git worktree remove ../configurant-wt-exec-b`, delete
+  fixed). TO DO FIRST on restart: fast-forward the primary, `git worktree remove ../configurant-wt-exec-b`, delete
   branch `exec-b`, `git rebase --onto origin/main exec-b exec-c` (squash-merge: the old exec-b commits drop), re-check
   the version is still the next free number and the CHANGELOG order, push, open the PR (body: mutation list, trial
-  result, the SECURITY.md line), send [READY]. If #59 is still open on restart, check `gh pr view 59`.
+  result, the SECURITY.md line), send [READY].
 - After part c: row 28 is done. Remaining: 29 browser renderer (held), 25 SecretAnt connector (crate is a 0.0.0
   placeholder), 27 RedactAnt (not built), 24 WebHostAnt (its lane), 31 fragment migrations (no need), 8/13 need
   CireSnave, 11 no design. Possible follow-up: the unknown-field schema error lists valid fields but has no
