@@ -6,14 +6,14 @@ pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Ru
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.25 at 07dc795; crates.io has 0.5.22; the PM publishes)
+## State (main = 0.5.27 at 81e5f93; crates.io has 0.5.22; the PM publishes)
 - Done and merged: wave 0 (rows 20-23), step engine (26), patent re-sweep (19), plan executor a/b/c (row 28), hub card
-  `ready` (#57), row 11 design (#63), **ports slice 1 (#64, 0.5.25)**: `modules::ports::Ports` (feature `ports`), schema
-  field `privileged`, `Module::validate_for`. Synapse lane said YES: `synapsed` `listen.addr` adopts it in its own bump.
-- NEXT (row 11 slice 2, unblocked, start without a [TASK]): interface version 2 = `Module::validate_all(&[(&str,&Value)])`
-  and ports rule P5 (two ports in one schema must not collide); design is `docs/MODULES.md` section 2. Known-bad tests
-  first (`tests/known_bad_modules.rs`), mutate to prove they bite, version bump + CHANGELOG, fresh-eyes trial in the PR
-  body. Then logging, then paths (order in MODULES.md section 5).
+  `ready` (#57), row 11 design (#63), ports slice 1 (#64, 0.5.25), **ports slice 2 (#66, 0.5.27)**: interface version 2
+  (`Module::validate_all`, `MIN_INTERFACE_VERSION` 1; default `interface_version()` stays 1, `Ports` returns 2) and
+  rule P5. Known gap: `edit::Session` does not run `validate_all`.
+- NEXT (row 11 slice 3, unblocked, start without a [TASK]): the `logging` module, design `docs/MODULES.md` section 4
+  (order in section 5), then `paths` (section 3). Known-bad tests first (`tests/known_bad_modules.rs` or a sibling),
+  mutate to prove they bite, version bump + CHANGELOG (next number 0.5.29, PM allocates), fresh-eyes trial in the PR body.
 - Soak wave 1 is done (replied on both channels; you hear peers and Synapse both).
 - Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`, a breaking jump to 0.5.x): Synapse lane's call;
   reported to the PM, not edited by us.
