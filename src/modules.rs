@@ -5,5 +5,7 @@
 
 #[cfg(feature = "logging")]
 pub mod logging;
+#[cfg(feature = "paths")]
+pub mod paths;
 #[cfg(feature = "ports")]
 pub mod ports;

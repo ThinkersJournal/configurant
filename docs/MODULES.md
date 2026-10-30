@@ -1,6 +1,6 @@
 # Other modules: ports, paths, logging
 
-Status: **ports (P1 to P5) built in 0.5.25 and 0.5.27, logging (L1 to L3) in 0.5.29; paths is design only** (ROADMAP row 11, spec section 4 "Other modules"). Written 2026-10-30. Facts about
+Status: **ports (P1 to P5) built in 0.5.25 and 0.5.27, logging (L1 to L3) in 0.5.29, paths (T1 to T5) in 0.5.31; nothing in this design is left unbuilt** (ROADMAP row 11, spec section 4 "Other modules"). Written 2026-10-30. Facts about
 today's code are from `src/module.rs`, `src/schema.rs` and `src/value.rs` at 0.5.23, `examples/synapsed.toml` and
 `examples/antspawn.toml`; the rest is proposed.
 
@@ -164,6 +164,71 @@ not the module, applies it, after confirmation.
 `mounts.*.guest` paths, whose cross-field rules ("guest paths stay inside the work dir") are AntSpawn's own today
 (`examples/antspawn.toml` header) and are T2 with `.within(work_dir)`. T2 with a root that is itself another
 value needs P5's `validate_all`, so that part waits for interface version 2.
+
+**As built (0.5.31, feature `paths`).** `configurant::modules::paths::{Paths, Platform}`. The rules differ by
+platform, so the module parses the text itself (not `std::path`) under a `Platform` (`Unix` or `Windows`) that
+defaults to the one the program runs on and can be set with `.platform(..)`; that is also how the Windows rows are
+tested on every host. Options: `.directory()` / `.file()` (T5; `.directory()` also makes `on_change` offer a
+step), `.relative()` / `.absolute()` (T3), `.within(root)` (T2; the root must be absolute for the platform, else
+every value is refused with a message saying the mistake is in the program). Details the table leaves out:
+
+- T3 on Windows: `.absolute()` needs a drive and a root (`C:\x`) or a UNC share (`\server\share`); `\x` (rooted, no
+  drive) is neither relative nor absolute and is refused by both.
+- T4 on Windows also refuses a drive with nothing rooted after it (`C:x`, `a:b`: they depend on the program's
+  current directory on that drive), a `\?\` or `\.\` prefix (it skips Windows' own checks), a UNC path without both
+  server and share, and any of `< > : " | ? *` in a name. A reserved name is refused with or without an extension
+  (`con.txt`). On Unix none of these apply (`nul`, `x.` and `a:b` are legal names there).
+- T2 resolves `.` and `..` lexically, folds case on Windows, compares whole components (`/srv/appx` is not inside
+  `/srv/app`), accepts the root itself, and takes a relative value as relative to the root.
+- T5: a last component of `.` or `..` also means a directory.
+- A value is checked in the order T1, T3, T4, T5, T2 and the first rule that fails is the one reported (`C:x` under
+  `.absolute()` reports T4, not T3).
+- In a TOML schema write a Windows default as a literal string, `default = 'C:\data'`, or escape it, `"C:\data"`.
+- The example is the body of a `main`; `errors` is `configurant::Errors`, a tuple struct whose public field `.0` is a
+  `Vec<ConfigError>`, each of which prints with `{}`.
+- `on_change` returns one `Mkdir` step (id `paths-mkdir`, no mode) only for a `.directory()` key whose new value
+  differs from the old one, passes the module's own rules and is absolute; the trailing separator is dropped.
+  Never a removal or a move. A refusal never quotes the path.
+
+```toml
+# Cargo.toml:  configurant = { version = "0.5", features = ["paths"] }
+```
+
+```rust
+use configurant::modules::paths::{Paths, Platform};
+use configurant::{Loader, Modules, Schema};
+use std::collections::BTreeMap;
+
+let schema = Schema::parse(r#"
+[project]
+name = "demo"
+version = "0.1.0"
+summary = ""
+schema_version = 1
+
+[[value]]
+key = "data.dir"
+type = "path"
+default = "data"
+description = "where the data lives, inside the service directory"
+env = "DEMO_DATA"
+provider = "paths"
+"#).unwrap();
+
+let mut modules = Modules::new();
+// `.platform(..)` is optional (the default is the host's); it is set here so the example runs anywhere.
+let paths = Paths::new().platform(Platform::Unix).directory().within("/srv/demo");
+modules.register(Box::new(paths)).unwrap();
+let config = Loader::new(&schema).modules(&modules).build().unwrap();
+assert_eq!(config.get::<std::path::PathBuf>("data.dir").unwrap(), std::path::PathBuf::from("data"));
+
+// A load reads the environment only if you pass it:
+let env = BTreeMap::from([("DEMO_DATA".to_owned(), "../etc".to_owned())]);
+let errors = Loader::new(&schema).modules(&modules).env(env).build().unwrap_err();
+println!("{}", errors.0[0]);
+// `data.dir` from environment variable `DEMO_DATA` was rejected by module `paths`: paths T2: the path leaves the
+// allowed directory (check for `..` and for an absolute path elsewhere)
+```
 
 ## 4. Logging (`provider = "logging"`)
 

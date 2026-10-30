@@ -3,7 +3,7 @@ members = ["crates/configurant-tui", "crates/configurant-gui", "crates/configura
 
 [package]
 name = "configurant"
-version = "0.5.30"
+version = "0.5.31"
 edition = "2024"
 rust-version = "1.95"
 description = "Schema-first configuration: declare values in a TOML schema, layer defaults, file, environment and command line, validate with named errors, explain where each value came from. No generated code; secrets never printed."
@@ -22,6 +22,8 @@ path = "src/main.rs"
 ports = []
 # The `logging` module: validates a log level or a filter (docs/MODULES.md section 4). Pure text, no dependency.
 logging = []
+# The `paths` module: validates a path lexically (docs/MODULES.md section 3). Pure text, no dependency.
+paths = []
 # PersistAnt as a module: choice lists and data-transfer plans from its backend registry. Off by default
 # so the core stays light; the application chooses which backends exist by enabling persistant's own features.
 persistant = ["dep:persistant"]

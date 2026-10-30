@@ -1,4 +1,4 @@
-# configurant HANDOFF (rewritten 2026-10-30 by the configurant lane after the logging module merged, 0.5.30)
+# configurant HANDOFF (rewritten 2026-10-30 by the configurant lane after the paths module, 0.5.31)
 
 You are the `configurant` lane (cwd `C:\Projects\configurant`, repo `ThinkersJournal/configurant`). Tasks come
 from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`; `send_message` takes `to_id`) and the
@@ -6,7 +6,7 @@ pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Ru
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.29 at 659e057; crates.io has 0.5.22; the PM publishes)
+## State (main = 0.5.30 at 9463999, paths PR for 0.5.31 open; crates.io has 0.5.22; the PM publishes)
 - Done and merged: wave 0 (rows 20-23), step engine (26), patent re-sweep (19), plan executor a/b/c (row 28), hub card
   `ready` (#57), row 11 design (#63), ports slice 1 (#64, 0.5.25), **ports slice 2 (#66, 0.5.27)**: interface version 2
   (`Module::validate_all`, `MIN_INTERFACE_VERSION` 1; default `interface_version()` stays 1, `Ports` returns 2) and
@@ -14,9 +14,11 @@ entry in each (breaking = second number pre-1.0).
 - **Logging module (row 11 slice 3, #68, 0.5.29) merged**: `src/modules/logging.rs`, `tests/known_bad_logging.rs`,
   feature `logging`; worktree and branch removed. Lesson from its fresh-eyes trial: a library `Loader` reads the
   environment only via `.env(map)`, so a doc example that shows an env var must pass it.
-- NEXT (row 11 slice 4, unblocked, start without a [TASK]): `paths` (`docs/MODULES.md` section 3: T1 to T5, per-platform
-  test matrix, `on_change` returns a `Mkdir` plan). Known-bad tests first (sibling file `tests/known_bad_paths.rs`), mutate
-  to prove they bite, version bump + CHANGELOG (PM allocates the number), fresh-eyes trial in the PR body.
+- **Paths module (row 11 slice 4, 0.5.31)**: built on branch `paths-module` (worktree `C:\Projects\configurant-wt-paths`),
+  `src/modules/paths.rs`, `tests/known_bad_paths.rs`, feature `paths`. Row 11 is complete once it merges (remove the
+  worktree and branch then). Its own parser, not `std::path`, so Windows rules are tested on every host.
+- NEXT: no unblocked row of mine. Check the issue sweep (due ~2026-11-01), `edit::Session` not running `validate_all`
+  (known gap, small), and the "did you mean" for unknown schema fields (reported to the PM); otherwise ask the PM.
 - Soak wave 1 is done (replied on both channels; you hear peers and Synapse both).
 - Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`, a breaking jump to 0.5.x): Synapse lane's call;
   reported to the PM, not edited by us.
