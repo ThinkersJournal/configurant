@@ -1,4 +1,4 @@
-# configurant HANDOFF (rewritten 2026-10-30 by the configurant lane after the 0.5.33 publish, 0.5.34)
+# configurant HANDOFF (rewritten 2026-10-30 by the configurant lane; idle, nothing unblocked)
 
 You are the `configurant` lane (cwd `C:\Projects\configurant`, repo `ThinkersJournal/configurant`). Tasks come
 from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`; `send_message` takes `to_id`) and the
@@ -6,37 +6,21 @@ pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Ru
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.33 at 17e098b, tagged v0.5.33; crates.io has 0.5.33, published 2026-10-30; the PM publishes)
-- Done and merged: wave 0 (rows 20-23), step engine (26), patent re-sweep (19), plan executor a/b/c (row 28), hub card
-  `ready` (#57), row 11 design (#63), ports slice 1 (#64, 0.5.25), **ports slice 2 (#66, 0.5.27)**: interface version 2
-  (`Module::validate_all`, `MIN_INTERFACE_VERSION` 1; default `interface_version()` stays 1, `Ports` returns 2) and
-  rule P5. Known gap: `edit::Session` does not run `validate_all`.
-- **Logging module (row 11 slice 3, #68, 0.5.29) merged**: `src/modules/logging.rs`, `tests/known_bad_logging.rs`,
-  feature `logging`; worktree and branch removed. Lesson from its fresh-eyes trial: a library `Loader` reads the
-  environment only via `.env(map)`, so a doc example that shows an env var must pass it.
-- **Row 11 is complete**: ports (#64, #66), logging (#68), paths (#70, 0.5.31) and its patent re-sweep (#72, row 19) are merged and
-  published in 0.5.33; worktrees and branches removed. ROADMAP rows 11 and 28 now read done (the PM tasks from that text).
-  Paths has its own parser (not `std::path`) under a `Platform`, so Windows rules are tested on every host.
-- NEXT: no unblocked row of mine. Check the issue sweep (due ~2026-11-01), `edit::Session` not running `validate_all`
-  (known gap, small), and the "did you mean" for unknown schema fields (reported to the PM); otherwise ask the PM.
-- Soak wave 1 is done (replied on both channels; you hear peers and Synapse both).
-- Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`, a breaking jump to 0.5.x): Synapse lane's call;
-  reported to the PM, not edited by us.
-- Other rows. Remaining: 29 browser renderer (held), 25 SecretAnt connector (crate is a 0.0.0
-  placeholder), 27 RedactAnt (not built), 24 WebHostAnt (its lane), 31 fragment migrations (no need), 8/13 need
-  CireSnave. Possible follow-up: the unknown-field schema error lists valid fields but has no
-  "did you mean" (reported to the PM as a [FINDING]).
-- Every PR must show a fresh-eyes trial of its hello path (PM 2026-10-29): spawn a Sonnet subagent with ONLY the
-  doc snippet and a path dependency, one cargo at a time, and put the result and the gaps it found in the PR body.
-- Weekly issue sweep (next ~2026-11-01): repo has had 0 issues ever; report `issues: open N, closed N, outsiders
-  answered N; roadmap: open N, done N, stale N`.
-- persistant 0.12.x is published upstream: bump when wanted (`ProviderUnmet` gained `unverified`; we have no exhaustive
-  destructure of it).
+## State (main = 0.5.35 at 063d035; crates.io has 0.5.33, tagged v0.5.33; the PM publishes)
+- **IDLE, correctly:** every open ROADMAP row names its blocker in the "Blocked on" column; none is mine to start (PM
+  2026-10-30: row 31 stays until an adopter asks). Begin work only when a blocker lifts, a [TASK] arrives, or the weekly
+  issue sweep is due (next ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).
+- Done: rows 1-2, 5, 9, 11 (ports, logging, paths), 14-16, 19-23, 26, 28, 30. Known gaps, not tasks: `edit::Session` does not run
+  `validate_all`; the unknown-field schema error has no "did you mean"; a secret bool/int in a serde error redacts by
+  substring (over-redacts, safe).
+- Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`); adopting 0.5.x and the `ports` module is the
+  Synapse lane's call.
+- Every PR that adds a hello path must show a fresh-eyes trial (PM 2026-10-29): a Sonnet subagent with ONLY the doc snippet and a
+  path dependency, one cargo at a time; put the result and the gaps in the PR body. A library `Loader` reads the environment
+  only via `.env(map)`.
 - Box memory limit (PM 2026-10-26, until cleared): CARGO_BUILD_JOBS=2, one cargo at a time, no --workspace unless needed.
-  NEVER start a second cargo while one runs (a chained background command once did: file-lock error and a flaky scan test).
-- Primary checkout stays on `main`; work in worktrees, removed after merge. Three detached `%TEMP%\.tmp*\wt` worktrees in
-  `git worktree list` are not ours: leave them.
-- Known gap: a secret bool/int in a serde error redacts by substring (can over-redact, safe direction).
+- Primary checkout stays on `main`; work in worktrees, removed after merge. The detached `%TEMP%\.tmp*\wt` worktree in
+  `git worktree list` is not ours.
 - CodeQL: a NEW alert on scan code goes to the PM. Lesson: assert on bools, never format a result into an assert message.
 - Tables/maps are file-only; no `Needs` schema field. TUI/GUI binaries offer only `memory`, `fs`.
 

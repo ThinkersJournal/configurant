@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.36
+
+- Docs only: HANDOFF rewritten as current state (the lane is idle; every open row names its blocker). All crates move to 0.5.36.
+
 ## 0.5.35
 
 - Docs only: ROADMAP gains a "Blocked on" column (every open row names its blocker: a board item, a lane or a dependency; row 31 says it has none beyond missing demand); rows 17 (0.5.33 published) and 30 (card `ready`) now read done. All crates move to 0.5.35.
