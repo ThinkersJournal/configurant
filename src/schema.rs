@@ -119,6 +119,10 @@ pub struct ValueDef {
     /// The module whose list this value is chosen from.
     #[serde(default)]
     pub provider: Option<String>,
+    /// Allows a port below 1024 for a value whose `provider` is `ports`, and says why (shown by `explain`
+    /// and `help`). Valid only with that provider; it must not be empty.
+    #[serde(default)]
+    pub privileged: Option<String>,
     /// Loading fails if no source (default included) sets it.
     #[serde(default)]
     pub required: bool,
@@ -322,6 +326,10 @@ pub enum SchemaError {
     SourceOnNonSecret(String),
     #[error("`source` of `{0}` must look like `<source>:<reference>`")]
     BadSource(String),
+    #[error("`{0}` has an empty `privileged` reason")]
+    EmptyPrivileged(String),
+    #[error("`{0}` has `privileged`, which is valid only with `provider = \"ports\"`")]
+    PrivilegedWithoutPorts(String),
     #[error("enum `{0}` needs a non-empty `choices`")]
     EnumNeedsChoices(String),
     #[error("`{0}` has `choices` but is not an enum")]
@@ -549,6 +557,8 @@ impl Schema {
                     Some("flag")
                 } else if f.provider.is_some() {
                     Some("provider")
+                } else if f.privileged.is_some() {
+                    Some("privileged")
                 } else if f.secret {
                     Some("secret")
                 } else {
@@ -752,6 +762,9 @@ impl Schema {
             if let Some(h) = &d.hint {
                 let _ = write!(out, "  [hint: {h}]");
             }
+            if let Some(why) = &d.privileged {
+                let _ = write!(out, "  [privileged port allowed: {why}]");
+            }
             if d.restart {
                 out.push_str("  [restart needed]");
             }
@@ -900,6 +913,7 @@ fn override_of(mut from_fragment: ValueDef, app: ValueDef) -> Result<ValueDef, S
         || app.flag.is_some()
         || app.restart
         || app.provider.is_some()
+        || app.privileged.is_some()
         || app.required
         || app.section.is_some()
         || app.advanced
@@ -1023,6 +1037,14 @@ fn check_def(d: &ValueDef) -> Result<Option<Value>, SchemaError> {
         && a.cmp_bound(b) == Some(Ordering::Greater)
     {
         return Err(SchemaError::BadRange(d.key.clone()));
+    }
+    if let Some(reason) = &d.privileged {
+        if reason.trim().is_empty() {
+            return Err(SchemaError::EmptyPrivileged(d.key.clone()));
+        }
+        if d.provider.as_deref() != Some("ports") {
+            return Err(SchemaError::PrivilegedWithoutPorts(d.key.clone()));
+        }
     }
     if d.prompt.as_deref().is_some_and(|p| p.trim().is_empty()) {
         return Err(SchemaError::EmptyPrompt(d.key.clone()));

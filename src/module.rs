@@ -12,6 +12,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::schema::ValueDef;
 use crate::value::Value;
 
 /// Version of this interface. A module built against another version is refused at registration.
@@ -79,6 +80,14 @@ pub trait Module {
 
     /// Is `value` acceptable? The error text may be shown unless the value is a secret.
     fn validate(&self, value: &Value) -> Result<(), String>;
+
+    /// Like [`Module::validate`], for the schema key `def` that names this module: a module whose rule depends
+    /// on the key's declaration (the `ports` module reads `privileged`) overrides this. The default ignores
+    /// the key and calls `validate`, so a module written before this method keeps working unchanged.
+    fn validate_for(&self, def: &ValueDef, value: &Value) -> Result<(), String> {
+        let _ = def;
+        self.validate(value)
+    }
 
     /// What should happen when the value changes from `old` to `new`. Data only.
     fn on_change(&self, old: &Value, new: &Value) -> Plan {

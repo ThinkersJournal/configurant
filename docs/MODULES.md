@@ -1,6 +1,6 @@
 # Other modules: ports, paths, logging
 
-Status: **design, nothing built** (ROADMAP row 11, spec section 4 "Other modules"). Written 2026-10-30. Facts about
+Status: **ports (slice 1, P1 to P4) built in 0.5.25; paths and logging are design only** (ROADMAP row 11, spec section 4 "Other modules"). Written 2026-10-30. Facts about
 today's code are from `src/module.rs`, `src/schema.rs` and `src/value.rs` at 0.5.23, `examples/synapsed.toml` and
 `examples/antspawn.toml`; the rest is proposed.
 
@@ -64,6 +64,53 @@ is a warning, since the check races the bind it predicts.
 description says "synapsed refuses a value that is not an address": the schema cannot say so today, and the
 refusal happens late, in the daemon. With `provider = "ports"` the same refusal happens at load, with a key and a
 suggestion. Second customer: AntSpawn's probe addresses. Both are adopted by their own lanes (ROADMAP row 12).
+
+**Using it (feature `ports`):**
+
+```toml
+# Cargo.toml:  configurant = { version = "0.5", features = ["ports"] }
+```
+
+```rust
+use configurant::modules::ports::Ports;
+use configurant::{Loader, Modules, Schema};
+
+let schema = Schema::parse(r#"
+[project]
+name = "demo"
+version = "0.1.0"
+summary = ""
+schema_version = 1
+
+[[value]]
+key = "listen.addr"
+type = "string"
+default = "127.0.0.1:7920"
+description = "where to listen"
+env = "DEMO_LISTEN"
+provider = "ports"
+# privileged = "public web port, runs as a service"   # needed for any port below 1024
+"#).unwrap();
+
+let mut modules = Modules::new();
+modules.register(Box::new(Ports::new())).unwrap();
+let config = Loader::new(&schema).modules(&modules).build().unwrap();
+assert_eq!(config.get::<String>("listen.addr").unwrap(), "127.0.0.1:7920");
+```
+
+A value that breaks a rule fails the load with an `Errors` list; `Display` of an entry reads, for
+`DEMO_LISTEN=127.0.0.1:80`:
+
+```text
+`listen.addr` from environment variable `DEMO_LISTEN` was rejected by module `ports`: ports P3: a port below 1024
+needs the privileges of a service; declare `privileged = "<reason>"` on `listen.addr` in the schema to allow it
+```
+
+To try it without touching the process environment, pass `.env(BTreeMap<String, String>)` to the `Loader`
+(`Loader::new(&schema).modules(&modules).env(map).build()`). `privileged` goes in the `[[value]]` table, is a
+non-empty string (an empty one is a schema error) and is valid only with `provider = "ports"`. The key may be an
+`int` (a bare port) instead of a `string` (`host:port`); any other type is refused. A refusal names the key and
+the rule (`P1` range, `P2` address shape, `P3` below 1024 without `privileged`) and never quotes the value.
 
 ## 3. Paths (`provider = "paths"`)
 
@@ -151,8 +198,7 @@ PM, 2026-10-30, on PR #63:
    explicitly, with a reason string that the error and `explain()` show. Negative control: the same value accepted
    with the declaration and refused without (P3). This adds one optional schema field, `privileged` (a string),
    which is valid only on a value whose `provider` is `ports`; a schema that sets it elsewhere fails its own check.
-3. **Ask the synapse lane** whether `synapsed`'s `listen.addr` wants this as first customer. Sent over Synapse
-   (`synapse send --to synapse@ciresnave`) on 2026-10-30: **the send failed**, `synapsed` could not start from the
-   configurant lane's shell ("The directory name is invalid", os error 267), so the question has not been
-   delivered. **Synapse lane's answer: not yet received.** This section gets the answer when it comes; slice 1 is not
-   built until it says yes.
+3. **Ask the synapse lane** whether `synapsed`'s `listen.addr` wants this as first customer. **Answer, relayed by
+   the PM on 2026-10-30: YES.** `synapsed` is the willing first customer for `ports` on `listen.addr` (loopback
+   `127.0.0.1:7920`, non-privileged); it adopts the module after it ships, in a latest-deps bump PR with no behaviour
+   change. Slice 1 was built on that answer (0.5.25).
