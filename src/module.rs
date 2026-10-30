@@ -15,8 +15,13 @@ use std::collections::BTreeMap;
 use crate::schema::ValueDef;
 use crate::value::Value;
 
-/// Version of this interface. A module built against another version is refused at registration.
-pub const INTERFACE_VERSION: u32 = 1;
+/// Version of this interface: 2 added [`Module::validate_all`]. A module built against a version from
+/// [`MIN_INTERFACE_VERSION`] up to this one is accepted (a version 1 module has no `validate_all` and never
+/// needed one); any other is refused at registration.
+pub const INTERFACE_VERSION: u32 = 2;
+
+/// The oldest interface version still accepted.
+pub const MIN_INTERFACE_VERSION: u32 = 1;
 
 /// What the project needs from the choices (for example capabilities and an order of
 /// importance); a module defines the meaning of the strings.
@@ -70,9 +75,11 @@ pub trait Module {
     /// The name a schema's `provider` refers to.
     fn name(&self) -> &str;
 
-    /// The interface version this module was written against.
+    /// The interface version this module was written against. The default is 1 (`MIN_INTERFACE_VERSION`): a
+    /// module that is recompiled against a newer library must not start claiming a version it was not written
+    /// for. A module that overrides [`Module::validate_all`] returns 2 explicitly.
     fn interface_version(&self) -> u32 {
-        INTERFACE_VERSION
+        MIN_INTERFACE_VERSION
     }
 
     /// The choices for `needs`, best first, each with a reason.
@@ -87,6 +94,15 @@ pub trait Module {
     fn validate_for(&self, def: &ValueDef, value: &Value) -> Result<(), String> {
         let _ = def;
         self.validate(value)
+    }
+
+    /// Check the values of every key that names this module together (interface version 2), for a rule that
+    /// compares keys, such as two ports that collide. Called once per load with the winning value of each such
+    /// key, sorted by key. Returns `(key, message)` for each key at fault; the loader attaches the origin and
+    /// redacts the message for a `secret` key. The default returns nothing.
+    fn validate_all(&self, values: &[(&str, &Value)]) -> Vec<(String, String)> {
+        let _ = values;
+        Vec::new()
     }
 
     /// What should happen when the value changes from `old` to `new`. Data only.
@@ -119,7 +135,7 @@ impl Modules {
 
     pub fn register(&mut self, module: Box<dyn Module>) -> Result<(), ModuleError> {
         let name = module.name().to_owned();
-        if module.interface_version() != INTERFACE_VERSION {
+        if !(MIN_INTERFACE_VERSION..=INTERFACE_VERSION).contains(&module.interface_version()) {
             return Err(ModuleError::InterfaceMismatch {
                 module: name,
                 got: module.interface_version(),
@@ -135,6 +151,11 @@ impl Modules {
 
     pub fn get(&self, name: &str) -> Option<&dyn Module> {
         self.by_name.get(name).map(|m| m.as_ref())
+    }
+
+    /// The registered names, in order.
+    pub fn names(&self) -> impl Iterator<Item = &str> {
+        self.by_name.keys().map(String::as_str)
     }
 }
 

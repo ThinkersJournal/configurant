@@ -157,6 +157,7 @@ impl<'a> Loader<'a> {
                 errors.push(ConfigError::MissingRequired { key: key.clone() });
             }
         }
+        self.validate_across_keys(&chains, &mut errors);
         if !errors.is_empty() {
             return Err(Errors(errors));
         }
@@ -164,6 +165,46 @@ impl<'a> Loader<'a> {
             schema: self.schema.clone(),
             chains,
         })
+    }
+
+    /// Interface version 2: give each registered module every winning value that names it, at once, so a rule
+    /// that compares keys (two ports that collide) can run.
+    fn validate_across_keys(
+        &self,
+        chains: &BTreeMap<String, Vec<(Origin, Value)>>,
+        errors: &mut Vec<ConfigError>,
+    ) {
+        let Some(modules) = self.modules else {
+            return;
+        };
+        for name in modules.names() {
+            let Some(module) = modules.get(name) else {
+                continue;
+            };
+            let mut keyed: Vec<(&ValueDef, &Origin, &Value)> = Vec::new();
+            for d in self.schema.values() {
+                if d.provider.as_deref() != Some(name) {
+                    continue;
+                }
+                if let Some((origin, value)) = chains.get(&d.key).and_then(|c| c.last()) {
+                    keyed.push((d, origin, value));
+                }
+            }
+            keyed.sort_by(|a, b| a.0.key.cmp(&b.0.key));
+            let values: Vec<(&str, &Value)> =
+                keyed.iter().map(|(d, _, v)| (d.key.as_str(), *v)).collect();
+            for (key, reason) in module.validate_all(&values) {
+                let Some((def, origin, _)) = keyed.iter().find(|(d, _, _)| d.key == key) else {
+                    continue;
+                };
+                errors.push(ConfigError::ModuleRejected {
+                    key,
+                    module: name.to_owned(),
+                    reason: if def.secret { REDACTED.into() } else { reason },
+                    origin: (*origin).clone(),
+                });
+            }
+        }
     }
 
     /// The schema defaults. A default whose module is registered must pass it, like a value from any other layer;

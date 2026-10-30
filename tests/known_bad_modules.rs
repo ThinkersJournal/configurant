@@ -391,3 +391,224 @@ fn p2_an_unbracketed_ipv6_host_is_told_to_use_brackets() {
     let why = refusal(&addr_schema(), Ports::new(), "::1:8080").expect("refused");
     assert!(why.contains("[...]"), "{why}");
 }
+
+// ---- P5 and interface version 2: two ports in one schema must not collide ----
+
+fn two_keys(secret_b: bool, a: &str, b: &str) -> String {
+    // A secret key may not have a default, so its value comes from the environment (see `ADMIN`).
+    let b_default = if secret_b {
+        String::new()
+    } else {
+        format!("default = \"{b}\"")
+    };
+    format!(
+        r#"
+[project]
+name = "demo"
+version = "0.1.0"
+summary = ""
+schema_version = 1
+
+[[value]]
+key = "listen.addr"
+type = "string"
+default = "{a}"
+description = "where to listen"
+env = "LISTEN"
+provider = "ports"
+
+[[value]]
+key = "admin.addr"
+type = "string"
+{b_default}
+description = "admin listener"
+env = "ADMIN"
+provider = "ports"
+secret = {secret_b}
+"#
+    )
+}
+
+/// Every error of the load, as text, or an empty list if it loaded.
+fn all_errors(schema: &str, env: &[(&str, &str)]) -> Vec<String> {
+    match load(schema, Ports::new(), env) {
+        Ok(_) => Vec::new(),
+        Err(e) => e.0.iter().map(ToString::to_string).collect(),
+    }
+}
+
+#[test]
+fn p5_two_defaults_on_one_port_are_refused_naming_both_keys() {
+    let errs = all_errors(&two_keys(false, "127.0.0.1:7878", "127.0.0.1:7878"), &[]);
+    // One error per key at fault, each naming the other key.
+    assert_eq!(errs.len(), 2, "{errs:?}");
+    assert!(errs.iter().all(|e| e.contains("P5")), "{errs:?}");
+    assert!(
+        errs.iter()
+            .any(|e| e.contains("`listen.addr` from") && e.contains("`admin.addr`")),
+        "{errs:?}"
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.contains("`admin.addr` from") && e.contains("`listen.addr`")),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn p5_a_collision_made_by_an_override_is_refused() {
+    let schema = two_keys(false, "127.0.0.1:7878", "127.0.0.1:7879");
+    assert!(all_errors(&schema, &[]).is_empty());
+    let errs = all_errors(&schema, &[("ADMIN", "127.0.0.1:7878")]);
+    assert_eq!(errs.len(), 2, "{errs:?}");
+    assert!(errs.iter().all(|e| e.contains("P5")), "{errs:?}");
+    assert!(
+        errs.iter().any(|e| e.contains("ADMIN")),
+        "names the origin: {errs:?}"
+    );
+}
+
+#[test]
+fn p5_the_same_port_on_different_hosts_loads() {
+    let schema = two_keys(false, "127.0.0.1:7878", "192.168.1.5:7878");
+    assert!(all_errors(&schema, &[]).is_empty());
+}
+
+#[test]
+fn p5_a_wildcard_host_collides_with_a_specific_one() {
+    for (a, b) in [
+        ("0.0.0.0:7878", "127.0.0.1:7878"),
+        ("[::]:7878", "[::1]:7878"),
+        ("localhost:7878", "0.0.0.0:7878"),
+    ] {
+        let errs = all_errors(&two_keys(false, a, b), &[]);
+        assert_eq!(errs.len(), 2, "{a} vs {b}: {errs:?}");
+    }
+}
+
+#[test]
+fn p5_host_names_compare_without_case() {
+    let errs = all_errors(
+        &two_keys(false, "Example.TEST:7878", "example.test:7878"),
+        &[],
+    );
+    assert_eq!(errs.len(), 2, "{errs:?}");
+}
+
+#[test]
+fn p5_port_zero_never_collides() {
+    let mut m = Modules::new();
+    m.register(Box::new(Ports::new().allow_zero())).unwrap();
+    let s = Schema::parse(&two_keys(false, "127.0.0.1:0", "127.0.0.1:0")).unwrap();
+    assert!(Loader::new(&s).modules(&m).build().is_ok());
+}
+
+#[test]
+fn p5_a_secret_key_in_a_collision_leaks_nothing() {
+    let env = [("ADMIN", "127.0.0.1:7878")];
+    let errs = all_errors(&two_keys(true, "127.0.0.1:7878", ""), &env);
+    assert_eq!(errs.len(), 2, "{errs:?}");
+    assert!(errs.iter().all(|e| !e.contains("7878")), "{errs:?}");
+    let s = Schema::parse(&two_keys(true, "127.0.0.1:7878", "")).unwrap();
+    let e = Loader::new(&s)
+        .modules(&ports(Ports::new()))
+        .env(BTreeMap::from([(
+            "ADMIN".to_owned(),
+            "127.0.0.1:7878".to_owned(),
+        )]))
+        .build()
+        .unwrap_err();
+    assert!(!format!("{e:?}").contains("7878"));
+}
+
+#[test]
+fn p5_an_int_port_and_an_address_with_the_same_port_collide() {
+    let schema = r#"
+[project]
+name = "demo"
+version = "0.1.0"
+summary = ""
+schema_version = 1
+
+[[value]]
+key = "a.port"
+type = "int"
+default = 7878
+description = "a"
+provider = "ports"
+
+[[value]]
+key = "b.addr"
+type = "string"
+default = "10.0.0.1:7878"
+description = "b"
+provider = "ports"
+"#;
+    let errs = all_errors(schema, &[]);
+    assert_eq!(errs.len(), 2, "{errs:?}");
+}
+
+#[test]
+fn p5_a_key_that_already_failed_is_not_reported_twice() {
+    let errs = all_errors(
+        &two_keys(false, "127.0.0.1:7878", "127.0.0.1:7879"),
+        &[("ADMIN", "not an address")],
+    );
+    assert_eq!(errs.len(), 1, "{errs:?}");
+    assert!(errs[0].contains("P2"), "{errs:?}");
+}
+
+#[test]
+fn interface_one_modules_still_register_and_two_is_the_current_version() {
+    use configurant::{INTERFACE_VERSION, MIN_INTERFACE_VERSION, Module, Needs, Value};
+    struct Old;
+    impl Module for Old {
+        fn name(&self) -> &str {
+            "old"
+        }
+        fn interface_version(&self) -> u32 {
+            1
+        }
+        fn list_choices(&self, _: &Needs) -> Vec<configurant::Choice> {
+            Vec::new()
+        }
+        fn validate(&self, _: &Value) -> Result<(), String> {
+            Ok(())
+        }
+    }
+    struct Relies;
+    impl Module for Relies {
+        fn name(&self) -> &str {
+            "relies"
+        }
+        fn list_choices(&self, _: &Needs) -> Vec<configurant::Choice> {
+            Vec::new()
+        }
+        fn validate(&self, _: &Value) -> Result<(), String> {
+            Ok(())
+        }
+    }
+    struct Future;
+    impl Module for Future {
+        fn name(&self) -> &str {
+            "future"
+        }
+        fn interface_version(&self) -> u32 {
+            INTERFACE_VERSION + 1
+        }
+        fn list_choices(&self, _: &Needs) -> Vec<configurant::Choice> {
+            Vec::new()
+        }
+        fn validate(&self, _: &Value) -> Result<(), String> {
+            Ok(())
+        }
+    }
+    assert_eq!((MIN_INTERFACE_VERSION, INTERFACE_VERSION), (1, 2));
+    let mut m = Modules::new();
+    assert_eq!(Relies.interface_version(), 1, "the default must stay 1");
+    assert_eq!(Ports::new().interface_version(), 2);
+    assert!(m.register(Box::new(Relies)).is_ok());
+    assert!(m.register(Box::new(Ports::new())).is_ok());
+    assert!(m.register(Box::new(Old)).is_ok());
+    assert!(m.register(Box::new(Future)).is_err());
+}

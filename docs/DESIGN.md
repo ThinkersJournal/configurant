@@ -22,10 +22,11 @@
    environment wins. Not accepted from a file or the command line, no default, no flag, never in
    `help`, `explain`, `Debug` or an error.
 6. **`explain(key)`** lists each layer that set the key, lowest first, and marks the one used.
-7. **Modules** (`Module`, interface version 1): `list_choices(needs)`, `validate(value)`,
+7. **Modules** (`Module`, interface version 2, version 1 modules still register): `list_choices(needs)`, `validate(value)`,
    `on_change(old, new) -> Plan`. A value with `provider = "x"` is validated by module `x`; with the module
    absent, defaults still load and any other value is refused naming the module. With it present, a default is
-   checked too: a default its module rejects fails the load, naming the key.
+   checked too: a default its module rejects fails the load, naming the key. `validate_all(values)` (version 2)
+   sees every winning value that names the module at once, for rules that compare keys (two ports that collide).
 8. **A `Plan` is data.** A module never acts. The **front end** (CLI, TUI, GUI) shows the plan and executes
    it only after the user confirms. The PersistAnt module's data transfer will be a `Plan`.
 9. **CLI**: `configurant check|describe|explain|migrate`. Front ends beyond that are separate crates: `configurant-tui` exists; `configurant-gui` exists too.

@@ -5,10 +5,7 @@
 #![cfg(feature = "persistant")]
 
 use configurant::persistant::{Durability, PersistantError, PersistantModule};
-use configurant::{
-    ActionKind, ConfigError, INTERFACE_VERSION, Loader, Module, Modules, Needs, Origin, Schema,
-    Value,
-};
+use configurant::{ActionKind, ConfigError, Loader, Module, Modules, Needs, Origin, Schema, Value};
 
 fn needs(required: &[&str], order: &[&str]) -> Needs {
     Needs {
@@ -169,7 +166,7 @@ provider = "storage"
         .unwrap();
     assert_eq!(
         PersistantModule::new().interface_version(),
-        INTERFACE_VERSION
+        configurant::MIN_INTERFACE_VERSION
     );
     let env = |v: &str| {
         [("BACKEND".to_string(), v.to_string())]
