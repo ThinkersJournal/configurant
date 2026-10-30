@@ -83,6 +83,32 @@ impl Module for Ports {
     fn validate_for(&self, def: &ValueDef, value: &Value) -> Result<(), String> {
         check(self, value, def.privileged.as_deref(), &def.key)
     }
+
+    /// P5: two keys that bind the same port on overlapping hosts. Port 0 (the system chooses) never collides.
+    /// Each key at fault gets a message naming the other key and never a value.
+    fn validate_all(&self, values: &[(&str, &Value)]) -> Vec<(String, String)> {
+        let ends: Vec<(&str, u32, Option<String>)> = values
+            .iter()
+            .filter_map(|(k, v)| endpoint(v).map(|(p, h)| (*k, p, h)))
+            .filter(|(_, p, _)| *p != 0)
+            .collect();
+        let mut out = Vec::new();
+        for (i, (key, port, host)) in ends.iter().enumerate() {
+            let other = ends
+                .iter()
+                .enumerate()
+                .find(|(j, (_, p, h))| *j != i && p == port && hosts_overlap(host, h));
+            if let Some((_, (other_key, _, _))) = other {
+                out.push((
+                    (*key).to_owned(),
+                    format!(
+                        "ports P5: this key binds the same port as `{other_key}`; give each listener its own port"
+                    ),
+                ));
+            }
+        }
+        out
+    }
 }
 
 fn check(ports: &Ports, value: &Value, privileged: Option<&str>, key: &str) -> Result<(), String> {
@@ -93,7 +119,7 @@ fn check(ports: &Ports, value: &Value, privileged: Option<&str>, key: &str) -> R
             ports.check_port(port, privileged, key)
         }
         Value::String(text) => {
-            let port = split_address(text)?;
+            let (port, _) = split_address(text)?;
             ports.check_port(port, privileged, key)
         }
         other => Err(format!(
@@ -103,10 +129,10 @@ fn check(ports: &Ports, value: &Value, privileged: Option<&str>, key: &str) -> R
     }
 }
 
-/// Check `host:port` and return the port.
-fn split_address(text: &str) -> Result<u32, String> {
+/// Check `host:port` and return the port and the host (lower case, without brackets).
+fn split_address(text: &str) -> Result<(u32, String), String> {
     let bad = |why: &str| format!("ports P2: not a `host:port` address: {why}");
-    let port = if let Some(rest) = text.strip_prefix('[') {
+    let (host_text, port) = if let Some(rest) = text.strip_prefix('[') {
         let (inside, after) = rest
             .split_once(']')
             .ok_or_else(|| bad("an IPv6 host needs a closing `]`"))?;
@@ -116,7 +142,7 @@ fn split_address(text: &str) -> Result<u32, String> {
         if inside.parse::<Ipv6Addr>().is_err() {
             return Err(bad("the text in `[...]` is not an IPv6 address"));
         }
-        port
+        (inside.to_ascii_lowercase(), port)
     } else {
         let (host, port) = text
             .rsplit_once(':')
@@ -128,9 +154,28 @@ fn split_address(text: &str) -> Result<u32, String> {
             return Err(bad("the host is empty"));
         }
         check_host(host).map_err(bad)?;
-        port
+        (host.to_ascii_lowercase(), port)
     };
-    parse_port(port).map_err(bad)
+    Ok((parse_port(port).map_err(bad)?, host_text))
+}
+
+/// Where a value listens, for P5: its port and its host (`None` for a bare int port, which means every host).
+fn endpoint(value: &Value) -> Option<(u32, Option<String>)> {
+    match value {
+        Value::Int(n) => u32::try_from(*n).ok().map(|p| (p, None)),
+        Value::String(text) => split_address(text).ok().map(|(p, h)| (p, Some(h))),
+        _ => None,
+    }
+}
+
+fn is_wildcard(host: &Option<String>) -> bool {
+    host.as_deref()
+        .is_none_or(|h| h == "0.0.0.0" || h.parse::<Ipv6Addr>().is_ok_and(|a| a.is_unspecified()))
+}
+
+/// Can two listeners on the same port bind at once? Not if the hosts are the same, or either is a wildcard.
+fn hosts_overlap(a: &Option<String>, b: &Option<String>) -> bool {
+    a == b || is_wildcard(a) || is_wildcard(b)
 }
 
 fn parse_port(text: &str) -> Result<u32, &'static str> {

@@ -1,6 +1,6 @@
 # Other modules: ports, paths, logging
 
-Status: **ports (slice 1, P1 to P4) built in 0.5.25; paths and logging are design only** (ROADMAP row 11, spec section 4 "Other modules"). Written 2026-10-30. Facts about
+Status: **ports (P1 to P5) built in 0.5.25 and 0.5.27; paths and logging are design only** (ROADMAP row 11, spec section 4 "Other modules"). Written 2026-10-30. Facts about
 today's code are from `src/module.rs`, `src/schema.rs` and `src/value.rs` at 0.5.23, `examples/synapsed.toml` and
 `examples/antspawn.toml`; the rest is proposed.
 
@@ -47,10 +47,16 @@ default = "127.0.0.1:7878"
 | P4 | The error names the key and the rule and never echoes a value that is `secret` (a port is not secret, but an address string can hold a credential by mistake: `user:pw@host:80` is refused by P2 and the text is `<redacted>` if the key is secret) | a `secret` key holding `user:pw@h:80` leaks nothing in `Display`, `Debug`, `explain` |
 | P5 | Two ports in one schema must not collide (see below) | `listen.addr` and `admin.addr` both `:7878` |
 
-P5 needs what limit 1 forbids. The smallest honest change is **interface version 2**: one more default method,
-`fn validate_all(&self, values: &[(&str, &Value)]) -> Vec<(String, String)>` (key, message), called once per load
-with every value that names this module; the default returns nothing, so every existing module keeps working
-and the interface stays versioned as the spec requires. P5 is slice 2, not slice 1.
+P5 needs what limit 1 forbids. The smallest honest change is **interface version 2** (built in 0.5.27): one more
+default method, `fn validate_all(&self, values: &[(&str, &Value)]) -> Vec<(String, String)>` (key, message),
+called once per load with the winning value of every key that names this module, sorted by key; the default
+returns nothing. A module that speaks version 1 still registers (`MIN_INTERFACE_VERSION` is 1, `INTERFACE_VERSION`
+is 2; any other version is refused). The loader attaches the origin of the winning value to each message and
+redacts it for a `secret` key. **P5 as built:** two keys collide when they bind the same port and their hosts
+overlap (the same host without regard to case, or either side a wildcard: `0.0.0.0`, `[::]`, or a bare `int`
+port, which means every host); port `0` never collides; each key at fault gets its own error naming the other key
+and never a value. A key whose winning value was already refused is not in the comparison. The interactive
+`edit::Session` does not run `validate_all` yet.
 
 **`list_choices`**: for a `Needs`-less value it returns the well-known alternatives only if the project asks
 (`.suggest(&[8080, 8081, 8443])`); otherwise empty. It never probes.
@@ -111,6 +117,21 @@ To try it without touching the process environment, pass `.env(BTreeMap<String, 
 non-empty string (an empty one is a schema error) and is valid only with `provider = "ports"`. The key may be an
 `int` (a bare port) instead of a `string` (`host:port`); any other type is refused. A refusal names the key and
 the rule (`P1` range, `P2` address shape, `P3` below 1024 without `privileged`) and never quotes the value.
+
+**Two listeners (P5).** Give each its own `[[value]]` (with `type`, `default`, `description` and `env` as in the
+example above) and `provider = "ports"`. If both end up on the same port, from any layer, the load fails with one
+error per key, in key order, each naming the other key and the layer that set it (`from the schema default`,
+`from environment variable ...`). `.env(..)` replaces the process environment for that load, so a variable not in
+the map falls back to its default.
+
+```rust
+use std::collections::BTreeMap;
+// `schema` has `listen.addr` (env LISTEN, default 127.0.0.1:7878) and `admin.addr` (env ADMIN, default 127.0.0.1:7879)
+let env = BTreeMap::from([("ADMIN".to_owned(), "127.0.0.1:7878".to_owned())]);
+let errors = Loader::new(&schema).modules(&modules).env(env).build().unwrap_err(); // `Errors`, public field `.0`
+assert_eq!(errors.0.len(), 2);
+// each: ports P5: this key binds the same port as `<the other key>`; give each listener its own port
+```
 
 ## 3. Paths (`provider = "paths"`)
 
