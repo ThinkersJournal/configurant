@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.28
+
+- Docs only: HANDOFF refreshed after ports slice 2 (0.5.27). All crates move to 0.5.28.
+
 ## 0.5.27
 
 - Ports rule P5 and module interface version 2 (ROADMAP row 11, slice 2). New defaulted trait method `Module::validate_all(&[(&str, &Value)]) -> Vec<(String, String)>`, called once per load per registered module with the winning value of every key that names it; the loader turns each answer into `ConfigError::ModuleRejected` with the winning value's origin, redacted for a `secret` key. `INTERFACE_VERSION` is now 2 and new `MIN_INTERFACE_VERSION` is 1; the default `Module::interface_version()` stays 1 (a recompiled v1 module does not claim v2) and `Ports`, which implements `validate_all`, returns 2: a version 1 module still registers, a version 3 one is refused (new `Modules::names()`). `Ports` implements P5: two keys on the same port with overlapping hosts (same host without case, or a wildcard `0.0.0.0` / `[::]` / a bare int port) are each refused naming the other key, never a value; port 0 never collides. 10 new tests in `tests/known_bad_modules.rs`; two mutations proven to bite (loader call removed: 6 fail; wildcard overlap removed: 2 fail). Not done: `edit::Session` does not run `validate_all` yet. All crates move to 0.5.27.
