@@ -4,6 +4,10 @@
 
 - Docs only: `docs/PATENT-SWEEP.md` gains an addendum (2026-10-30) for row 11, the ports, logging and paths modules (0.5.25 to 0.5.31): 6 new ideas, 6 queries, 6 hits whose independent claims were read, all "outside, as read" (closest: US20040019670A1, active to 2029, which needs a server with a second in-memory representation and a change request), 28 found-but-not-read patents listed without a verdict, nothing needing review. ROADMAP row 19 updated. All crates move to 0.5.33.
 
+## 0.5.32
+
+- Docs only: HANDOFF refreshed after the paths module (0.5.31); row 11 is complete. All crates move to 0.5.32.
+
 ## 0.5.31
 
 - The `paths` module (ROADMAP row 11, slice 4; `docs/MODULES.md` section 3), behind the new Cargo feature `paths`: `configurant::modules::paths::{Paths, Platform}`, registered under `provider = "paths"` on a `path` or `string`. Lexical only (no file, link or drive is looked at). T1: not empty, no NUL or control character, valid UTF-8. T2: `.within(root)` keeps the normalised path under the root (whole components, `..` resolved, case folded on Windows, relative values taken relative to the root). T3: `.relative()` / `.absolute()`. T4 (Windows rules): reserved device names with or without an extension, trailing dot or space, `< > : " | ? *`, drive-relative `C:x`, `\?\` and `\.\` prefixes, incomplete UNC. T5: `.file()` refuses a trailing separator, `.` and `..`. Rules follow a `Platform` (default: the host's; settable, so Windows rows are tested everywhere). `on_change` offers one `Mkdir` step for a new valid absolute `.directory()` value and never a removal or move. A refusal never quotes the path. 18 tests in `tests/known_bad_paths.rs`; 16 mutations proven to bite (see the PR). All crates move to 0.5.31.
