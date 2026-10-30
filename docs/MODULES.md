@@ -1,6 +1,6 @@
 # Other modules: ports, paths, logging
 
-Status: **ports (P1 to P5) built in 0.5.25 and 0.5.27; paths and logging are design only** (ROADMAP row 11, spec section 4 "Other modules"). Written 2026-10-30. Facts about
+Status: **ports (P1 to P5) built in 0.5.25 and 0.5.27, logging (L1 to L3) in 0.5.29; paths is design only** (ROADMAP row 11, spec section 4 "Other modules"). Written 2026-10-30. Facts about
 today's code are from `src/module.rs`, `src/schema.rs` and `src/value.rs` at 0.5.23, `examples/synapsed.toml` and
 `examples/antspawn.toml`; the rest is proposed.
 
@@ -183,6 +183,62 @@ a log file, which uses `provider = "paths"`.
 
 The module only validates and describes; it does not install a subscriber. The application maps the validated
 text to `tracing`, `log` or `env_logger` itself, so ConfigurAnt gains no logging dependency.
+
+**As built (0.5.29, feature `logging`).** `configurant::modules::logging::{Logging, Level}`. The module returns the
+text unchanged, so "stored lower-case" is the application's step (`Level::parse(text)` reads any case and
+`Level::as_str()` is the lower-case name). Surrounding spaces, and spaces around each directive and each `=`, are
+ignored. `Logging::new().levels_only()` accepts a single level and refuses a filter (L1 only), for a key that is
+handed to something that takes one level. `.max_level(Level::Info)` is L3 and applies to the bare level and to every
+directive of a filter; `list_choices` then offers only the levels the key would accept. A mistyped bare word that
+is near a level (`inf`, `warning`, `err`) is an L1 error with a `did you mean` suggestion; any other bare word in a
+filter is L2. A refusal quotes the offending token, escaped and cut at 32 characters (a `secret` key is
+`<redacted>` as for every module), and a filter that repeats a target is accepted (the application's logger
+decides which wins).
+
+```toml
+# Cargo.toml:  configurant = { version = "0.5", features = ["logging"] }
+```
+
+```rust
+use configurant::modules::logging::{Level, Logging};
+use configurant::{Loader, Modules, Schema};
+
+let schema = Schema::parse(r#"
+[project]
+name = "demo"
+version = "0.1.0"
+summary = ""
+schema_version = 1
+
+[[value]]
+key = "log"
+type = "string"
+default = "warn,demo::net=debug"
+description = "what to log: a level, or a filter such as warn,my_crate=debug"
+env = "DEMO_LOG"
+provider = "logging"
+"#).unwrap();
+
+let mut modules = Modules::new();
+modules.register(Box::new(Logging::new().max_level(Level::Debug))).unwrap();
+let config = Loader::new(&schema).modules(&modules).build().unwrap();
+assert_eq!(config.get::<String>("log").unwrap(), "warn,demo::net=debug");
+```
+
+A load reads the environment only if you pass it (`.env(map)`; the binary passes the process environment, a library
+does not). To see a refusal, give the loader a bad value:
+
+```rust
+use std::collections::BTreeMap;
+// `schema` and `modules` as above
+let env = BTreeMap::from([("DEMO_LOG".to_owned(), "trace".to_owned())]);
+let errors = Loader::new(&schema).modules(&modules).env(env).build().unwrap_err();
+println!("{}", errors.0[0]);
+// `log` from environment variable `DEMO_LOG` was rejected by module `logging`: logging L3: level `trace` is more
+// verbose than this key allows (at most `debug`)
+```
+
+`DEMO_LOG=warning` gives ``logging L1: "warning" is not a log level; did you mean `warn`? ...``.
 
 **First customer: `synapse`**, whose `config/example.toml` and `config/synapse-auth.toml` carry `log_level = "info"`
 and whose binaries build a `tracing_subscriber` from a flag. Nothing validates that string today.
