@@ -1,6 +1,6 @@
 [package]
 name = "configurant-tui"
-version = "0.5.20"
+version = "0.5.21"
 edition = "2024"
 rust-version = "1.95"
 description = "Terminal front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
