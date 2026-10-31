@@ -3,7 +3,7 @@ members = ["crates/configurant-tui", "crates/configurant-gui", "crates/configura
 
 [package]
 name = "configurant"
-version = "0.5.39"
+version = "0.5.40"
 edition = "2024"
 rust-version = "1.95"
 description = "Schema-first configuration: declare values in a TOML schema, layer defaults, file, environment and command line, validate with named errors, explain where each value came from. No generated code; secrets never printed."
@@ -31,7 +31,7 @@ persistant = ["dep:persistant"]
 persistant-blocking = ["persistant", "dep:tokio"]
 
 [dependencies]
-persistant = { version = "0.11.7", optional = true, default-features = false, features = ["registry"] }
+persistant = { version = "0.12.3", optional = true, default-features = false, features = ["registry"] }
 tokio = { version = "1.54.1", optional = true, default-features = false, features = ["rt"] }
 clap = { version = "4.6.7", features = ["derive"] }
 serde = { version = "1.0.229", features = ["derive"] }

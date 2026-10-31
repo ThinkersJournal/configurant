@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.40
+
+- Dependency: `persistant` 0.11.7 to 0.12.3 (crates.io latest; CireSnave's rule that every dependency is at its latest version). 0.12.0 changes the wording of the unmet-need text in `Choice.reason`; no test or doc of ours pins that text, and the full test run passes. Every other direct dependency was already at its crates.io latest. All crates move to 0.5.40.
+
 ## 0.5.39
 
 - An unknown field or variant in a schema (or a mounted fragment) now ends the error with `(did you mean `x`?)` when a known name is close, e.g. `secrt` gives `secret`; a far-off name gets none, as before. The text is built in `SchemaError`'s `Display`, so the `Parse` variant is unchanged. All crates move to 0.5.39.

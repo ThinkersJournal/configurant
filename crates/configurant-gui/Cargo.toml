@@ -1,6 +1,6 @@
 [package]
 name = "configurant-gui"
-version = "0.5.39"
+version = "0.5.40"
 edition = "2024"
 rust-version = "1.95"
 description = "Graphical front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
@@ -27,5 +27,5 @@ scan = ["dep:configurant-scan"]
 
 [dev-dependencies]
 egui_kittest = "0.37.0"
-persistant = { version = "0.11.7", default-features = false, features = ["registry"] }
+persistant = { version = "0.12.3", default-features = false, features = ["registry"] }
 tokio = { version = "1.54.1", default-features = false, features = ["rt"] }

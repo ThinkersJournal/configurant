@@ -1,6 +1,6 @@
 [package]
 name = "configurant-tui"
-version = "0.5.39"
+version = "0.5.40"
 edition = "2024"
 rust-version = "1.95"
 description = "Terminal front end for ConfigurAnt: edit a project's configuration file against its schema, review the changes, and confirm before anything is written."
@@ -26,5 +26,5 @@ configurant-scan = { version = "0.5.16", path = "../configurant-scan", optional 
 scan = ["dep:configurant-scan"]
 
 [dev-dependencies]
-persistant = { version = "0.11.7", default-features = false, features = ["registry"] }
+persistant = { version = "0.12.3", default-features = false, features = ["registry"] }
 tokio = { version = "1.54.1", default-features = false, features = ["rt"] }
