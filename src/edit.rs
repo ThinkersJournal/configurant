@@ -13,7 +13,7 @@ use std::fmt;
 
 use toml_edit::{Array, DocumentMut, Item, Table, TableLike, Value as EditValue};
 
-use crate::config::{Config, check_value};
+use crate::config::{Config, check_value, cross_key_errors};
 use crate::error::{ConfigError, Origin, suggestion};
 use crate::module::{Choice, Modules, Needs, Plan};
 use crate::value::{Value, ValueType};
@@ -197,12 +197,39 @@ impl<'a> Session<'a> {
             origin: Origin::Edit,
         })?;
         check_value(def, &value, self.modules, &Origin::Edit)?;
+        self.check_across_keys(key, &value)?;
         if self.config.value(key) == Some(&value) {
             self.staged.remove(key);
         } else {
             self.staged.insert(key.to_owned(), value);
         }
         Ok(())
+    }
+
+    /// Interface version 2: the modules' rules that compare keys (two ports that collide), run over the values
+    /// that would be in force if `value` were staged for `key`. Only an error on `key` is returned: the
+    /// configuration loaded and every earlier edit passed, so any other key at fault is the same collision.
+    /// (Swapping two values therefore needs a free value in between.)
+    fn check_across_keys(&self, key: &str, value: &Value) -> Result<(), ConfigError> {
+        let Some(modules) = self.modules else {
+            return Ok(());
+        };
+        let errors = cross_key_errors(self.config.schema(), modules, |k| {
+            if k == key {
+                Some((Origin::Edit, value))
+            } else if let Some(v) = self.staged.get(k) {
+                Some((Origin::Edit, v))
+            } else {
+                self.config.value(k).map(|v| (Origin::Default, v))
+            }
+        });
+        match errors
+            .into_iter()
+            .find(|e| matches!(e, ConfigError::ModuleRejected { key: k, .. } if k == key))
+        {
+            Some(e) => Err(e),
+            None => Ok(()),
+        }
     }
 
     /// Forget a staged change.

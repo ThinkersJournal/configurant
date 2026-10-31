@@ -177,34 +177,12 @@ impl<'a> Loader<'a> {
         let Some(modules) = self.modules else {
             return;
         };
-        for name in modules.names() {
-            let Some(module) = modules.get(name) else {
-                continue;
-            };
-            let mut keyed: Vec<(&ValueDef, &Origin, &Value)> = Vec::new();
-            for d in self.schema.values() {
-                if d.provider.as_deref() != Some(name) {
-                    continue;
-                }
-                if let Some((origin, value)) = chains.get(&d.key).and_then(|c| c.last()) {
-                    keyed.push((d, origin, value));
-                }
-            }
-            keyed.sort_by(|a, b| a.0.key.cmp(&b.0.key));
-            let values: Vec<(&str, &Value)> =
-                keyed.iter().map(|(d, _, v)| (d.key.as_str(), *v)).collect();
-            for (key, reason) in module.validate_all(&values) {
-                let Some((def, origin, _)) = keyed.iter().find(|(d, _, _)| d.key == key) else {
-                    continue;
-                };
-                errors.push(ConfigError::ModuleRejected {
-                    key,
-                    module: name.to_owned(),
-                    reason: if def.secret { REDACTED.into() } else { reason },
-                    origin: (*origin).clone(),
-                });
-            }
-        }
+        errors.extend(cross_key_errors(self.schema, modules, |key| {
+            chains
+                .get(key)
+                .and_then(|c| c.last())
+                .map(|(origin, value)| (origin.clone(), value))
+        }));
     }
 
     /// The schema defaults. A default whose module is registered must pass it, like a value from any other layer;
@@ -622,6 +600,46 @@ impl<'a> Loader<'a> {
             origin,
         }
     }
+}
+
+/// Interface version 2: give each registered module the winning value of every key that names it, sorted by
+/// key, and turn what it returns into errors. `winner` says where a key's value in force came from. Shared by
+/// the loader and by [`crate::edit::Session`] so an edit meets the cross-key rules a load does.
+pub(crate) fn cross_key_errors<'v>(
+    schema: &Schema,
+    modules: &Modules,
+    winner: impl Fn(&str) -> Option<(Origin, &'v Value)>,
+) -> Vec<ConfigError> {
+    let mut errors = Vec::new();
+    for name in modules.names() {
+        let Some(module) = modules.get(name) else {
+            continue;
+        };
+        let mut keyed: Vec<(&ValueDef, Origin, &Value)> = Vec::new();
+        for d in schema.values() {
+            if d.provider.as_deref() != Some(name) {
+                continue;
+            }
+            if let Some((origin, value)) = winner(&d.key) {
+                keyed.push((d, origin, value));
+            }
+        }
+        keyed.sort_by(|a, b| a.0.key.cmp(&b.0.key));
+        let values: Vec<(&str, &Value)> =
+            keyed.iter().map(|(d, _, v)| (d.key.as_str(), *v)).collect();
+        for (key, reason) in module.validate_all(&values) {
+            let Some((def, origin, _)) = keyed.iter().find(|(d, _, _)| d.key == key) else {
+                continue;
+            };
+            errors.push(ConfigError::ModuleRejected {
+                key,
+                module: name.to_owned(),
+                reason: if def.secret { REDACTED.into() } else { reason },
+                origin: origin.clone(),
+            });
+        }
+    }
+    errors
 }
 
 /// Check a typed value against its definition and, if the key has a provider, that module. Shared by

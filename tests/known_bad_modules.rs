@@ -612,3 +612,75 @@ fn interface_one_modules_still_register_and_two_is_the_current_version() {
     assert!(m.register(Box::new(Old)).is_ok());
     assert!(m.register(Box::new(Future)).is_err());
 }
+
+// ---- P5 in an editing session: an edit meets the rules a load does ----
+
+fn edit_setup(secret_b: bool) -> (Schema, Modules) {
+    let b = if secret_b { "" } else { "127.0.0.1:7879" };
+    (
+        Schema::parse(&two_keys(secret_b, "127.0.0.1:7878", b)).unwrap(),
+        ports(Ports::new()),
+    )
+}
+
+fn env_admin(secret_b: bool) -> BTreeMap<String, String> {
+    if secret_b {
+        BTreeMap::from([("ADMIN".to_owned(), "127.0.0.1:7879".to_owned())])
+    } else {
+        BTreeMap::new()
+    }
+}
+
+#[test]
+fn p5_an_edit_onto_a_port_another_key_holds_is_refused_and_stages_nothing() {
+    use configurant::edit::Session;
+    let (s, m) = edit_setup(false);
+    let config = Loader::new(&s).modules(&m).build().unwrap();
+    let mut session = Session::new(&config, Some(&m));
+    let err = session.stage("admin.addr", "127.0.0.1:7878").unwrap_err();
+    let text = err.to_string();
+    assert!(
+        text.contains("P5") && text.contains("`listen.addr`"),
+        "{text}"
+    );
+    assert!(
+        session.review().is_empty(),
+        "a refused edit must stage nothing"
+    );
+    // The control: a free port is accepted.
+    session.stage("admin.addr", "127.0.0.1:7880").unwrap();
+    assert_eq!(session.review().changes().len(), 1);
+}
+
+#[test]
+fn p5_two_staged_edits_that_collide_with_each_other_are_refused() {
+    use configurant::edit::Session;
+    let (s, m) = edit_setup(false);
+    let config = Loader::new(&s).modules(&m).build().unwrap();
+    let mut session = Session::new(&config, Some(&m));
+    session.stage("listen.addr", "127.0.0.1:9000").unwrap();
+    let err = session.stage("admin.addr", "127.0.0.1:9000").unwrap_err();
+    assert!(err.to_string().contains("P5"), "{err}");
+    // Un-staging the first frees the port again.
+    session.unstage("listen.addr");
+    session.stage("admin.addr", "127.0.0.1:9000").unwrap();
+}
+
+#[test]
+fn p5_an_edit_collision_with_a_secret_key_leaks_nothing() {
+    use configurant::edit::Session;
+    let (s, m) = edit_setup(true);
+    let config = Loader::new(&s)
+        .modules(&m)
+        .env(env_admin(true))
+        .build()
+        .unwrap();
+    let mut session = Session::new(&config, Some(&m));
+    let err = session.stage("listen.addr", "127.0.0.1:7879").unwrap_err();
+    let text = format!("{err} {err:?}");
+    assert!(
+        text.contains("P5") && text.contains("`admin.addr`"),
+        "{text}"
+    );
+    assert!(!text.contains("7879"), "{text}");
+}

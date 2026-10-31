@@ -56,7 +56,9 @@ redacts it for a `secret` key. **P5 as built:** two keys collide when they bind 
 overlap (the same host without regard to case, or either side a wildcard: `0.0.0.0`, `[::]`, or a bare `int`
 port, which means every host); port `0` never collides; each key at fault gets its own error naming the other key
 and never a value. A key whose winning value was already refused is not in the comparison. The interactive
-`edit::Session` does not run `validate_all` yet.
+`edit::Session` runs it too (0.5.38): `stage` refuses a value that would collide with the value in force for another
+key, staged or loaded, naming that key. Only the staged key is reported, and swapping two values needs a free value
+in between.
 
 **`list_choices`**: for a `Needs`-less value it returns the well-known alternatives only if the project asks
 (`.suggest(&[8080, 8081, 8443])`); otherwise empty. It never probes.
