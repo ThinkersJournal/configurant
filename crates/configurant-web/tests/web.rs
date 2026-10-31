@@ -247,19 +247,29 @@ async fn a_foreign_host_is_refused_even_with_the_cookie() {
     let web = start(&dir.path().join("app.toml")).await;
     let cookie = log_in(&web).await;
     let port = web.addr().port();
-    for host in [
-        "evil.test",
-        &format!("evil.test:{port}"),
-        &format!("127.0.0.1:{}", port + 1),
-    ] {
+    // Failure messages carry a case number only, never the response (it holds request-derived text).
+    for (case, host) in [
+        "evil.test".to_owned(),
+        format!("evil.test:{port}"),
+        format!("127.0.0.1:{}", port + 1),
+    ]
+    .iter()
+    .enumerate()
+    {
         let out = raw(&web, host, &cookie);
-        assert!(out.starts_with("HTTP/1.1 403"), "{host}: {out}");
-        assert!(!out.contains("What do you want"), "{host}");
+        let refused = out.starts_with("HTTP/1.1 403");
+        assert!(refused, "foreign host case {case} was not refused");
+        let leaked = out.contains("What do you want");
+        assert!(!leaked, "foreign host case {case} got the page");
     }
     // The controls: both names a browser uses.
-    for host in [format!("127.0.0.1:{port}"), format!("localhost:{port}")] {
-        let out = raw(&web, &host, &cookie);
-        assert!(out.starts_with("HTTP/1.1 200"), "{host}: {out}");
+    for (case, host) in [format!("127.0.0.1:{port}"), format!("localhost:{port}")]
+        .iter()
+        .enumerate()
+    {
+        let out = raw(&web, host, &cookie);
+        let served = out.starts_with("HTTP/1.1 200");
+        assert!(served, "control host case {case} was not served");
     }
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }

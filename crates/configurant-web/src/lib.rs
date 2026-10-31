@@ -306,8 +306,8 @@ async fn get_home(s: Arc<Shared>, req: Request) -> Response {
             );
         }
         let mut res = see_other("/");
-        // No `Secure` flag: the page is plain `http` on loopback, and a browser would not send a `Secure` cookie
-        // over it. `HttpOnly` keeps it from scripts (there are none) and `SameSite=Strict` from other sites.
+        // No `Secure` flag: the page is plain `http` on loopback, and how a browser treats a `Secure` cookie over
+        // plain `http` differs by browser, so it is omitted. `HttpOnly` keeps it from scripts (there are none) and `SameSite=Strict` from other sites.
         if let Ok(v) = format!(
             "{}={}; HttpOnly; SameSite=Strict; Path=/",
             guard::COOKIE_NAME,
