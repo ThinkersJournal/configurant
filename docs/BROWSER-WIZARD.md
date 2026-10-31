@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT OR Apache-2.0 -->
 # The browser wizard renderer
 
-Status: **design, nothing built** (ROADMAP row 29). Written 2026-10-30 by the configurant lane for the PM. Facts about
+Status: **slice (a) built** in `crates/configurant-web` (0.5.41); (b) the JSON endpoint and (c) the example, README hello path and fresh-eyes trial are not. Below is the design as written 2026-10-30, with the HTTPAnt section re-checked against the published source. ROADMAP row 29. Written 2026-10-30 by the configurant lane for the PM. Facts about
 ConfigurAnt are from `origin/main` at 4220fa1 (0.5.36): `src/view.rs`, `src/wizard.rs`, `docs/GUI.md`,
 `docs/STEP-ENGINE.md`. Facts about HTTPAnt and WebHostAnt are from their `README.md`, `ROADMAP.md` and (HTTPAnt)
 `docs/HTTPANT-DESIGN.md` on `origin/main` as fetched 2026-10-30; **no HTTPAnt source was read and nothing was run**, so
@@ -125,19 +125,16 @@ version **does not execute commands from a browser at all**: a plan is listed as
 cause a command to run" is a different risk class from "any web page could change one config file". The tokens and
 checks above are what make even the file write safe.
 
-## What we need from HTTPAnt (all UNVERIFIED until it is published and read)
+## What we need from HTTPAnt (verified against httpant 0.5.19, 2026-10-31)
 
-Read against the HTTPAnt design at fetch time; each item is a question for its lane, not an assumption.
+Read from the published crate source (`httpant`, `httpant-core`, `httpant-server`, `httpant-client` 0.5.19, downloaded from crates.io) and exercised by `crates/configurant-web/tests/web.rs`, which passes over real sockets.
 
-1. Bind to `127.0.0.1:0` and report the chosen address (`server.addr()` in the design's hello-world).
-2. Read request headers (`Host`, `Origin`, `Cookie`) and set response headers (`Set-Cookie`, CSP, `Location`), with
-   a `303` response: these are the `http` crate's own types, so they should be free.
-3. A request-body size limit and a header limit (HTTPAnt ROADMAP row 2 says done) and a graceful shutdown with a
-   grace period (row 3 says done), so the server can stop after `confirm` without holding the process.
-4. Handlers that are async closures over shared state, so one actor handle can be cloned into each route.
-5. The default (hyper) adapter is enough; this crate names no web framework and so works on whichever adapter
-   the application picks with `Server::with_adapter`.
-6. `httpant-client` (or the conformance raw-TCP client) for the crate's own tests, as a crates.io dev-dependency.
+1. **Verified.** `Server::serve(std::net::TcpListener)` takes a listener we bind ourselves on `127.0.0.1:0`, so the port is known before the handlers are built (they need it for the `Host` and `Origin` checks); `RunningServer::addr()` reports it.
+2. **Verified.** `Request` and `Response` are `http::Request<Body>` and `http::Response<Body>`; headers are read and set with the `http` crate (re-exported as `httpant::http`), and a `303` is a status plus `Location`. The client lets a test set `Cookie` and `Origin`; a `Host` other than the URL's needed a raw socket, which the test uses.
+3. **Verified.** `Body::bytes(limit)` and `Body::text(limit)` stop at a limit we choose (64 KiB; a larger post is a 413 in the test), `Limits` defaults apply before a handler runs, and `RunningServer::shutdown()` waits for requests in flight (30 s default grace), so the page that says "Saved" is delivered before the server stops.
+4. **Verified.** `Handler` is implemented for `Fn(Request) -> impl Future<Output = impl IntoResponse> + Clone + Send + Sync + 'static`; a `move` closure holding an `Arc` is enough. There are no extractors yet (the query string and the form body are parsed by hand in `guard.rs`), and no fallback route was needed.
+5. **Verified for the default adapter.** The crate uses `Server::new()` (hyper) and no feature of `httpant`. It does not yet let the application choose another adapter; that is a small addition if asked for, and untested on the others.
+6. **Verified.** `httpant::Client` (`request(method, url)`, `.header`, `.body`, `.send()`, `.text()`) is what the tests use; it does not follow redirects, which the tests rely on to read the `303`.
 
 HTTPAnt ROADMAP row 10 ("read ConfigurAnt's API before wiring settings") means HTTPAnt may in time depend on
 `configurant` for its own settings. That is not a cycle: `configurant-web` depends on `httpant` and `configurant`;
