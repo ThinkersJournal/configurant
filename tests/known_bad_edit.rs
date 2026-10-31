@@ -226,3 +226,34 @@ fn choices_come_from_the_schema_or_the_module() {
     );
     assert!(matches!(Value::Int(1), Value::Int(_)));
 }
+
+// ---- the one save function every front end shares ----
+
+#[test]
+fn save_with_backup_keeps_the_old_text_and_refuses_when_the_backup_exists() {
+    use configurant::edit::save_with_backup;
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("app.toml");
+    // A new file has nothing to back up.
+    save_with_backup(&file, "", "a = 1\n").unwrap();
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), "a = 1\n");
+    assert!(!dir.path().join("app.toml.bak").exists());
+    // An existing file is saved to <file>.bak first.
+    save_with_backup(&file, "a = 1\n", "a = 2\n").unwrap();
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), "a = 2\n");
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("app.toml.bak")).unwrap(),
+        "a = 1\n"
+    );
+    // A backup that is already there is never overwritten: refused, and the file is untouched.
+    let err = save_with_backup(&file, "a = 2\n", "a = 3\n").unwrap_err();
+    assert!(
+        err.contains("app.toml.bak") && err.contains("move it away"),
+        "{err}"
+    );
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), "a = 2\n");
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("app.toml.bak")).unwrap(),
+        "a = 1\n"
+    );
+}

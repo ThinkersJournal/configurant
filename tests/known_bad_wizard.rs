@@ -258,3 +258,41 @@ fn the_step_list_says_done_current_todo_and_hidden() {
         assert_eq!(v.keys, ["mode"]);
     });
 }
+
+#[test]
+fn plain_gives_the_value_in_force_without_quotes_and_never_a_secret() {
+    let schema = Schema::parse(
+        r#"
+[project]
+name = "demo"
+version = "0.1.0"
+summary = "a demo"
+schema_version = 1
+
+[[value]]
+key = "name"
+type = "string"
+default = "hello"
+description = "a name"
+
+[[value]]
+key = "token"
+type = "string"
+secret = true
+description = "a token"
+env = "TOKEN"
+"#,
+    )
+    .unwrap();
+    let env = BTreeMap::from([("TOKEN".to_owned(), CANARY.to_owned())]);
+    let config = Loader::new(&schema).env(env).build().unwrap();
+    let mut w = Wizard::new(Driver::new(Session::new(&config, None), Needs::default()));
+    assert_eq!(w.plain("name").as_deref(), Some("hello"));
+    w.apply(Event::Set {
+        key: "name".into(),
+        text: "world".into(),
+    });
+    assert_eq!(w.plain("name").as_deref(), Some("world"), "staged wins");
+    assert_eq!(w.plain("token").as_deref(), Some("<redacted>"));
+    assert_eq!(w.plain("no.such"), None);
+}

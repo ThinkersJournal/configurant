@@ -1,9 +1,9 @@
 [workspace]
-members = ["crates/configurant-tui", "crates/configurant-gui", "crates/configurant-scan", "crates/configurant-secrets"]
+members = ["crates/configurant-tui", "crates/configurant-gui", "crates/configurant-scan", "crates/configurant-secrets", "crates/configurant-web"]
 
 [package]
 name = "configurant"
-version = "0.5.40"
+version = "0.5.41"
 edition = "2024"
 rust-version = "1.95"
 description = "Schema-first configuration: declare values in a TOML schema, layer defaults, file, environment and command line, validate with named errors, explain where each value came from. No generated code; secrets never printed."
@@ -42,4 +42,5 @@ toml_edit = "0.25.17"
 
 [dev-dependencies]
 serde_json = "1.0.154"
+tempfile = "3.27.0"
 tokio = { version = "1.54.1", default-features = false, features = ["rt"] }

@@ -150,6 +150,12 @@ impl<'a> Wizard<'a> {
         view
     }
 
+    /// The value in force for `key` (staged if any, else current) as plain text, which is what a text box
+    /// starts with: no quotes around a string. A secret is `<redacted>`. See [`Driver::plain`].
+    pub fn plain(&self, key: &str) -> Option<String> {
+        self.driver.plain(key)
+    }
+
     /// The confirmed changes, once, after a `confirm` at the review.
     pub fn take_confirmed(&mut self) -> Option<crate::edit::Confirmed> {
         self.driver.take_confirmed()
