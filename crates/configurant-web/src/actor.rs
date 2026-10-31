@@ -54,6 +54,8 @@ pub(crate) enum Action {
 pub(crate) enum Msg {
     Page(oneshot::Sender<Snapshot>),
     Submit(Submit, oneshot::Sender<Snapshot>),
+    /// One event, as the JSON endpoint sends it.
+    Event(Event, oneshot::Sender<Snapshot>),
 }
 
 /// Run until every sender is gone. `done` gets the outcome once, when the file is written or cannot be.
@@ -78,18 +80,37 @@ pub(crate) fn run(
                 } else {
                     apply(&mut wizard, submit, &setup.file, &mut finished)
                 };
-                if let Some(result) = &finished
-                    && let Some(done) = done.take()
-                {
-                    let _ = done.send(match result {
-                        Ok(path) => Outcome::Written(path.clone()),
-                        Err(why) => Outcome::Failed(why.clone()),
-                    });
-                }
-                let _ = reply.send(snapshot(&wizard, refused, finished.clone()));
+                answer(&wizard, refused, &finished, &mut done, reply);
+            }
+            Msg::Event(event, reply) => {
+                let refused = if finished.is_some() {
+                    Some(over())
+                } else {
+                    take_event(&mut wizard, event, &setup.file, &mut finished)
+                };
+                answer(&wizard, refused, &finished, &mut done, reply);
             }
         }
     }
+}
+
+/// Tell the waiting handler what happened, and the wizard's owner once if the wizard is over.
+fn answer(
+    wizard: &Wizard<'_>,
+    refused: Option<Refusal>,
+    finished: &Option<Result<PathBuf, String>>,
+    done: &mut Option<oneshot::Sender<Outcome>>,
+    reply: oneshot::Sender<Snapshot>,
+) {
+    if let Some(result) = finished
+        && let Some(done) = done.take()
+    {
+        let _ = done.send(match result {
+            Ok(path) => Outcome::Written(path.clone()),
+            Err(why) => Outcome::Failed(why.clone()),
+        });
+    }
+    let _ = reply.send(snapshot(wizard, refused, finished.clone()));
 }
 
 fn over() -> Refusal {
@@ -141,6 +162,16 @@ fn apply(
         Action::Goto(step) => Event::Goto { step },
         Action::Confirm => Event::Confirm,
     };
+    take_event(wizard, event, file, finished)
+}
+
+/// Apply one event; if it confirmed the review, write the file and record how that went.
+fn take_event(
+    wizard: &mut Wizard<'_>,
+    event: Event,
+    file: &Path,
+    finished: &mut Option<Result<PathBuf, String>>,
+) -> Option<Refusal> {
     let reply = wizard.apply(event);
     if reply.confirmed {
         *finished = Some(match wizard.take_confirmed() {

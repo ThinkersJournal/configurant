@@ -193,6 +193,33 @@ confirm" callback, and knows nothing of files.
 | `Wizard::plain` stops redacting a secret (core) | `plain_gives_the_value_in_force_without_quotes_and_never_a_secret` |
 | `save_with_backup` overwrites an existing backup (core) | `save_with_backup_keeps_the_old_text_and_refuses_when_the_backup_exists` |
 
+## The JSON endpoints (slice b)
+
+Same server, same cookie, same `Host` and `Origin` checks, same policy headers, same actor thread; no second
+implementation of any rule.
+
+- `GET /api/view` answers `200` with `{"view": View, "refused": null, "finished": null}`. `View` is the
+  library's own `Serialize` type, so a secret is already redacted in it.
+- `POST /api/event` takes one `Event` as `view.rs` defines it (`{"event":"set","key":"server.port","text":"9000"}`,
+  `unset`, `next`, `back`, `goto` with `step`, `confirm`) as `application/json`, and answers with the same body shape.
+  A `confirm` writes the file with `save_with_backup`, exactly as the form does, and `finished` then reads
+  `{"written": "<path>"}` or `{"failed": "<why>"}`.
+- Statuses: `403` for a missing or wrong cookie, a missing or foreign `Origin`, or a foreign `Host`; `415` when the
+  content type is not `application/json` (a cross-site form cannot send it); `413` over 64 KiB; `400` for a body that is
+  not an event, with the list of events and never a quoted value; `422` when the library refused the event, with
+  `refused.error` (its own message, suggestion included) and the view unchanged; `200` otherwise.
+- A field the event does not take (`{"event":"next","extra":1}`) is a `400`. serde's `deny_unknown_fields` does not catch
+  that for a unit variant of an internally tagged enum, so `parse_event` checks the names itself.
+- A secret has no way in: `set` on a secret key is refused with `422`, and no answer holds a secret from the environment
+  or one a client tried to type (`a_secret_is_never_in_a_json_answer_and_cannot_be_set_by_json`).
+
+| Mutant | Test that fails |
+|---|---|
+| content-type check off | `a_json_event_is_refused_without_the_cookie_the_origin_or_the_content_type` |
+| a refusal answers `200` | `a_refused_json_event_is_a_422_with_the_reason_and_nothing_moves` (and two more) |
+| extra field allowed | `a_bad_json_event_is_a_400_that_lists_the_events` |
+| `Host` check skipped on `/api/*`, or `check()` dropped from `api_get_view` | `a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_right` (raw socket; cookie, `Origin`, content type and body all good, so `Host` is the only reason) |
+
 ## Open questions (for the PM)
 
 - Crate name `configurant-web` (matches `-tui`, `-gui`)? Proposed: yes.

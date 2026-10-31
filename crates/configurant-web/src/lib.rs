@@ -55,6 +55,7 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use configurant::view::Event;
 use httpant::http::header::{CONTENT_TYPE, LOCATION, SET_COOKIE};
 use httpant::http::{Method, StatusCode};
 use httpant::{Body, IntoResponse, Request, Response, RunningServer, Server};
@@ -135,6 +136,7 @@ impl Web {
             last: Mutex::new(Instant::now()),
         });
         let (home, event, css) = (shared.clone(), shared.clone(), shared.clone());
+        let (api_view, api_event) = (shared.clone(), shared.clone());
         let server = Server::new()
             .get("/", move |req: Request| {
                 let s = home.clone();
@@ -143,6 +145,14 @@ impl Web {
             .post("/event", move |req: Request| {
                 let s = event.clone();
                 async move { secure(post_event(s, req).await) }
+            })
+            .get("/api/view", move |req: Request| {
+                let s = api_view.clone();
+                async move { secure(api_get_view(s, req).await) }
+            })
+            .post("/api/event", move |req: Request| {
+                let s = api_event.clone();
+                async move { secure(api_post_event(s, req).await) }
             })
             .get("/style.css", move |req: Request| {
                 let s = css.clone();
@@ -384,4 +394,108 @@ async fn post_event(s: Arc<Shared>, req: Request) -> Response {
         *f = Some(r.error.clone());
     }
     see_other("/")
+}
+
+/// What the JSON endpoints answer with: the wizard's view, why the last event changed nothing, and how the end went.
+fn json(status: StatusCode, snap: &Snapshot) -> Response {
+    let finished = match &snap.finished {
+        Some(Ok(path)) => serde_json::json!({ "written": path.display().to_string() }),
+        Some(Err(why)) => serde_json::json!({ "failed": why }),
+        None => serde_json::Value::Null,
+    };
+    let body = serde_json::json!({
+        "view": snap.view,
+        "refused": snap.refused.as_ref().map(|r| serde_json::json!({ "key": r.key, "error": r.error })),
+        "finished": finished,
+    });
+    let mut res = Response::new(Body::from_bytes(body.to_string()));
+    *res.status_mut() = status;
+    res.headers_mut().insert(
+        CONTENT_TYPE,
+        httpant::http::HeaderValue::from_static("application/json"),
+    );
+    res
+}
+
+async fn api_get_view(s: Arc<Shared>, req: Request) -> Response {
+    if let Some(res) = check(&s, &req) {
+        return res;
+    }
+    if !has_session(&s, &req) {
+        return refuse(StatusCode::FORBIDDEN, "open the launch address first");
+    }
+    touch(&s);
+    match ask(&s, Msg::Page).await {
+        Some(snap) => json(StatusCode::OK, &snap),
+        None => refuse(StatusCode::SERVICE_UNAVAILABLE, "the wizard has stopped"),
+    }
+}
+
+/// The body is one `Event` as `configurant::view` defines it, e.g. `{"event":"set","key":"port","text":"8080"}`.
+/// A refused event answers 422 with the same body shape, so a client reads `refused.error` either way.
+async fn api_post_event(s: Arc<Shared>, req: Request) -> Response {
+    if let Some(res) = check(&s, &req) {
+        return res;
+    }
+    if !has_session(&s, &req) {
+        return refuse(StatusCode::FORBIDDEN, "open the launch address first");
+    }
+    let is_json = req
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| {
+            v.trim()
+                .to_ascii_lowercase()
+                .starts_with("application/json")
+        });
+    if !is_json {
+        return refuse(
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "send the event as application/json",
+        );
+    }
+    touch(&s);
+    let Ok(body) = req.into_body().text(MAX_POST).await else {
+        return refuse(StatusCode::PAYLOAD_TOO_LARGE, "that event is too large");
+    };
+    let event = match parse_event(&body) {
+        Ok(e) => e,
+        Err(why) => {
+            return refuse(
+                StatusCode::BAD_REQUEST,
+                &format!(
+                    "not an event: {why}; the body is JSON like {{\"event\":\"set\",\"key\":\"port\",\"text\":\"8080\"}}                      with event one of set, unset, confirm, next, back, goto"
+                ),
+            );
+        }
+    };
+    match ask(&s, |tx| Msg::Event(event, tx)).await {
+        Some(snap) if snap.refused.is_some() => json(StatusCode::UNPROCESSABLE_ENTITY, &snap),
+        Some(snap) => json(StatusCode::OK, &snap),
+        None => refuse(StatusCode::SERVICE_UNAVAILABLE, "the wizard has stopped"),
+    }
+}
+
+/// `Event` as JSON. serde's `deny_unknown_fields` does not apply to a unit variant of an internally tagged enum
+/// (`{"event":"next","extra":1}` would pass), so the field names are checked here against what each event takes.
+fn parse_event(body: &str) -> Result<Event, String> {
+    let value: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+    let object = value.as_object().ok_or("the body is not a JSON object")?;
+    let allowed: &[&str] = match object.get("event").and_then(|e| e.as_str()) {
+        Some("set") => &["event", "key", "text"],
+        Some("unset") => &["event", "key"],
+        Some("goto") => &["event", "step"],
+        Some("confirm" | "next" | "back") => &["event"],
+        Some(other) => {
+            let shown: String = other.chars().take(40).collect();
+            return Err(format!("unknown event `{shown}`"));
+        }
+        None => return Err("no `event` name".into()),
+    };
+    if let Some(extra) = object.keys().find(|k| !allowed.contains(&k.as_str())) {
+        return Err(format!("unknown field `{extra}`"));
+    }
+    // serde's own text can quote a value that was sent; the answer never echoes one.
+    serde_json::from_value(value).map_err(|_| "a field is missing or is not text".into())
 }
