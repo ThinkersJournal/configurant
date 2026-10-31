@@ -9,7 +9,7 @@ use configurant::view::{FieldView, View};
 use crate::actor::Snapshot;
 use crate::guard::esc;
 
-/// The stylesheet at `/style.css` (the page policy allows styles from this server only).
+/// The stylesheet at `style.css` under the session path (the page policy allows styles from this server only).
 pub(crate) const CSS: &str = "\
 body{font:16px/1.5 system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;color:#1b1b1b;background:#fff}\
 h1{font-size:1.5rem}nav ol{display:flex;flex-wrap:wrap;gap:.25rem 1rem;list-style:none;padding:0;margin:0 0 1.5rem}\
@@ -40,7 +40,7 @@ pub(crate) fn render(snap: &Snapshot) -> String {
         out,
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\
          <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
-         <title>{}</title><link rel=\"stylesheet\" href=\"/style.css\"></head><body><main>",
+         <title>{}</title><link rel=\"stylesheet\" href=\"style.css\"></head><body><main>",
         esc(&title)
     );
     if let Some(Ok(path)) = &snap.finished {
@@ -68,7 +68,7 @@ pub(crate) fn render(snap: &Snapshot) -> String {
         if let Some(note) = view.wizard.as_ref().and_then(|w| w.note.as_ref()) {
             let _ = write!(out, "<p class=\"note\">{}</p>", esc(note));
         }
-        out.push_str("<form method=\"post\" action=\"/event\" autocomplete=\"off\">");
+        out.push_str("<form method=\"post\" action=\"event\" autocomplete=\"off\">");
         if view.wizard.as_ref().is_some_and(|w| w.at_review) {
             review(&mut out, view);
         } else {

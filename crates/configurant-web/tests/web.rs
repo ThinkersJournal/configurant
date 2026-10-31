@@ -94,17 +94,8 @@ impl Answer {
     }
 }
 
-async fn send(
-    method: Method,
-    url: &str,
-    cookie: Option<&str>,
-    origin: Option<&str>,
-    body: &str,
-) -> Answer {
+async fn send(method: Method, url: &str, origin: Option<&str>, body: &str) -> Answer {
     let mut req = Client::new().request(method.clone(), url);
-    if let Some(c) = cookie {
-        req = req.header("cookie", format!("cw={c}"));
-    }
     if let Some(o) = origin {
         req = req.header("origin", o);
     }
@@ -133,53 +124,39 @@ fn base(web: &Web) -> String {
     format!("http://127.0.0.1:{}", web.addr().port())
 }
 
-/// Visit the launch address and return the session cookie it hands out.
+/// An address under the session path: `http://127.0.0.1:PORT/s/<sid>/<path>`.
+fn at(web: &Web, sid: &str, path: &str) -> String {
+    format!("{}/s/{sid}/{path}", base(web))
+}
+
+/// Visit the launch address and return the session segment of the path it redirects to. No cookie is set.
 async fn log_in(web: &Web) -> String {
-    let a = send(Method::GET, web.launch_url(), None, None, "").await;
+    let a = send(Method::GET, web.launch_url(), None, "").await;
     assert_eq!(a.status, 303, "{}", a.everything());
-    let set = a.header("set-cookie").expect("a cookie");
-    assert!(
-        set.contains("HttpOnly") && set.contains("SameSite=Strict"),
-        "{set}"
-    );
-    set.strip_prefix("cw=")
-        .unwrap()
-        .split(';')
-        .next()
-        .unwrap()
+    assert!(a.header("set-cookie").is_none(), "the launch set a cookie");
+    let to = a.header("location").expect("a redirect");
+    to.strip_prefix("/s/")
+        .and_then(|rest| rest.strip_suffix('/'))
+        .expect("the session path")
         .to_owned()
 }
 
-async fn page(web: &Web, cookie: &str) -> Answer {
-    send(
-        Method::GET,
-        &format!("{}/", base(web)),
-        Some(cookie),
-        None,
-        "",
-    )
-    .await
+async fn page(web: &Web, sid: &str) -> Answer {
+    send(Method::GET, &at(web, sid, ""), None, "").await
 }
 
-async fn post(web: &Web, cookie: &str, body: &str) -> Answer {
+async fn post(web: &Web, sid: &str, body: &str) -> Answer {
     let origin = base(web);
-    send(
-        Method::POST,
-        &format!("{}/event", base(web)),
-        Some(cookie),
-        Some(&origin),
-        body,
-    )
-    .await
+    send(Method::POST, &at(web, sid, "event"), Some(&origin), body).await
 }
 
 /// A request written by hand, so the `Host` header can be anything.
-fn raw(web: &Web, host: &str, cookie: &str) -> String {
+fn raw(web: &Web, host: &str, sid: &str) -> String {
     let mut s = TcpStream::connect(web.addr()).unwrap();
     s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     write!(
         s,
-        "GET / HTTP/1.1\r\nHost: {host}\r\nCookie: cw={cookie}\r\nConnection: close\r\n\r\n"
+        "GET /s/{sid}/ HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
     )
     .unwrap();
     let mut out = String::new();
@@ -203,17 +180,68 @@ async fn it_listens_on_loopback_only() {
 }
 
 #[tokio::test]
-async fn a_request_without_the_session_cookie_gets_nothing() {
+async fn a_request_outside_the_session_path_gets_nothing() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let a = send(Method::GET, &format!("{}/", base(&web)), None, None, "").await;
-    assert_eq!(a.status, 403, "{}", a.everything());
-    assert!(!a.body.contains("What do you want"));
-    let wrong = page(&web, "not-the-cookie").await;
+    let root = send(Method::GET, &format!("{}/", base(&web)), None, "").await;
+    assert_eq!(root.status, 403);
+    assert!(!root.body.contains("What do you want"));
+    let wrong = page(&web, "not-the-session").await;
     assert_eq!(wrong.status, 403);
-    // The control: the cookie from the launch address works.
-    let cookie = log_in(&web).await;
-    assert_eq!(page(&web, &cookie).await.status, 200);
+    assert!(!wrong.body.contains("What do you want"));
+    // The control: the path from the launch address works.
+    let sid = log_in(&web).await;
+    assert_eq!(page(&web, &sid).await.status, 200);
+    // A session path from an earlier run is no use against this one, even after this one's launch is used.
+    let other_dir = tmp();
+    let other = start(&other_dir.path().join("app.toml")).await;
+    let earlier = log_in(&other).await;
+    assert_ne!(earlier, sid);
+    assert_eq!(page(&web, &earlier).await.status, 403);
+    assert_eq!(page(&other, &sid).await.status, 403);
+    assert_eq!(page(&other, &earlier).await.status, 200);
+    let _ = other
+        .idle_timeout(Duration::from_millis(1))
+        .finished()
+        .await;
+    let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
+}
+
+#[tokio::test]
+async fn the_old_cookie_era_routes_are_gone() {
+    // 0.5.46 served these at the root behind a cookie; now only the session path serves anything.
+    let dir = tmp();
+    let web = start(&dir.path().join("app.toml")).await;
+    let sid = log_in(&web).await;
+    let origin = base(&web);
+    for path in ["event", "api/event"] {
+        let a = send(
+            Method::POST,
+            &format!("{}/{path}", base(&web)),
+            Some(&origin),
+            "action=next",
+        )
+        .await;
+        assert!(matches!(a.status, 403 | 404), "POST /{path}");
+    }
+    for path in ["api/view", "style.css", "event"] {
+        let a = send(Method::GET, &format!("{}/{path}", base(&web)), None, "").await;
+        assert!(matches!(a.status, 403 | 404), "GET /{path}");
+        assert!(!a.body.contains("What do you want"));
+    }
+    // The control: the same routes under the session path answer.
+    assert_eq!(
+        send(Method::GET, &at(&web, &sid, "api/view"), None, "")
+            .await
+            .status,
+        200
+    );
+    assert_eq!(
+        send(Method::GET, &at(&web, &sid, "style.css"), None, "")
+            .await
+            .status,
+        200
+    );
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }
 
@@ -221,31 +249,24 @@ async fn a_request_without_the_session_cookie_gets_nothing() {
 async fn the_launch_address_works_once_and_a_wrong_token_never() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let wrong = send(
-        Method::GET,
-        &format!("{}/?t=0000", base(&web)),
-        None,
-        None,
-        "",
-    )
-    .await;
+    let wrong = send(Method::GET, &format!("{}/?t=0000", base(&web)), None, "").await;
     assert_eq!(wrong.status, 403);
     assert!(wrong.header("set-cookie").is_none());
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     // The same address a second time: refused, so a leaked URL in a history cannot log anyone in.
-    let again = send(Method::GET, web.launch_url(), None, None, "").await;
+    let again = send(Method::GET, web.launch_url(), None, "").await;
     assert_eq!(again.status, 403);
     assert!(again.header("set-cookie").is_none());
-    assert_eq!(page(&web, &cookie).await.status, 200);
+    assert_eq!(page(&web, &sid).await.status, 200);
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }
 
 // A multi-thread runtime: `raw` blocks its thread on a socket while the server answers from another.
 #[tokio::test(flavor = "multi_thread")]
-async fn a_foreign_host_is_refused_even_with_the_cookie() {
+async fn a_foreign_host_is_refused_even_with_the_session_path() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     let port = web.addr().port();
     // Failure messages carry a case number only, never the response (it holds request-derived text).
     for (case, host) in [
@@ -256,7 +277,7 @@ async fn a_foreign_host_is_refused_even_with_the_cookie() {
     .iter()
     .enumerate()
     {
-        let out = raw(&web, host, &cookie);
+        let out = raw(&web, host, &sid);
         let refused = out.starts_with("HTTP/1.1 403");
         assert!(refused, "foreign host case {case} was not refused");
         let leaked = out.contains("What do you want");
@@ -267,7 +288,7 @@ async fn a_foreign_host_is_refused_even_with_the_cookie() {
         .iter()
         .enumerate()
     {
-        let out = raw(&web, host, &cookie);
+        let out = raw(&web, host, &sid);
         let served = out.starts_with("HTTP/1.1 200");
         assert!(served, "control host case {case} was not served");
     }
@@ -279,8 +300,8 @@ async fn a_post_from_another_origin_or_with_none_is_refused_and_changes_nothing(
     let dir = tmp();
     let file = dir.path().join("app.toml");
     let web = start(&file).await;
-    let cookie = log_in(&web).await;
-    let url = format!("{}/event", base(&web));
+    let sid = log_in(&web).await;
+    let url = at(&web, &sid, "event");
     let body = "v.mode=server&action=next";
     for origin in [
         None,
@@ -288,11 +309,11 @@ async fn a_post_from_another_origin_or_with_none_is_refused_and_changes_nothing(
         Some("http://127.0.0.1:1"),
         Some("null"),
     ] {
-        let a = send(Method::POST, &url, Some(&cookie), origin, body).await;
+        let a = send(Method::POST, &url, origin, body).await;
         assert_eq!(a.status, 403, "{origin:?}: {}", a.everything());
     }
     // Nothing moved: still on the first step, still "client".
-    let p = page(&web, &cookie).await;
+    let p = page(&web, &sid).await;
     assert!(p.body.contains("What do you want to run?"), "{}", p.body);
     assert!(
         p.body.contains("<option value=\"client\" selected>"),
@@ -300,9 +321,9 @@ async fn a_post_from_another_origin_or_with_none_is_refused_and_changes_nothing(
         p.body
     );
     // The control: the same post from this page's own origin is taken.
-    assert_eq!(post(&web, &cookie, body).await.status, 303);
+    assert_eq!(post(&web, &sid, body).await.status, 303);
     assert!(
-        page(&web, &cookie)
+        page(&web, &sid)
             .await
             .body
             .contains("Where should it listen?")
@@ -311,23 +332,43 @@ async fn a_post_from_another_origin_or_with_none_is_refused_and_changes_nothing(
 }
 
 #[tokio::test]
+async fn the_pages_link_relative_so_every_request_stays_under_the_session_path() {
+    // A link to `/event` or `/style.css` would leave the session path (and miss the routes).
+    let dir = tmp();
+    let web = start(&dir.path().join("app.toml")).await;
+    let sid = log_in(&web).await;
+    let first = page(&web, &sid).await;
+    assert!(first.body.contains("action=\"event\""));
+    assert!(first.body.contains("href=\"style.css\""));
+    for bad in ["=\"/", "='/"] {
+        assert!(!first.body.contains(bad), "an absolute link: {bad}");
+    }
+    // Resolved against the page address, the form and the stylesheet are the session routes, and they answer.
+    assert_eq!(
+        send(Method::GET, &at(&web, &sid, "style.css"), None, "")
+            .await
+            .status,
+        200
+    );
+    // The end page, which a post answers directly, links the stylesheet the same way.
+    post(&web, &sid, "v.mode=server&action=next").await;
+    post(&web, &sid, "v.server.port=9000&action=next").await;
+    let end = post(&web, &sid, "action=confirm").await;
+    assert_eq!(end.status, 200);
+    assert!(end.body.contains("href=\"style.css\"") && !end.body.contains("=\"/"));
+    let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
+}
+
+#[tokio::test]
 async fn every_response_carries_the_policy_headers() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
-    let url = base(&web);
+    let sid = log_in(&web).await;
     let answers = [
-        page(&web, &cookie).await,
-        send(
-            Method::GET,
-            &format!("{url}/style.css"),
-            Some(&cookie),
-            None,
-            "",
-        )
-        .await,
-        send(Method::GET, &format!("{url}/"), None, None, "").await, // a refusal
-        post(&web, &cookie, "action=next").await,
+        page(&web, &sid).await,
+        send(Method::GET, &at(&web, &sid, "style.css"), None, "").await,
+        send(Method::GET, &format!("{}/", base(&web)), None, "").await, // a refusal
+        post(&web, &sid, "action=next").await,
     ];
     for a in &answers {
         let csp = a.header("content-security-policy").unwrap_or_default();
@@ -350,6 +391,7 @@ async fn every_response_carries_the_policy_headers() {
             a.header("access-control-allow-origin").is_none(),
             "no CORS, ever"
         );
+        assert!(a.header("set-cookie").is_none(), "no cookie, ever");
     }
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }
@@ -358,8 +400,8 @@ async fn every_response_carries_the_policy_headers() {
 async fn schema_text_is_escaped_in_the_page() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
-    let p = page(&web, &cookie).await;
+    let sid = log_in(&web).await;
+    let p = page(&web, &sid).await;
     assert!(!p.body.contains("<script>"), "{}", p.body);
     assert!(
         p.body
@@ -368,8 +410,8 @@ async fn schema_text_is_escaped_in_the_page() {
         p.body
     );
     // A value is escaped too: a refused post echoes what was typed, as text.
-    post(&web, &cookie, "v.mode=%3Cb%3Ex&action=next").await;
-    let q = page(&web, &cookie).await;
+    post(&web, &sid, "v.mode=%3Cb%3Ex&action=next").await;
+    let q = page(&web, &sid).await;
     assert!(!q.body.contains("<b>x"), "{}", q.body);
     assert!(q.body.contains("role=\"alert\""), "{}", q.body);
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
@@ -381,32 +423,30 @@ async fn a_walk_to_the_review_and_a_confirm_writes_the_file_once_with_a_backup()
     let file = dir.path().join("app.toml");
     std::fs::write(&file, "# keep me\nother = 1\n").unwrap();
     let web = start(&file).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     assert!(
-        page(&web, &cookie)
+        page(&web, &sid)
             .await
             .body
             .contains("What do you want to run?")
     );
     assert_eq!(
-        post(&web, &cookie, "v.mode=server&action=next")
-            .await
-            .status,
+        post(&web, &sid, "v.mode=server&action=next").await.status,
         303
     );
-    let net = page(&web, &cookie).await;
+    let net = page(&web, &sid).await;
     assert!(
         net.body.contains("Where should it listen?") && net.body.contains("value=\"8080\""),
         "{}",
         net.body
     );
     assert_eq!(
-        post(&web, &cookie, "v.server.port=9000&action=next")
+        post(&web, &sid, "v.server.port=9000&action=next")
             .await
             .status,
         303
     );
-    let review = page(&web, &cookie).await;
+    let review = page(&web, &sid).await;
     assert!(
         review.body.contains("<h1>Review</h1>") && review.body.contains("server.port"),
         "{}",
@@ -417,7 +457,7 @@ async fn a_walk_to_the_review_and_a_confirm_writes_the_file_once_with_a_backup()
         std::fs::read_to_string(&file).unwrap(),
         "# keep me\nother = 1\n"
     );
-    let done = post(&web, &cookie, "action=confirm").await;
+    let done = post(&web, &sid, "action=confirm").await;
     assert_eq!(done.status, 200);
     assert!(done.body.contains("Saved"), "{}", done.body);
     let text = std::fs::read_to_string(&file).unwrap();
@@ -433,7 +473,7 @@ async fn a_walk_to_the_review_and_a_confirm_writes_the_file_once_with_a_backup()
         "# keep me\nother = 1\n"
     );
     // A second confirm writes nothing more.
-    post(&web, &cookie, "action=confirm").await;
+    post(&web, &sid, "action=confirm").await;
     assert_eq!(std::fs::read_to_string(&file).unwrap(), text);
     assert_eq!(web.finished().await.unwrap(), Outcome::Written(file));
 }
@@ -442,18 +482,18 @@ async fn a_walk_to_the_review_and_a_confirm_writes_the_file_once_with_a_backup()
 async fn a_bad_value_is_refused_with_the_librarys_message_and_the_step_stays() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
-    post(&web, &cookie, "v.mode=server&action=next").await;
-    let r = post(&web, &cookie, "v.server.port=99999&action=next").await;
+    let sid = log_in(&web).await;
+    post(&web, &sid, "v.mode=server&action=next").await;
+    let r = post(&web, &sid, "v.server.port=99999&action=next").await;
     assert_eq!(r.status, 303);
-    let p = page(&web, &cookie).await;
+    let p = page(&web, &sid).await;
     assert!(
         p.body.contains("role=\"alert\"") && p.body.contains("Where should it listen?"),
         "{}",
         p.body
     );
     // The message is shown once.
-    assert!(!page(&web, &cookie).await.body.contains("role=\"alert\""));
+    assert!(!page(&web, &sid).await.body.contains("role=\"alert\""));
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }
 
@@ -461,9 +501,9 @@ async fn a_bad_value_is_refused_with_the_librarys_message_and_the_step_stays() {
 async fn an_unknown_action_is_a_400_that_lists_the_choices() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     for body in ["action=nxt", "v.mode=server", ""] {
-        let a = post(&web, &cookie, body).await;
+        let a = post(&web, &sid, body).await;
         assert_eq!(a.status, 400, "{body}");
         assert!(a.body.contains("next, back, confirm"), "{}", a.body);
         assert!(!a.body.contains("nxt"), "the bad word is not echoed");
@@ -475,30 +515,21 @@ async fn an_unknown_action_is_a_400_that_lists_the_choices() {
 async fn a_secret_is_never_in_any_response_and_has_no_text_box() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     let mut seen = Vec::new();
-    seen.push(page(&web, &cookie).await);
-    post(&web, &cookie, "v.mode=server&action=next").await;
-    let net = page(&web, &cookie).await;
+    seen.push(page(&web, &sid).await);
+    post(&web, &sid, "v.mode=server&action=next").await;
+    let net = page(&web, &sid).await;
     assert!(net.body.contains("cannot be typed here"), "{}", net.body);
     assert!(!net.body.contains("v.api.token"), "no control for a secret");
     seen.push(net);
     // A hand-made post for the secret is refused and echoes nothing of what it carried.
     let forged = "tok-posted-canary";
-    seen.push(post(&web, &cookie, &format!("v.api.token={forged}&action=next")).await);
-    seen.push(page(&web, &cookie).await);
-    post(&web, &cookie, "v.server.port=9000&action=next").await;
-    seen.push(page(&web, &cookie).await); // the review
-    seen.push(
-        send(
-            Method::GET,
-            &format!("{}/style.css", base(&web)),
-            Some(&cookie),
-            None,
-            "",
-        )
-        .await,
-    );
+    seen.push(post(&web, &sid, &format!("v.api.token={forged}&action=next")).await);
+    seen.push(page(&web, &sid).await);
+    post(&web, &sid, "v.server.port=9000&action=next").await;
+    seen.push(page(&web, &sid).await); // the review
+    seen.push(send(Method::GET, &at(&web, &sid, "style.css"), None, "").await);
     for a in &seen {
         let all = a.everything();
         assert!(!all.contains(CANARY), "the secret leaked: {all}");
@@ -517,14 +548,13 @@ enum Posted {
 /// A post written by hand. A server that refuses a body it has not finished reading may close the socket while
 /// the client is still writing, and Windows then reports a reset or abort; on that path there is no response to
 /// read, so a hang-up (and only those error kinds) counts as the refusal. Any other error panics.
-fn raw_post(web: &Web, cookie: &str, body: &str) -> Posted {
+fn raw_post(web: &Web, sid: &str, body: &str) -> Posted {
     use std::io::ErrorKind::{BrokenPipe, ConnectionAborted, ConnectionReset};
     let origin = base(web);
     let port = web.addr().port();
     let head = [
-        "POST /event HTTP/1.1".to_owned(),
+        format!("POST /s/{sid}/event HTTP/1.1"),
         format!("Host: 127.0.0.1:{port}"),
-        format!("Cookie: cw={cookie}"),
         format!("Origin: {origin}"),
         "Content-Type: application/x-www-form-urlencoded".to_owned(),
         format!("Content-Length: {}", body.len()),
@@ -565,19 +595,19 @@ fn raw_post(web: &Web, cookie: &str, body: &str) -> Posted {
 async fn a_post_body_over_the_limit_is_refused() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     // Over the 64 KiB limit: refused with 413, or the server hung up before the client finished writing.
     let big = format!("v.mode={}&action=next", "a".repeat(100 * 1024));
-    let refused = match raw_post(&web, &cookie, &big) {
+    let refused = match raw_post(&web, &sid, &big) {
         Posted::HungUp => true,
         Posted::Status(line) => line.starts_with("HTTP/1.1 413"),
     };
     assert!(refused, "an over-limit body was not refused");
     // It changed nothing: still on the first step.
-    let still = page(&web, &cookie).await;
+    let still = page(&web, &sid).await;
     assert!(still.body.contains("What do you want to run?"));
     // The control: a normal body on the same server is accepted (a redirect to the next page).
-    let ok = raw_post(&web, &cookie, "v.mode=server&action=next");
+    let ok = raw_post(&web, &sid, "v.mode=server&action=next");
     assert_eq!(ok, Posted::Status("HTTP/1.1 303 See Other".to_owned()));
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }

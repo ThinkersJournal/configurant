@@ -90,9 +90,12 @@ wizard can write a file, so each of these is a rule with a known-bad test:
 1. **Bind loopback only**, never `0.0.0.0`. The code binds `127.0.0.1:0` and has no parameter for another address, so
    there is nothing to refuse; the test checks that `Web::addr()` is a loopback address. Random port from the operating
    system, printed in the launch URL.
-2. **A launch token.** The launch URL carries a random 128-bit token (`http://127.0.0.1:PORT/?t=...`); the first
-   request exchanges it for a cookie (`HttpOnly; SameSite=Strict; Path=/`) and redirects to a URL without it. Every other request without the
-   cookie, or with a wrong token, is `403`, constant-time compared. A page on another origin cannot learn the token.
+2. **A launch token and a session path, no cookie.** The launch URL carries a random 128-bit token
+   (`http://127.0.0.1:PORT/?t=...`); the first request exchanges it, once, for a second random 128-bit value and
+   redirects to `/s/<session>/`. Every page and endpoint lives under that path (`/s/<session>/`, `event`, `style.css`,
+   `api/view`, `api/event`); a wrong segment is `403` (constant-time compared), a path outside it is `404`, and the launch
+   token is `403` the second time. Nothing sets a cookie. A page on another origin, and a server on another port, cannot
+   learn the segment (see "Known limit" below).
 3. **`Host` check** (DNS rebinding): only `127.0.0.1:PORT` and `localhost:PORT` are accepted; any other `Host` is `403`.
 4. **`Origin` check on every `POST`** (cross-site request forgery): a missing or different `Origin` is `403`. No CORS
    headers are ever sent.
@@ -141,18 +144,27 @@ HTTPAnt ROADMAP row 10 ("read ConfigurAnt's API before wiring settings") means H
 `configurant` for its own settings. That is not a cycle: `configurant-web` depends on `httpant` and `configurant`;
 the `configurant` core depends on neither.
 
-## Known limit: the cookie is not scoped to a port
+## Known limit: the session address is in the browser history
 
-Cookies are scoped by host, not by port, and `SameSite` compares sites without the port. The session cookie `cw` is set for
-`127.0.0.1`, so a browser sends it to **any** server on `127.0.0.1`, whatever its port. If a hostile program is already
-listening on another port of this machine and the person's browser is made to visit it while the wizard is open, that
-program receives the cookie in the request and can replay it to the wizard's port from outside the browser, with an
-`Origin` it writes itself, and so edit and confirm. (From inside a browser the replay is stopped: a page on another port has
-a different `Origin`, so the post is refused, and the `HttpOnly` cookie cannot be read by script.) This is a reasoned
-limit, not something a test demonstrates. It needs a hostile listener already running on the machine plus a browser visit
-to it, which is why slice (a) ships with it written down. The mitigation is ROADMAP row 32: drop the cookie after the
-first load and carry the session in a per-page hidden field bound to the page (or a path token), so no cookie is left for
-another port to receive.
+**Why there is no cookie (ROADMAP row 32, 0.6.0).** 0.5.41 to 0.5.46 kept the session in a cookie `cw`. Cookies are scoped
+by host, not by port, so a browser sent it to **any** server on `127.0.0.1`, whatever its port: a hostile program already
+listening on another local port, visited by the person's browser while the wizard was open, would have received it and could
+replay it from outside the browser with an `Origin` it wrote itself. That was a reasoned limit, not something a test
+demonstrated. The session now lives in the address (`/s/<session>/`). A browser sends the path only to the origin it
+belongs to, host and port, so a server on another port never receives it.
+
+**What is left, stated plainly.**
+
+- The session address is in the browser history and address bar for as long as they keep it. Anyone who can read the
+  person's browser profile, or look at the screen, can read it; they are already the same user on the same machine. It is
+  only good for this run: the server stops at the confirm or after the idle timeout, and a second run has a new one.
+- It does not leave through a `Referer` (every response says `Referrer-Policy: no-referrer`), through a link (the pages link
+  nothing off-site and nothing outside the session path), or through a script or third-party content (the policy is
+  `default-src 'none'`, no script). A browser extension with history access could read it; so could software the person
+  runs as themselves.
+- The address is not a login: a request still needs a `Host` of this server, and a post needs an `Origin` of this server.
+- Two things are reasoned, not tested: that a browser never sends one origin's path to another port, and that a hostile
+  listener on another port cannot make the page reveal the address.
 
 ## WebHostAnt, the other direction
 
@@ -180,9 +192,12 @@ confirm" callback, and knows nothing of files.
 
 | Mutant (the check removed or weakened) | Test that fails |
 |---|---|
-| `Host` check always true | `a_foreign_host_is_refused_even_with_the_cookie` |
+| `Host` check always true | `a_foreign_host_is_refused_even_with_the_session_path` |
 | `Origin` check always true / not run on POST | `a_post_from_another_origin_or_with_none_is_refused_and_changes_nothing` |
-| session cookie check always true | `a_request_without_the_session_cookie_gets_nothing` |
+| session segment not compared (any non-empty value passes), since 0.6.0 | `a_request_outside_the_session_path_gets_nothing`, `a_json_event_is_refused_without_the_session_the_origin_or_the_content_type` |
+| the launch sets a cookie again, since 0.6.0 | every test that logs in (`log_in` asserts no `Set-Cookie`), `every_response_carries_the_policy_headers` |
+| a page links `/event` instead of `event`, since 0.6.0 | `the_pages_link_relative_so_every_request_stays_under_the_session_path` |
+| a route served outside the session path, since 0.6.0 | `the_old_cookie_era_routes_are_gone` |
 | launch token not consumed | `the_launch_address_works_once_and_a_wrong_token_never` |
 | `ct_eq` always true | `guard::tests::compare_needs_the_same_length_and_text` |
 | `<` not escaped | `guard::tests::escaping_covers_the_five_characters` |
@@ -195,16 +210,17 @@ confirm" callback, and knows nothing of files.
 
 ## The JSON endpoints (slice b)
 
-Same server, same cookie, same `Host` and `Origin` checks, same policy headers, same actor thread; no second
-implementation of any rule.
+Same server, same session path, same `Host` and `Origin` checks, same policy headers, same actor thread; no second
+implementation of any rule. Every route below is under `/s/<session>/` (since 0.6.0; 0.5.42 to 0.5.46 served them at the
+root behind a cookie). A client gets the session segment from the `Location` of the launch address's `303`.
 
-- `GET /api/view` answers `200` with `{"view": View, "refused": null, "finished": null}`. `View` is the
+- `GET /s/<session>/api/view` answers `200` with `{"view": View, "refused": null, "finished": null}`. `View` is the
   library's own `Serialize` type, so a secret is already redacted in it.
-- `POST /api/event` takes one `Event` as `view.rs` defines it (`{"event":"set","key":"server.port","text":"9000"}`,
+- `POST /s/<session>/api/event` takes one `Event` as `view.rs` defines it (`{"event":"set","key":"server.port","text":"9000"}`,
   `unset`, `next`, `back`, `goto` with `step`, `confirm`) as `application/json`, and answers with the same body shape.
   A `confirm` writes the file with `save_with_backup`, exactly as the form does, and `finished` then reads
   `{"written": "<path>"}` or `{"failed": "<why>"}`.
-- Statuses: `403` for a missing or wrong cookie, a missing or foreign `Origin`, or a foreign `Host`; `415` when the
+- Statuses: `403` for a wrong session segment, a missing or foreign `Origin`, or a foreign `Host`; `415` when the
   content type is not `application/json` (a cross-site form cannot send it); `413` over 64 KiB; `400` for a body that is
   not an event, with the list of events and never a quoted value; `422` when the library refused the event, with
   `refused.error` (its own message, suggestion included) and the view unchanged; `200` otherwise.
@@ -215,10 +231,10 @@ implementation of any rule.
 
 | Mutant | Test that fails |
 |---|---|
-| content-type check off | `a_json_event_is_refused_without_the_cookie_the_origin_or_the_content_type` |
+| content-type check off | `a_json_event_is_refused_without_the_session_the_origin_or_the_content_type` |
 | a refusal answers `200` | `a_refused_json_event_is_a_422_with_the_reason_and_nothing_moves` (and two more) |
 | extra field allowed | `a_bad_json_event_is_a_400_that_lists_the_events` |
-| `Host` check skipped on `/api/*`, or `check()` dropped from `api_get_view` | `a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_right` (raw socket; cookie, `Origin`, content type and body all good, so `Host` is the only reason) |
+| `Host` check skipped on `/api/*`, or `check()` dropped from `api_get_view` | `a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_right` (raw socket; session path, `Origin`, content type and body all good, so `Host` is the only reason) |
 
 ## Open questions (for the PM)
 

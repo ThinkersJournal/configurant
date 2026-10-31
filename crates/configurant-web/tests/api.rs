@@ -120,11 +120,16 @@ fn base(web: &Web) -> String {
     format!("http://127.0.0.1:{}", web.addr().port())
 }
 
+/// An address under the session path: `http://127.0.0.1:PORT/s/<sid>/<path>`.
+fn at(web: &Web, sid: &str, path: &str) -> String {
+    format!("{}/s/{sid}/{path}", base(web))
+}
+
 fn tmp() -> tempfile::TempDir {
     tempfile::tempdir().unwrap()
 }
 
-/// Visit the launch address and return the session cookie it hands out.
+/// Visit the launch address and return the session segment of the path it redirects to. No sid is set.
 async fn log_in(web: &Web) -> String {
     let a = finish!(
         Client::new()
@@ -134,51 +139,44 @@ async fn log_in(web: &Web) -> String {
             .unwrap()
     );
     assert_eq!(a.status, 303);
-    a.header("set-cookie")
-        .expect("a cookie")
-        .strip_prefix("cw=")
-        .unwrap()
-        .split(';')
-        .next()
-        .unwrap()
+    assert!(a.header("set-cookie").is_none(), "the launch set a cookie");
+    a.header("location")
+        .expect("a redirect")
+        .strip_prefix("/s/")
+        .and_then(|rest| rest.strip_suffix('/'))
+        .expect("the session path")
         .to_owned()
 }
 
-async fn get(web: &Web, path: &str, cookie: Option<&str>) -> Answer {
-    let mut req = Client::new().request(Method::GET, format!("{}{path}", base(web)));
-    if let Some(c) = cookie {
-        req = req.header("cookie", format!("cw={c}"));
-    }
+async fn get(web: &Web, sid: &str, path: &str) -> Answer {
+    let req = Client::new().request(Method::GET, at(web, sid, path));
     finish!(req.send().await.unwrap())
 }
 
 async fn post(
     web: &Web,
+    sid: &str,
     path: &str,
-    cookie: Option<&str>,
     origin: Option<&str>,
     ctype: &str,
     body: &str,
 ) -> Answer {
     let mut req = Client::new()
-        .request(Method::POST, format!("{}{path}", base(web)))
+        .request(Method::POST, at(web, sid, path))
         .header("content-type", ctype)
         .body(body.to_owned());
-    if let Some(c) = cookie {
-        req = req.header("cookie", format!("cw={c}"));
-    }
     if let Some(o) = origin {
         req = req.header("origin", o);
     }
     finish!(req.send().await.unwrap())
 }
 
-async fn event(web: &Web, cookie: &str, body: &str) -> Answer {
+async fn event(web: &Web, sid: &str, body: &str) -> Answer {
     let origin = base(web);
     post(
         web,
-        "/api/event",
-        Some(cookie),
+        sid,
+        "api/event",
         Some(&origin),
         "application/json",
         body,
@@ -186,12 +184,12 @@ async fn event(web: &Web, cookie: &str, body: &str) -> Answer {
     .await
 }
 
-async fn form(web: &Web, cookie: &str, body: &str) -> Answer {
+async fn form(web: &Web, sid: &str, body: &str) -> Answer {
     let origin = base(web);
     post(
         web,
-        "/event",
-        Some(cookie),
+        sid,
+        "event",
         Some(&origin),
         "application/x-www-form-urlencoded",
         body,
@@ -209,19 +207,19 @@ async fn the_json_walk_writes_the_same_file_as_the_form_walk() {
         std::fs::write(f, "# keep me\nother = 1\n").unwrap();
     }
     let web = start(&form_file).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     for body in [
         "v.mode=server&action=next",
         "v.server.port=9000&action=next",
         "action=confirm",
     ] {
-        form(&web, &cookie, body).await;
+        form(&web, &sid, body).await;
     }
     assert!(matches!(web.finished().await.unwrap(), Outcome::Written(_)));
 
     let web = start(&json_file).await;
-    let cookie = log_in(&web).await;
-    let first = get(&web, "/api/view", Some(&cookie)).await;
+    let sid = log_in(&web).await;
+    let first = get(&web, &sid, "api/view").await;
     assert_eq!(first.status, 200);
     assert!(first.json()["view"]["wizard"].is_object());
     for body in [
@@ -230,7 +228,7 @@ async fn the_json_walk_writes_the_same_file_as_the_form_walk() {
         r#"{"event":"set","key":"server.port","text":"9000"}"#,
         r#"{"event":"next"}"#,
     ] {
-        let a = event(&web, &cookie, body).await;
+        let a = event(&web, &sid, body).await;
         assert_eq!(a.status, 200, "an event step failed");
         assert!(a.json()["finished"].is_null());
     }
@@ -239,7 +237,7 @@ async fn the_json_walk_writes_the_same_file_as_the_form_walk() {
         std::fs::read_to_string(&json_file).unwrap(),
         "# keep me\nother = 1\n"
     );
-    let done = event(&web, &cookie, r#"{"event":"confirm"}"#).await;
+    let done = event(&web, &sid, r#"{"event":"confirm"}"#).await;
     assert_eq!(done.status, 200);
     assert!(done.json()["finished"]["written"].is_string());
     assert!(matches!(web.finished().await.unwrap(), Outcome::Written(_)));
@@ -253,45 +251,40 @@ async fn the_json_walk_writes_the_same_file_as_the_form_walk() {
 }
 
 #[tokio::test]
-async fn a_json_event_is_refused_without_the_cookie_the_origin_or_the_content_type() {
+async fn a_json_event_is_refused_without_the_session_the_origin_or_the_content_type() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     let origin = base(&web);
     let body = r#"{"event":"set","key":"mode","text":"server"}"#;
     let json = "application/json";
+    let ok = sid.as_str();
     let cases = [
-        (None, Some(origin.as_str()), json, 403),
-        (Some("wrong"), Some(origin.as_str()), json, 403),
-        (Some(cookie.as_str()), None, json, 403),
-        (Some(cookie.as_str()), Some("http://evil.test"), json, 403),
+        ("wrong", Some(origin.as_str()), json, 403),
+        (ok, None, json, 403),
+        (ok, Some("http://evil.test"), json, 403),
+        (ok, Some(origin.as_str()), "text/plain", 415),
         (
-            Some(cookie.as_str()),
-            Some(origin.as_str()),
-            "text/plain",
-            415,
-        ),
-        (
-            Some(cookie.as_str()),
+            ok,
             Some(origin.as_str()),
             "application/x-www-form-urlencoded",
             415,
         ),
     ];
-    for (n, (c, o, t, want)) in cases.into_iter().enumerate() {
-        let a = post(&web, "/api/event", c, o, t, body).await;
+    for (n, (id, o, t, want)) in cases.into_iter().enumerate() {
+        let a = post(&web, id, "api/event", o, t, body).await;
         assert_eq!(a.status, want, "case {n}");
     }
-    assert_eq!(get(&web, "/api/view", None).await.status, 403);
+    assert_eq!(get(&web, "wrong", "api/view").await.status, 403);
     // Nothing moved; the control: the same event with everything right is accepted.
-    let v = get(&web, "/api/view", Some(&cookie)).await;
+    let v = get(&web, &sid, "api/view").await;
     assert_eq!(v.json()["view"]["wizard"]["current"], "mode");
     assert!(
         v.json()["view"]["review"]["changes"]
             .as_array()
             .is_some_and(Vec::is_empty)
     );
-    assert_eq!(event(&web, &cookie, body).await.status, 200);
+    assert_eq!(event(&web, &sid, body).await.status, 200);
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }
 
@@ -299,7 +292,7 @@ async fn a_json_event_is_refused_without_the_cookie_the_origin_or_the_content_ty
 async fn a_bad_json_event_is_a_400_that_lists_the_events() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     for (n, body) in [
         "not json",
         r#"{"event":"explode"}"#,
@@ -309,7 +302,7 @@ async fn a_bad_json_event_is_a_400_that_lists_the_events() {
     .into_iter()
     .enumerate()
     {
-        let a = event(&web, &cookie, body).await;
+        let a = event(&web, &sid, body).await;
         assert_eq!(a.status, 400, "case {n}");
         let listed = a.body.contains("set, unset, confirm, next, back, goto");
         assert!(listed, "case {n} gave no suggestion");
@@ -321,18 +314,18 @@ async fn a_bad_json_event_is_a_400_that_lists_the_events() {
 async fn a_refused_json_event_is_a_422_with_the_reason_and_nothing_moves() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     let bad = r#"{"event":"set","key":"server.port","text":"99999"}"#;
-    let a = event(&web, &cookie, bad).await;
+    let a = event(&web, &sid, bad).await;
     assert_eq!(a.status, 422);
     assert_eq!(a.json()["refused"]["key"], "server.port");
     let said = a.json()["refused"]["error"]
         .as_str()
         .is_some_and(|e| !e.is_empty());
     assert!(said, "no reason given");
-    let unknown = event(&web, &cookie, r#"{"event":"set","key":"nope","text":"1"}"#).await;
+    let unknown = event(&web, &sid, r#"{"event":"set","key":"nope","text":"1"}"#).await;
     assert_eq!(unknown.status, 422);
-    let v = get(&web, "/api/view", Some(&cookie)).await.json();
+    let v = get(&web, &sid, "api/view").await.json();
     assert_eq!(v["view"]["wizard"]["current"], "mode");
     let staged = v["view"]["review"]["changes"]
         .as_array()
@@ -346,17 +339,17 @@ async fn a_secret_is_never_in_a_json_answer_and_cannot_be_set_by_json() {
     let dir = tmp();
     let file = dir.path().join("app.toml");
     let web = start(&file).await;
-    let cookie = log_in(&web).await;
-    let mut seen = vec![get(&web, "/api/view", Some(&cookie)).await];
+    let sid = log_in(&web).await;
+    let mut seen = vec![get(&web, &sid, "api/view").await];
     for body in [
         r#"{"event":"set","key":"api.token","text":"typed-by-hand-9"}"#,
         r#"{"event":"set","key":"mode","text":"server"}"#,
         r#"{"event":"next"}"#,
         r#"{"event":"next"}"#,
     ] {
-        seen.push(event(&web, &cookie, body).await);
+        seen.push(event(&web, &sid, body).await);
     }
-    seen.push(get(&web, "/api/view", Some(&cookie)).await);
+    seen.push(get(&web, &sid, "api/view").await);
     assert_eq!(seen[1].status, 422, "a secret was settable by JSON");
     for (n, a) in seen.iter().enumerate() {
         let all = a.everything();
@@ -382,18 +375,18 @@ async fn a_secret_is_never_in_a_json_answer_and_cannot_be_set_by_json() {
 async fn a_json_event_after_the_end_is_refused() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     for body in [
         r#"{"event":"set","key":"mode","text":"server"}"#,
         r#"{"event":"next"}"#,
         r#"{"event":"next"}"#,
         r#"{"event":"confirm"}"#,
     ] {
-        event(&web, &cookie, body).await;
+        event(&web, &sid, body).await;
     }
     let again = event(
         &web,
-        &cookie,
+        &sid,
         r#"{"event":"set","key":"mode","text":"client"}"#,
     )
     .await;
@@ -405,17 +398,16 @@ async fn a_json_event_after_the_end_is_refused() {
     assert!(matches!(web.finished().await.unwrap(), Outcome::Written(_)));
 }
 
-/// A JSON request written by hand, so the `Host` header can be anything. The cookie, `Origin`, content type and
+/// A JSON request written by hand, so the `Host` header can be anything. The sid, `Origin`, content type and
 /// body are all good, so `Host` is the only thing that can make it fail.
-fn raw_api(web: &Web, method: &str, path: &str, host: &str, cookie: &str) -> String {
+fn raw_api(web: &Web, method: &str, path: &str, host: &str, sid: &str) -> String {
     let body = r#"{"event":"set","key":"mode","text":"server"}"#;
     let origin = base(web);
     let mut s = TcpStream::connect(web.addr()).unwrap();
     s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     let head = [
-        format!("{method} {path} HTTP/1.1"),
+        format!("{method} /s/{sid}/{path} HTTP/1.1"),
         format!("Host: {host}"),
-        format!("Cookie: cw={cookie}"),
         format!("Origin: {origin}"),
         "Content-Type: application/json".to_owned(),
         format!("Content-Length: {}", body.len()),
@@ -435,9 +427,9 @@ fn raw_api(web: &Web, method: &str, path: &str, host: &str, cookie: &str) -> Str
 async fn a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_right() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
-    let cookie = log_in(&web).await;
+    let sid = log_in(&web).await;
     let port = web.addr().port();
-    let routes = [("GET", "/api/view"), ("POST", "/api/event")];
+    let routes = [("GET", "api/view"), ("POST", "api/event")];
     let foreign = [
         "evil.test".to_owned(),
         format!("evil.test:{port}"),
@@ -445,7 +437,7 @@ async fn a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_
     ];
     for (method, path) in routes {
         for (case, host) in foreign.iter().enumerate() {
-            let out = raw_api(&web, method, path, host, &cookie);
+            let out = raw_api(&web, method, path, host, &sid);
             let refused = out.starts_with("HTTP/1.1 403");
             assert!(
                 refused,
@@ -459,7 +451,7 @@ async fn a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_
         }
         // The controls: both names a browser uses are served.
         for host in [format!("127.0.0.1:{port}"), format!("localhost:{port}")] {
-            let out = raw_api(&web, method, path, &host, &cookie);
+            let out = raw_api(&web, method, path, &host, &sid);
             let served = out.starts_with("HTTP/1.1 200");
             assert!(served, "{method} {path}: control host was not served");
         }
