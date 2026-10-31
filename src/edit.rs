@@ -10,6 +10,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::path::{Path, PathBuf};
 
 use toml_edit::{Array, DocumentMut, Item, Table, TableLike, Value as EditValue};
 
@@ -347,6 +348,23 @@ pub enum EditError {
     Parse(String),
     #[error("`{0}` cannot be set: part of its path is not a table in the file")]
     NotATable(String),
+}
+
+/// Write `text` over `file`, saving `existing` (the file's current text) to `<file>.bak` first when the file
+/// exists. A backup that is already there is never overwritten: the call is refused and `file` is untouched. The
+/// one save function every front end shares; the error is a sentence for the person.
+pub fn save_with_backup(file: &Path, existing: &str, text: &str) -> Result<(), String> {
+    if file.exists() {
+        let mut bak = file.to_path_buf().into_os_string();
+        bak.push(".bak");
+        let bak = PathBuf::from(bak);
+        if bak.exists() {
+            return Err(format!("{} exists; move it away first", bak.display()));
+        }
+        std::fs::write(&bak, existing)
+            .map_err(|e| format!("cannot write {}: {e}", bak.display()))?;
+    }
+    std::fs::write(file, text).map_err(|e| format!("cannot write {}: {e}", file.display()))
 }
 
 impl Confirmed {

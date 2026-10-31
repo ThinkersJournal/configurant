@@ -17,6 +17,8 @@
 //! - a `Host` other than `127.0.0.1:PORT` or `localhost:PORT` is refused (DNS rebinding);
 //! - a `POST` whose `Origin` is not this server is refused (cross-site forms);
 //! - every response says: no script, no outside resource, no framing, no cache, no referrer;
+//! - the cookie has no `Secure` flag because the page is plain `http` on loopback (see "Known limit" in the
+//!   design note: a cookie is not scoped to a port);
 //! - a secret has no text box, is never in a page, and a hand-made post for one is refused.
 //!
 //! The binary or program that starts this prints the launch address; it does not open a browser.
@@ -304,6 +306,8 @@ async fn get_home(s: Arc<Shared>, req: Request) -> Response {
             );
         }
         let mut res = see_other("/");
+        // No `Secure` flag: the page is plain `http` on loopback, and a browser would not send a `Secure` cookie
+        // over it. `HttpOnly` keeps it from scripts (there are none) and `SameSite=Strict` from other sites.
         if let Ok(v) = format!(
             "{}={}; HttpOnly; SameSite=Strict; Path=/",
             guard::COOKIE_NAME,

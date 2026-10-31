@@ -151,8 +151,7 @@ fn apply(
     reply.refused
 }
 
-/// Write the confirmed text, saving `<file>.bak` first when the file exists (refused if the backup does), as the
-/// terminal and window front ends do.
+/// Write the confirmed text with the save function the terminal and window front ends use.
 fn write(file: &Path, confirmed: &configurant::edit::Confirmed) -> Result<PathBuf, String> {
     let existing = match std::fs::read_to_string(file) {
         Ok(text) => text,
@@ -160,16 +159,6 @@ fn write(file: &Path, confirmed: &configurant::edit::Confirmed) -> Result<PathBu
         Err(e) => return Err(format!("cannot read {}: {e}", file.display())),
     };
     let text = confirmed.file_text(&existing).map_err(|e| e.to_string())?;
-    if file.exists() {
-        let mut bak = file.to_path_buf().into_os_string();
-        bak.push(".bak");
-        let bak = PathBuf::from(bak);
-        if bak.exists() {
-            return Err(format!("{} exists; move it away first", bak.display()));
-        }
-        std::fs::write(&bak, &existing)
-            .map_err(|e| format!("cannot write {}: {e}", bak.display()))?;
-    }
-    std::fs::write(file, text).map_err(|e| format!("cannot write {}: {e}", file.display()))?;
+    configurant::edit::save_with_backup(file, &existing, &text)?;
     Ok(file.to_path_buf())
 }

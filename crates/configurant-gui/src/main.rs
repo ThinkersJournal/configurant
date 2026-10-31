@@ -71,22 +71,7 @@ fn fail(msg: impl std::fmt::Display) -> ExitCode {
 /// Write the confirmed file text, saving `<file>.bak` first when the file exists (refused if the backup does).
 fn write(file: &Path, existing: &str, confirmed: &Confirmed) -> Result<(), String> {
     let text = confirmed.file_text(existing).map_err(|e| e.to_string())?;
-    save(file, existing, &text)
-}
-
-/// Write `text` over `file`, saving `existing` to `<file>.bak` first when the file exists (refused if the backup does).
-fn save(file: &Path, existing: &str, text: &str) -> Result<(), String> {
-    if file.exists() {
-        let mut bak = file.to_path_buf().into_os_string();
-        bak.push(".bak");
-        let bak = PathBuf::from(bak);
-        if bak.exists() {
-            return Err(format!("{} exists; move it away first", bak.display()));
-        }
-        std::fs::write(&bak, existing)
-            .map_err(|e| format!("cannot write {}: {e}", bak.display()))?;
-    }
-    std::fs::write(file, text).map_err(|e| format!("cannot write {}: {e}", file.display()))
+    configurant::edit::save_with_backup(file, existing, &text)
 }
 
 /// The `--endpoint` answers, checked now so a mistake is reported before the window opens. The answer is
@@ -168,7 +153,8 @@ impl eframe::App for Window {
             }
             #[cfg(feature = "scan")]
             Effect::WriteSchema(text) => {
-                let result = save(&self.schema, &self.schema_text, &text);
+                let result =
+                    configurant::edit::save_with_backup(&self.schema, &self.schema_text, &text);
                 self.app.schema_written(result);
             }
             Effect::Write(confirmed) => {

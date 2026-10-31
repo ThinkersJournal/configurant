@@ -87,8 +87,9 @@ A server on `127.0.0.1` is reachable by every other program and every **web page
 hostile page can send a request to `http://127.0.0.1:<port>` (and, through DNS rebinding, can read the answer). The
 wizard can write a file, so each of these is a rule with a known-bad test:
 
-1. **Bind loopback only**, never `0.0.0.0`; refuse a bind address that is not loopback unless the caller passes an
-   explicit, loudly named option. Random port from the operating system, printed in the launch URL.
+1. **Bind loopback only**, never `0.0.0.0`. The code binds `127.0.0.1:0` and has no parameter for another address, so
+   there is nothing to refuse; the test checks that `Web::addr()` is a loopback address. Random port from the operating
+   system, printed in the launch URL.
 2. **A launch token.** The launch URL carries a random 128-bit token (`http://127.0.0.1:PORT/?t=...`); the first
    request exchanges it for a cookie (`HttpOnly; SameSite=Strict; Path=/`) and redirects to a URL without it. Every other request without the
    cookie, or with a wrong token, is `403`, constant-time compared. A page on another origin cannot learn the token.
@@ -140,6 +141,19 @@ HTTPAnt ROADMAP row 10 ("read ConfigurAnt's API before wiring settings") means H
 `configurant` for its own settings. That is not a cycle: `configurant-web` depends on `httpant` and `configurant`;
 the `configurant` core depends on neither.
 
+## Known limit: the cookie is not scoped to a port
+
+Cookies are scoped by host, not by port, and `SameSite` compares sites without the port. The session cookie `cw` is set for
+`127.0.0.1`, so a browser sends it to **any** server on `127.0.0.1`, whatever its port. If a hostile program is already
+listening on another port of this machine and the person's browser is made to visit it while the wizard is open, that
+program receives the cookie in the request and can replay it to the wizard's port from outside the browser, with an
+`Origin` it writes itself, and so edit and confirm. (From inside a browser the replay is stopped: a page on another port has
+a different `Origin`, so the post is refused, and the `HttpOnly` cookie cannot be read by script.) This is a reasoned
+limit, not something a test demonstrates. It needs a hostile listener already running on the machine plus a browser visit
+to it, which is why slice (a) ships with it written down. The mitigation is ROADMAP row 32: drop the cookie after the
+first load and carry the session in a per-page hidden field bound to the page (or a path token), so no cookie is left for
+another port to receive.
+
 ## WebHostAnt, the other direction
 
 An application that **is** hosted (a deployed Worker with settings and secrets) could expose a "configure me" page.
@@ -152,7 +166,7 @@ confirm" callback, and knows nothing of files.
 ## Checks (known-bad first, each shown to bite by mutation)
 
 - Wrong or missing token, wrong `Host`, wrong or missing `Origin` on a `POST`: `403`, state unchanged (one test per rule; mutate each check out and see it fail).
-- A bind to a non-loopback address is refused unless the explicit option is given.
+- The server's address is a loopback address (there is no option to bind another).
 - Every response carries the headers of rule 5; the CSP has no `'unsafe-inline'`.
 - Escaping: `<script>`, a double quote, an ampersand and a very long value through every rendered string.
 - Secret canary and hand-made `POST` as above, over the HTML and the JSON surfaces.
@@ -161,6 +175,23 @@ confirm" callback, and knows nothing of files.
 - Reload and back button: a reload of any step shows the same step and repeats nothing; `back` and `goto` behave as in `STEP-ENGINE`.
 - After `confirm` the file is written once with `<file>.bak`, a second `confirm` is refused, and the server then stops.
 - An unknown event name is `400` with the library's suggestion; the response does not echo a `text` field.
+
+## Which mutant kills which test (slice a, 2026-10-31)
+
+| Mutant (the check removed or weakened) | Test that fails |
+|---|---|
+| `Host` check always true | `a_foreign_host_is_refused_even_with_the_cookie` |
+| `Origin` check always true / not run on POST | `a_post_from_another_origin_or_with_none_is_refused_and_changes_nothing` |
+| session cookie check always true | `a_request_without_the_session_cookie_gets_nothing` |
+| launch token not consumed | `the_launch_address_works_once_and_a_wrong_token_never` |
+| `ct_eq` always true | `guard::tests::compare_needs_the_same_length_and_text` |
+| `<` not escaped | `guard::tests::escaping_covers_the_five_characters` |
+| secret gets a text box (`if f.secret ...` off) | `a_secret_is_never_in_any_response_and_has_no_text_box` |
+| post limit 64 MiB | `a_post_body_over_the_limit_is_refused` |
+| backup not written | `a_walk_to_the_review_and_a_confirm_writes_the_file_once_with_a_backup` |
+| CSP loses `frame-ancestors`, or gains `unsafe-inline` | `every_response_carries_the_policy_headers` |
+| `Wizard::plain` stops redacting a secret (core) | `plain_gives_the_value_in_force_without_quotes_and_never_a_secret` |
+| `save_with_backup` overwrites an existing backup (core) | `save_with_backup_keeps_the_old_text_and_refuses_when_the_backup_exists` |
 
 ## Open questions (for the PM)
 
