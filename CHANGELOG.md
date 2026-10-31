@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.45
+
+- Docs only: the row 29 patent record is completed. All independent claims of US8863248B2 (the closest hit: one-time key, launched browser, cookie and redirect) and of the four hits that were cut at 1,500 characters are read in full, with the elements `configurant-web` lacks named per hit; all outside, as read, none needing review, with re-read triggers for the closest. All crates move to 0.5.45.
+
 ## 0.5.44
 
 - Docs only: patent sweep addendum for row 29, the browser wizard (`docs/PATENT-SWEEP.md`: 9 queries, 9 hits claim-read, all outside as read; closest US8863248B2, with the reason and when to read it again). HANDOFF rewritten as current state (row 29 built, crate awaiting publish, row 32 open). All crates move to 0.5.44.
