@@ -3,7 +3,7 @@ members = ["crates/configurant-tui", "crates/configurant-gui", "crates/configura
 
 [package]
 name = "configurant"
-version = "0.6.2"
+version = "0.6.3"
 edition = "2024"
 rust-version = "1.95"
 description = "Schema-first configuration: declare values in a TOML schema, layer defaults, file, environment and command line, validate with named errors, explain where each value came from. No generated code; secrets never printed."
