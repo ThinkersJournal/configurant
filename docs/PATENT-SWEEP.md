@@ -2,7 +2,7 @@
 
 Date: 2026-10-25; Run by: the configurant lane, Claude Sonnet 5.5; Method: AI-assisted search and read; NOT legal advice; NOT a freedom-to-operate opinion.
 
-Covers the 0.5.x line: the first sweep below at `ad5700c` (version 0.5.0), the addendum for rows 20 to 26 (0.5.7 to 0.5.15, 2026-10-29), the addendum for row 28, the plan executor (0.5.17 to 0.5.21, 2026-10-30), and the last addendum for row 11, the ports, logging and paths modules (0.5.25 to 0.5.31, 2026-10-30). First sweep: the core crate, `configurant-secrets`, `configurant-tui`, `configurant-gui`, `configurant-scan`. Process: `C:\Projects\PATENT-SWEEP-PROCESS.md` (CireSnave, 2026-10-25, board 286). Re-sweep when a new family of capability is added, and by 2027-10-25.
+Covers the 0.5.x line: the first sweep below at `ad5700c` (version 0.5.0), the addendum for rows 20 to 26 (0.5.7 to 0.5.15, 2026-10-29), the addendum for row 28, the plan executor (0.5.17 to 0.5.21, 2026-10-30), the addendum for row 11, the ports, logging and paths modules (0.5.25 to 0.5.31, 2026-10-30), and the last addendum for row 29, the browser wizard `configurant-web` (0.5.41 to 0.5.43, 2026-10-31). First sweep: the core crate, `configurant-secrets`, `configurant-tui`, `configurant-gui`, `configurant-scan`. Process: `C:\Projects\PATENT-SWEEP-PROCESS.md` (CireSnave, 2026-10-25, board 286). Re-sweep when a new family of capability is added, and by 2027-10-25.
 
 ## Ideas swept
 
@@ -251,3 +251,59 @@ None. Every hit read is outside, as read, with the reason in the table. Hit 32 (
 ### Limitations for row 11
 
 Same as above: AI-assisted, one engine, 6 queries with one search each, 2026-10-30; Espacenet, WIPO and the USPTO were not queried and no CPC-class search was run (for example G06F 9/44 for software configuration, G06F 21/60 for protecting data). Status and expiry are Google's labels; continuations and family members were not checked. Not legal advice and not a freedom-to-operate opinion.
+
+## Addendum for row 29, the browser wizard (`configurant-web` 0.5.41 to 0.5.43, 2026-10-31)
+
+Covers the crate `configurant-web` as built in 0.5.41 (pages, launch token, cookie, `Host`/`Origin` checks, policy headers, review, save with backup), 0.5.42 (JSON endpoints) and 0.5.43 (example), at `c91ba09`. Run by the configurant lane, Claude Sonnet 5.5, on the PM's order of 2026-10-31 (bounded: three queries per family, claim-read the closest, "outside, as read", no legal advice). Not legal advice and not a freedom-to-operate opinion.
+
+### Ideas swept (new since the sections above)
+
+27. A program serves a configuration wizard on a loopback address only, and prints one launch address that carries a one-time token; the first visit swaps the token for a cookie (the address then fails), and every later request needs that cookie.
+28. A local server refuses a request whose `Host` is not its own loopback name and port (DNS rebinding), and refuses a form post whose `Origin` is not itself; every response carries a policy that forbids script, outside resources, framing, caching and referrers.
+29. The pages of the wizard are plain server-rendered HTML drawn from the one serialisable view of a schema-driven editing session; a form post becomes the same small event set (set, next, back, goto, confirm) that the terminal and window front ends send, and a JSON endpoint accepts the same events.
+30. A secret has no input control in the form and never appears in a page or JSON answer; it comes only from its environment variable or secret source, and a hand-made post for it is refused.
+31. The review page lists what would change (was, becomes) and what needs a restart; the file is written only after the confirmation, with the old file saved as `<file>.bak` first and refused if the backup already exists.
+
+### Queries (source, query, date)
+
+All run 2026-10-31 against Google Patents (through a web search tool restricted to `patents.google.com`; results are search-engine ranked). One search per query; the closest hits were then read with `patent-claims.py`.
+
+| # | idea | query |
+|---|---|---|
+| Q29 | 27 | local web server on loopback address one-time token launch URL browser session configuration editor |
+| Q30 | 27 | single-use token in URL exchanged for session cookie localhost server application launches browser authenticate |
+| Q31 | 28 | host header origin check DNS rebinding protection local web server loopback only request rejected |
+| Q32 | 29 | web form generated from schema definition typed fields validation constraints rendered in browser server-side HTML configuration |
+| Q33 | 29 | multi-step wizard rendered in web browser steps declared in schema conditional steps configuration file written after confirmation |
+| Q34 | 31 | browser based editor for application configuration file writes backup copy before overwriting after user review of changes |
+| Q35 | 31 | review screen showing changes with sensitive values masked redacted before user confirms configuration change |
+| Q36 | 30 | secret field no input control in generated form value supplied only from environment variable never displayed to user in web page |
+| Q37 | 29 | JSON event API for form editing session client sends set confirm events server validates returns view model |
+
+### Hits
+
+The tool's output was filtered to claim 1 of each patent and shown up to about 1,500 characters. Claim 1 was shown whole for hits 33, 37, 38, 39 and 41; for hits 34, 35, 36 and 40 it ran longer and its end was not read. The other independent claims were seen as numbers and opening words only. Dependent claims were not read. Status is Google's own label ("an assumption, not a legal conclusion").
+
+| # | patent | title | assignee | status | claim(s) read | overlap | our difference | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 33 | US8863248B2 | Method and apparatus to auto-login to a browser application launched from an authenticated client application | IBM | active, expires 2032-10-26 | indep. 1 in full; 9, 17 and 25 begin alike (preambles seen) | The closest hit. A one-time-use key in a URL, a browser launched by a co-located program, and the server answering with a cookie and a redirect (idea 27). | Claim 1 starts from "a credential associated with the non-browser based client application": the server receives a first request that includes that credential, caches it at a location identified by the one-time-use key, and later retrieves that credential and sets it in the cookie so that no further login is needed. We receive no credential from the program, cache none, and the cookie holds a random session value the server made itself; the token is not a handle on anything. | outside, as read; read again if the crate ever passes an identity or credential from the launching program into the session |
+| 34 | US8005965B2 | Method and system for secure server-based session management using single-use HTTP cookies | IBM, now Daedalus Blue | expired (fee related), Google expiry 2029 | indep. 1 (first 1,500 characters) | A single-use token in session management (idea 27). | Claim 1 is a first server and a second server in one domain exchanging single-use domain tokens to obtain a client authorization credential, the token refreshed on each use. We have one server, a cookie that is not refreshed, and no second server or authorization credential. | outside, as read |
+| 35 | US8799640B2 | Techniques for managing a secure communication session | Novell, now Micro Focus | expired (fee related), Google expiry 2031 | indep. 1 (first 1,500 characters; 8 and 15 by preamble) | A browser acts for a non-browser program and a secure token is mapped to a session cookie (idea 27). | Claims are a non-browser application using a browser only to establish an encrypted session, the browser acquiring a secure token and handing it to the application before it shuts down, and the server then translating that token into the cookie for the application's own later traffic. Our browser is the client for the whole run; the program never receives the token, and there is no application-side session. | outside, as read |
+| 36 | US20170063778A1 | Cross-Domain HTTP Requests Using DNS Rebinding | PulsePoint | active (published application, Google expiry 2037) | indep. 1 (first 1,500 characters; 2, 13, 23, 33, 41, 46, 52 by preamble) | DNS rebinding and a check of the `Host` (idea 28). | The independent claims are about a domain name server answering a user agent with several IP records so that a first domain name is pinned to an address of a second domain and a cross-domain request is allowed. We use none of that: we refuse a foreign `Host` and run no DNS server. A `Host` check appears in a search snippet of its description, not in the claims read. | outside, as read |
+| 37 | US7143365B2 | Method and apparatus for using a browser to configure a software program | Webtrends, now Oracle | expired (lifetime), 2024-04-20 | indep. 1 | A browser used to configure a program (idea 29). | Claim 1 is a web-traffic tracking program, a browser window split into a page preview pane and a configuration pane showing tracking criteria for the previewed web object. We preview nothing and configure no tracking program. Also expired. | outside, as read |
+| 38 | US8848908B2 | Image processing apparatus and control method thereof | Canon | expired (fee related), Google expiry 2032 | indep. 1 | A web form field with secret information that is not sent on (idea 30). | Claim 1 is an image processing apparatus that takes the secret out of the data typed into a web form, stores it, and sets it on an encryption file for an external device. We have no image processing, no encryption file, and no secret typed into a form at all. | outside, as read |
+| 39 | US6874021B1 | Techniques for configuring network devices with consistent forms for getting and setting device properties | Cisco | expired (fee related), 2022-12-05 | indep. 1 | A server sends a form to get or set properties of a device (idea 29). | Claim 1 is one script file behind a form, two submit methods (get or set) tied to one submit button, executed against a network device. We run no script and manage no device. Also expired. | outside, as read |
+| 40 | US8166413B2 | Multi-step progress indicator and method for indicating progress in a multi-step computer application | Xerox | active, expires 2031-02-23 | indep. 1 (first 1,500 characters) | A multi-step wizard shows progress (idea 29). | Claim 1 groups steps into groups, shows the current group expanded and the other groups collapsed, and marks completed groups. Our step list is flat and always fully shown; we group nothing. | outside, as read |
+| 41 | EP2141588A1 | A method for generating a wizard application | Alcatel Lucent | ceased | indep. 1 (read in full) | A wizard is derived from a human-readable declaration with dialog interdependencies (idea 29). | Claim 1 converts the declaration into a program, a linear sequence of computer instructions. We generate no code; a data schema is interpreted at run time. Also ceased. | outside, as read |
+
+### Found but not read (no verdict claimed)
+
+Opened only by title and snippet: WO2017035306A1 (a token appended to a URL starts an in-page editor for web sites), US20060294196A1 (a client application hands a session cookie to a browser), US10382426B2 and US7137006B1 (single-use or short-lived tokens in single sign-on), WO2014043228A1 (browser-side DNS rebinding protection), US9563617B2 and US7644350B2 (server-held validation rules for form fields), US20170139975A1 (semantic form validation), US7788341B1 (server-side form validation without refresh), US6654932B1 (view events to a mediator that validates), US20160110055A1 (JSON insert and delete events for UI updates), US9875121B2 (server-side API validation), US8869048B2 (read in the 2026-10-29 addendum), US6996781B1 and US7539656B2 (wizards with conditional logic or dialog), US20090006454A1 (a browser XML editor that keeps copies of the original text), KR102053071B1 (a browser editor with a backup file that may be overwritten), US20110035727A1 and US9336234B2 (snapshot before an edit, for undo), US9600688B2, US9003551B2, US20210200886A1, US20230087884A1 and WO2018004524A1 (masking sensitive data on screen). A read is owed to any of these if the crate grows toward it; the nearest to a claimed mechanism of ours are WO2017035306A1 (token in a URL for an editor) and US20090006454A1 (browser editor with a backup of the original text).
+
+### Needs review (to the PM) for row 29
+
+None. Every hit that was read is outside, as read, with the reason in the table. Hit 33 (US8863248B2, active to 2032) is the closest: it has a one-time-use key, a launched browser, a cookie and a redirect; the difference is that its key is a handle on a credential the launching program supplied, and ours is not. The note in its row says when to read it again. No design change was made.
+
+### Limitations for row 29
+
+AI-assisted: a language model chose the queries and read the claims. Only claim 1 of each patent was read, and for hits 34, 35, 36 and 40 only its first 1,500 characters; other independent claims were seen as preambles only, and dependent claims were not read. One search engine's view of Google Patents, 9 queries, one search each, 2026-10-31; Espacenet, WIPO and the USPTO were not queried and no CPC-class search was run (for example H04L 63/08 for authentication, G06F 9/451 for generated user interfaces, G06F 21/62 for protecting data). Status and expiry are Google's labels; continuations and family members were not checked. The search tool's results are snippets until a claim is read. Not legal advice and not a freedom-to-operate opinion.
