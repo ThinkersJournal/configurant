@@ -2,11 +2,8 @@
 //! What a page on loopback must defend against (`docs/BROWSER-WIZARD.md`): a request from another program or
 //! another web page. Pure functions over header text, so each rule has a test that does not need a socket.
 
-use httpant::http::header::{COOKIE, HOST, ORIGIN};
+use httpant::http::header::{HOST, ORIGIN};
 use httpant::http::{HeaderMap, HeaderName, HeaderValue};
-
-/// The name of the cookie that holds the visitor's session secret.
-pub(crate) const COOKIE_NAME: &str = "cw";
 
 /// Compare two secrets without stopping at the first difference.
 pub(crate) fn ct_eq(a: &str, b: &str) -> bool {
@@ -44,14 +41,6 @@ pub(crate) fn origin_ok(headers: &HeaderMap, port: u16) -> bool {
         return false;
     };
     origin == format!("http://127.0.0.1:{port}") || origin == format!("http://localhost:{port}")
-}
-
-/// The value of cookie `name`, if the `Cookie` header has it.
-pub(crate) fn cookie<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
-    header(headers, &COOKIE)?.split(';').find_map(|pair| {
-        let (k, v) = pair.trim().split_once('=')?;
-        (k == name).then_some(v)
-    })
 }
 
 /// Decode `%XX` and `+` of a form field or query value. A malformed escape is kept as it is.
