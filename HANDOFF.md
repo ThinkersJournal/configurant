@@ -1,4 +1,4 @@
-# configurant HANDOFF (rewritten 2026-10-31 by the configurant lane; idle, waiting on the PM's publish)
+# configurant HANDOFF (rewritten 2026-10-31 by the configurant lane)
 
 You are the `configurant` lane (cwd `C:\Projects\configurant`, repo `ThinkersJournal/configurant`). Tasks come
 from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`; `send_message` takes `to_id`) and the
@@ -6,15 +6,14 @@ pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Ru
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.43 at c91ba09 plus this docs PR; crates.io has 0.5.33; the PM publishes)
-- **Row 29 (browser wizard) is built:** crate `configurant-web` (pages, JSON endpoints, `web_wizard` example, README hello path,
-  fresh-eyes trial done on the packaged form). The PM is publishing `configurant-web` and the changed `configurant` crates; tag
-  `v<version>` follows. Nothing for the lane to do there except answer questions.
-- **IDLE otherwise:** every open ROADMAP row names its blocker in the "Blocked on" column. Row 32 (browser wizard: no cookie for
-  another port to receive) is open and small-to-medium: a mitigation, start it only if the PM asks or nothing else is open. Row 31 waits
+## State (main = 0.5.46 plus this docs PR; crates.io has configurant, -scan, -secrets, -tui, -gui 0.5.43 and configurant-web 0.5.46; the PM publishes)
+- **Row 29 (browser wizard) is done and published:** crate `configurant-web` 0.5.46 (pages, JSON endpoints, `web_wizard` example,
+  README hello path, fresh-eyes trial on the packaged form, patent record complete). No project tag yet (partial publish). The
+  registry flip waits for one outside use (CireSnave). `easyants-card.toml` describes `configurant` only; it has no web wording.
+- **Next unblocked row: 32** (browser wizard: no cookie for another port to receive): the mitigation, S-M. Row 31 waits
   for an adopter, 27 on RedactAnt. Begin work when a blocker lifts, a [TASK] arrives, or the weekly issue sweep is due (next
   ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).
-- Done: rows 1-2, 5, 9, 11 (ports, logging, paths), 14-16, 19-23, 26, 28-30. Known gaps, not tasks: a secret bool/int in a serde error redacts by
+- Done: rows 1-2, 5, 9, 11 (ports, logging, paths), 14-16, 19-23, 26, 28-30 (29 included). Known gaps, not tasks: a secret bool/int in a serde error redacts by
   substring (over-redacts, safe).
 - Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`); adopting 0.5.x and the `ports` module is the
   Synapse lane's call.
