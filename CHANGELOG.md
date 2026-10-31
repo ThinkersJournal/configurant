@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2
+
+- Dependency: `persistant` 0.12.3 -> 0.14.3 (root optional dependency, `configurant-gui`, `configurant-tui`), read against persistant's CHANGELOG for 0.13 and 0.14. The 0.14.0 gate change (a probe-less `yes` row is no longer on) and the blob-stream additions do not reach us: we call neither `Matrix::lookup`, `enabled` nor `Matrix::parse`, and use only the registry's providers and `explain`. `capant` moves 0.0.7 -> 0.1.0 as persistant's own dependency. No source change; the full workspace test run with all features passes. All crates move to 0.6.2. **First published since 0.5.x: includes 0.6.0 (Breaking, `configurant-web` session path) and 0.6.1, which were never published.**
+
 ## 0.6.1
 
 - Test only: `configurant-scan`'s real-rust-analyzer test failed once on the Windows runner with "report run failed with code Some(2)" and passed on a rerun of the same commit. Exit code 2 is the binary's PARTIAL report (the server left some calls unresolved), so the failure was rust-analyzer's, but the message did not say so. The test now fails with a fixed label for each case (PARTIAL, any other failure, a clean report without both variables, a failed `--accept --write`) and prints no output. Behaviour of the binary is unchanged; the cause of the one partial report on the runner is not found. All crates move to 0.6.1.
