@@ -218,6 +218,7 @@ implementation of any rule.
 | content-type check off | `a_json_event_is_refused_without_the_cookie_the_origin_or_the_content_type` |
 | a refusal answers `200` | `a_refused_json_event_is_a_422_with_the_reason_and_nothing_moves` (and two more) |
 | extra field allowed | `a_bad_json_event_is_a_400_that_lists_the_events` |
+| `Host` check skipped on `/api/*`, or `check()` dropped from `api_get_view` | `a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_right` (raw socket; cookie, `Origin`, content type and body all good, so `Host` is the only reason) |
 
 ## Open questions (for the PM)
 

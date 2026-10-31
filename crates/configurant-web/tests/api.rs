@@ -3,6 +3,8 @@
 //! (`docs/BROWSER-WIZARD.md`, "Checks"): the same events as the form, the same refusals, the same file.
 
 use std::collections::BTreeMap;
+use std::io::{Read, Write};
+use std::net::TcpStream;
 use std::path::Path;
 use std::time::Duration;
 
@@ -401,4 +403,66 @@ async fn a_json_event_after_the_end_is_refused() {
         .is_some_and(|e| e.contains("finished"));
     assert!(said);
     assert!(matches!(web.finished().await.unwrap(), Outcome::Written(_)));
+}
+
+/// A JSON request written by hand, so the `Host` header can be anything. The cookie, `Origin`, content type and
+/// body are all good, so `Host` is the only thing that can make it fail.
+fn raw_api(web: &Web, method: &str, path: &str, host: &str, cookie: &str) -> String {
+    let body = r#"{"event":"set","key":"mode","text":"server"}"#;
+    let origin = base(web);
+    let mut s = TcpStream::connect(web.addr()).unwrap();
+    s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    let head = [
+        format!("{method} {path} HTTP/1.1"),
+        format!("Host: {host}"),
+        format!("Cookie: cw={cookie}"),
+        format!("Origin: {origin}"),
+        "Content-Type: application/json".to_owned(),
+        format!("Content-Length: {}", body.len()),
+        "Connection: close".to_owned(),
+    ]
+    .join("\u{d}\u{a}");
+    write!(s, "{head}\u{d}\u{a}\u{d}\u{a}{body}").unwrap();
+    let mut out = String::new();
+    if let Err(e) = s.read_to_string(&mut out) {
+        out.push_str(&format!("[read error: {e}]"));
+    }
+    out
+}
+
+// A multi-thread runtime: `raw_api` blocks its thread on a socket while the server answers from another.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_right() {
+    let dir = tmp();
+    let web = start(&dir.path().join("app.toml")).await;
+    let cookie = log_in(&web).await;
+    let port = web.addr().port();
+    let routes = [("GET", "/api/view"), ("POST", "/api/event")];
+    let foreign = [
+        "evil.test".to_owned(),
+        format!("evil.test:{port}"),
+        format!("127.0.0.1:{}", port + 1),
+    ];
+    for (method, path) in routes {
+        for (case, host) in foreign.iter().enumerate() {
+            let out = raw_api(&web, method, path, host, &cookie);
+            let refused = out.starts_with("HTTP/1.1 403");
+            assert!(
+                refused,
+                "{method} {path}: foreign host case {case} was not refused"
+            );
+            let leaked = out.contains("\"view\"");
+            assert!(
+                !leaked,
+                "{method} {path}: foreign host case {case} got the view"
+            );
+        }
+        // The controls: both names a browser uses are served.
+        for host in [format!("127.0.0.1:{port}"), format!("localhost:{port}")] {
+            let out = raw_api(&web, method, path, &host, &cookie);
+            let served = out.starts_with("HTTP/1.1 200");
+            assert!(served, "{method} {path}: control host was not served");
+        }
+    }
+    let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }
