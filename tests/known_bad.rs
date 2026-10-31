@@ -931,3 +931,70 @@ fn a_step_with_several_operations_is_undone_in_reverse_order() {
         back.text
     );
 }
+
+// ---- an unknown schema field gets a "did you mean" ----
+
+const MINIMAL: &str = r#"
+[project]
+name = "demo"
+version = "0.1.0"
+summary = "a demo"
+schema_version = 1
+"#;
+
+fn parse_error(text: &str) -> String {
+    Schema::parse(text).unwrap_err().to_string()
+}
+
+#[test]
+fn an_unknown_value_field_suggests_the_nearest_known_one() {
+    let text = format!(
+        "{MINIMAL}\n[[value]]\nkey = \"a\"\ntype = \"int\"\ndefault = 1\ndescription = \"x\"\nsecrt = true\n"
+    );
+    let e = parse_error(&text);
+    assert!(e.contains("secrt"), "{e}");
+    assert!(e.contains("did you mean `secret`?"), "{e}");
+}
+
+#[test]
+fn an_unknown_project_field_suggests_too() {
+    let e = parse_error(&MINIMAL.replace("summary", "sumary"));
+    assert!(e.contains("did you mean `summary`?"), "{e}");
+}
+
+#[test]
+fn an_unknown_field_far_from_every_known_one_gets_no_suggestion() {
+    let text = format!(
+        "{MINIMAL}\n[[value]]\nkey = \"a\"\ntype = \"int\"\ndefault = 1\ndescription = \"x\"\nzzzzzzzz = true\n"
+    );
+    let e = parse_error(&text);
+    assert!(e.contains("zzzzzzzz"), "{e}");
+    assert!(!e.contains("did you mean"), "{e}");
+}
+
+#[test]
+fn an_unknown_field_inside_a_fragment_suggests_too() {
+    let mount = configurant::Mount::new(
+        "web",
+        "[[value]]
+key = \"port\"
+type = \"int\"
+default = 1
+description = \"x\"
+secrt = true
+",
+    );
+    let e = Schema::parse_with(MINIMAL, &[mount])
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("did you mean `secret`?"), "{e}");
+}
+
+#[test]
+fn an_unknown_migration_operation_suggests_too() {
+    let text = format!(
+        "{MINIMAL}\n[[migration]]\nfrom = 1\nto = 2\nops = [{{ op = \"renme\", from = \"a\", to = \"b\" }}]\n"
+    );
+    let e = parse_error(&text);
+    assert!(e.contains("did you mean `rename`?"), "{e}");
+}

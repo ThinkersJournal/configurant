@@ -292,7 +292,7 @@ struct RawFragment {
 #[derive(Debug, PartialEq, thiserror::Error)]
 #[non_exhaustive]
 pub enum SchemaError {
-    #[error("schema is not valid: {0}")]
+    #[error("schema is not valid: {}", with_suggestion(.0))]
     Parse(#[from] toml::de::Error),
     #[error("schema_version {0} is not supported (this release reads version 1)")]
     UnsupportedVersion(u32),
@@ -855,11 +855,33 @@ impl ValueDef {
 /// What can be checked about one definition alone: secret rules, enum choices, range, and the default
 /// (converted and checked). Shared by `[[value]]` and the fields of a `[[table]]`.
 /// Add a fragment's values, tables and maps to `raw` under the mount name.
+/// The parse error as text, with `(did you mean `x`?)` added when it says a field or variant is unknown and one
+/// of the names it expects is close. serde puts the unknown name and the expected names in backticks.
+fn with_suggestion(e: &toml::de::Error) -> String {
+    let text = e.to_string();
+    let message = e.message();
+    if !(message.starts_with("unknown field `") || message.starts_with("unknown variant `")) {
+        return text;
+    }
+    let mut quoted = message.split('`').skip(1).step_by(2);
+    let Some(unknown) = quoted.next() else {
+        return text;
+    };
+    match crate::error::suggestion(unknown, quoted) {
+        Some(near) => format!(
+            "{}
+(did you mean `{near}`?)",
+            text.trim_end()
+        ),
+        None => text,
+    }
+}
+
 fn splice(raw: &mut Raw, m: &Mount) -> Result<(), SchemaError> {
     let frag: RawFragment =
         toml::from_str(&m.fragment).map_err(|e| SchemaError::FragmentParse {
             mount: m.name.clone(),
-            reason: e.to_string(),
+            reason: with_suggestion(&e),
         })?;
     if frag.fragment.schema_version != SCHEMA_VERSION {
         return Err(SchemaError::UnsupportedVersion(

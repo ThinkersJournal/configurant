@@ -1,6 +1,6 @@
 [package]
 name = "configurant-scan"
-version = "0.5.38"
+version = "0.5.39"
 edition = "2024"
 rust-version = "1.95"
 description = "Scan assist for ConfigurAnt: find the environment variables a Rust project reads (language-server confirmed) and propose schema entries for a human to accept. Suggests only; writes nothing."
