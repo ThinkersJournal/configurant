@@ -84,18 +84,32 @@ edition = \"2021\"
 
     let out = std::process::Command::new(bin).args(base).output().unwrap();
     let text = String::from_utf8_lossy(&out.stdout).into_owned();
-    let ok = out.status.code() == Some(0)
-        && text.contains("REAL_HOST -> real.host")
-        && text.contains("REAL_TOKEN -> real.token")
-        && !text.contains("PARTIAL");
-    assert!(ok, "report run failed with code {:?}", out.status.code());
+    // The binary exits 0 for a complete report, 2 for a PARTIAL one (the server left calls unresolved) and 1 for
+    // an error. Each is a different failure, so each gets its own fixed label; no output is printed.
+    let partial = out.status.code() == Some(2) || text.contains("PARTIAL");
+    assert!(
+        !partial,
+        "the report was PARTIAL (exit code 2): rust-analyzer left some calls unresolved"
+    );
+    let failed = out.status.code() != Some(0);
+    assert!(
+        !failed,
+        "the report run failed (exit code other than 0 and 2): see the binary's own message"
+    );
+    let found =
+        text.contains("REAL_HOST -> real.host") && text.contains("REAL_TOKEN -> real.token");
+    assert!(
+        found,
+        "the report ran clean but did not list both variables"
+    );
 
     let out = std::process::Command::new(bin)
         .args(base)
         .args(["--accept", "REAL_HOST", "--write"])
         .output()
         .unwrap();
-    assert_eq!(out.status.code(), Some(0));
+    let accepted = out.status.code() == Some(0);
+    assert!(accepted, "the --accept --write run did not exit 0");
     let written = std::fs::read_to_string(&schema).unwrap();
     let s = Schema::parse(&written).unwrap();
     assert!(s.get("real.host").is_some() && s.get("real.token").is_none());
