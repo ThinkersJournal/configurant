@@ -12,13 +12,13 @@
 //! browser, can send requests to `127.0.0.1`):
 //!
 //! - the server binds `127.0.0.1` on a port the system picks, never anything else;
-//! - the launch address carries a one-time token that is swapped for a session cookie
-//!   (`HttpOnly; SameSite=Strict`); a request without the cookie is refused;
+//! - the launch address carries a one-time token; the first visit swaps it for a random session path
+//!   (`/s/<session>/`), and every other route lives under that path, so a request without it is refused;
 //! - a `Host` other than `127.0.0.1:PORT` or `localhost:PORT` is refused (DNS rebinding);
 //! - a `POST` whose `Origin` is not this server is refused (cross-site forms);
 //! - every response says: no script, no outside resource, no framing, no cache, no referrer;
-//! - the cookie has no `Secure` flag because the page is plain `http` on loopback (see "Known limit" in the
-//!   design note: a cookie is not scoped to a port);
+//! - there is no cookie at all: a cookie is scoped by host, not port, and would reach any other local server the
+//!   browser visits (see "Known limit" in the design note); the session path is sent only to this port;
 //! - a secret has no text box, is never in a page, and a hand-made post for one is refused.
 //!
 //! The binary or program that starts this prints the launch address; it does not open a browser.
@@ -56,9 +56,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use configurant::view::Event;
-use httpant::http::header::{CONTENT_TYPE, LOCATION, SET_COOKIE};
+use httpant::http::header::{CONTENT_TYPE, LOCATION};
 use httpant::http::{Method, StatusCode};
-use httpant::{Body, IntoResponse, Request, Response, RunningServer, Server};
+use httpant::{Body, IntoResponse, PathParams, Request, Response, RunningServer, Server};
 use tokio::sync::oneshot;
 
 pub use actor::Setup;
@@ -93,9 +93,9 @@ pub enum WebError {
 
 struct Shared {
     port: u16,
-    /// The one-time token in the launch address; `None` once it has been swapped for a cookie.
+    /// The one-time token in the launch address; `None` once it has been swapped for the session path.
     launch: Mutex<Option<String>>,
-    /// The cookie value that proves a request comes from the browser that used the launch address.
+    /// The random path segment that proves a request comes from the browser that used the launch address.
     session: String,
     tx: mpsc::Sender<Msg>,
     /// A refusal to show on the next page load, once.
@@ -135,26 +135,35 @@ impl Web {
             flash: Mutex::new(None),
             last: Mutex::new(Instant::now()),
         });
-        let (home, event, css) = (shared.clone(), shared.clone(), shared.clone());
+        let (launch, home, event, css) = (
+            shared.clone(),
+            shared.clone(),
+            shared.clone(),
+            shared.clone(),
+        );
         let (api_view, api_event) = (shared.clone(), shared.clone());
         let server = Server::new()
             .get("/", move |req: Request| {
+                let s = launch.clone();
+                async move { secure(get_launch(s, req)) }
+            })
+            .get("/s/:sid/", move |req: Request| {
                 let s = home.clone();
                 async move { secure(get_home(s, req).await) }
             })
-            .post("/event", move |req: Request| {
+            .post("/s/:sid/event", move |req: Request| {
                 let s = event.clone();
                 async move { secure(post_event(s, req).await) }
             })
-            .get("/api/view", move |req: Request| {
+            .get("/s/:sid/api/view", move |req: Request| {
                 let s = api_view.clone();
                 async move { secure(api_get_view(s, req).await) }
             })
-            .post("/api/event", move |req: Request| {
+            .post("/s/:sid/api/event", move |req: Request| {
                 let s = api_event.clone();
                 async move { secure(api_post_event(s, req).await) }
             })
-            .get("/style.css", move |req: Request| {
+            .get("/s/:sid/style.css", move |req: Request| {
                 let s = css.clone();
                 async move { secure(get_css(s, req)) }
             })
@@ -170,7 +179,7 @@ impl Web {
         })
     }
 
-    /// The address to open in a browser. It works once: the first visit swaps its token for a cookie.
+    /// The address to open in a browser. It works once: the first visit swaps its token for the session path.
     pub fn launch_url(&self) -> &str {
         &self.launch_url
     }
@@ -249,8 +258,17 @@ fn check(s: &Shared, req: &Request) -> Option<Response> {
     None
 }
 
+/// The request is under this run's session path: the `:sid` of the route equals the random segment, compared
+/// without stopping at the first difference.
 fn has_session(s: &Shared, req: &Request) -> bool {
-    guard::cookie(req.headers(), guard::COOKIE_NAME).is_some_and(|c| guard::ct_eq(c, &s.session))
+    req.extensions()
+        .get::<PathParams>()
+        .and_then(|p| p.get("sid"))
+        .is_some_and(|sid| guard::ct_eq(sid, &s.session))
+}
+
+fn session_path(s: &Shared) -> String {
+    format!("/s/{}/", s.session)
 }
 
 fn see_other(to: &str) -> Response {
@@ -292,43 +310,43 @@ async fn ask(s: &Shared, msg: impl FnOnce(oneshot::Sender<Snapshot>) -> Msg) -> 
     rx.await.ok()
 }
 
+/// `GET /`: only the launch address does anything here. Its one-time token is swapped for the session path, and
+/// the person is sent there. No cookie is set: a cookie is not scoped to a port.
+fn get_launch(s: Arc<Shared>, req: Request) -> Response {
+    if let Some(res) = check(&s, &req) {
+        return res;
+    }
+    touch(&s);
+    let query = req.uri().query().unwrap_or("");
+    let Some((_, token)) = guard::form_pairs(query).into_iter().find(|(k, _)| k == "t") else {
+        return refuse(
+            StatusCode::FORBIDDEN,
+            "open the launch address that the program printed",
+        );
+    };
+    let ok = s
+        .launch
+        .lock()
+        .ok()
+        .and_then(|mut slot| match slot.as_deref() {
+            Some(expected) if guard::ct_eq(expected, &token) => slot.take(),
+            _ => None,
+        })
+        .is_some();
+    if !ok {
+        return refuse(
+            StatusCode::FORBIDDEN,
+            "this launch address was used already or is wrong; start the wizard again",
+        );
+    }
+    see_other(&session_path(&s))
+}
+
 async fn get_home(s: Arc<Shared>, req: Request) -> Response {
     if let Some(res) = check(&s, &req) {
         return res;
     }
     touch(&s);
-    // The launch address: swap its one-time token for the session cookie, then drop it from the URL.
-    let query = req.uri().query().unwrap_or("");
-    if let Some((_, token)) = guard::form_pairs(query).into_iter().find(|(k, _)| k == "t") {
-        let ok = s
-            .launch
-            .lock()
-            .ok()
-            .and_then(|mut slot| match slot.as_deref() {
-                Some(expected) if guard::ct_eq(expected, &token) => slot.take(),
-                _ => None,
-            })
-            .is_some();
-        if !ok {
-            return refuse(
-                StatusCode::FORBIDDEN,
-                "this launch address was used already or is wrong; start the wizard again",
-            );
-        }
-        let mut res = see_other("/");
-        // No `Secure` flag: the page is plain `http` on loopback, and how a browser treats a `Secure` cookie over
-        // plain `http` differs by browser, so it is omitted. `HttpOnly` keeps it from scripts (there are none) and `SameSite=Strict` from other sites.
-        if let Ok(v) = format!(
-            "{}={}; HttpOnly; SameSite=Strict; Path=/",
-            guard::COOKIE_NAME,
-            s.session
-        )
-        .parse()
-        {
-            res.headers_mut().insert(SET_COOKIE, v);
-        }
-        return res;
-    }
     if !has_session(&s, &req) {
         return refuse(
             StatusCode::FORBIDDEN,
@@ -393,7 +411,7 @@ async fn post_event(s: Arc<Shared>, req: Request) -> Response {
     if let (Some(r), Ok(mut f)) = (&snap.refused, s.flash.lock()) {
         *f = Some(r.error.clone());
     }
-    see_other("/")
+    see_other(&session_path(&s))
 }
 
 /// What the JSON endpoints answer with: the wizard's view, why the last event changed nothing, and how the end went.

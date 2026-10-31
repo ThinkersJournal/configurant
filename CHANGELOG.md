@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.0
+
+- **Breaking (HTTP surface of `configurant-web`; pre-1.0 so the second number):** the session cookie `cw` is gone (ROADMAP row 32). `configurant-web` 0.5.46 was published on 2026-10-31 with the session in a cookie; browsers send a cookie to every port of the same host, so a hostile server on another local port could have received it. The launch token is now swapped once for a random session path, `/s/<session>/`, and every route is under it: `/s/<session>/` (the page), `event`, `style.css`, `api/view`, `api/event`. Routes at the root (`/event`, `/api/view`, `/api/event`, `/style.css`) are no longer served; anyone who built on 0.5.46's endpoints must take the session segment from the `Location` of the launch address's `303`. Nothing sets a cookie. The Rust API (`Web::start`, `launch_url`, `addr`, `idle_timeout`, `finished`) is unchanged. `Host`, `Origin`, content-type, launch-token, size, policy-header and secret tests are kept and re-aimed. New tests: a session path from another run is refused, the old root routes are gone, the pages link relative, no response sets a cookie. Residual, written down in `docs/BROWSER-WIZARD.md` "Known limit": the session address stays in the browser history for the run. All crates move to 0.6.0 (one number).
 ## 0.5.47
 
 - Docs only: ROADMAP row 29 reads done (`configurant-web` 0.5.46 published), row 32 no longer blocked; HANDOFF rewritten as current state. All crates move to 0.5.47.

@@ -53,9 +53,9 @@ A ready-made program is in the package: `cargo run --example web_wizard -- examp
 (or your own schema in place of the demo one).
 
 Your program prints the launch address; this crate never opens a browser. The address works once: the first visit swaps its token for a
-cookie. A request without the cookie, with another `Host`, or a post from another origin is refused.
+session path (`/s/<random>/`) the browser is redirected to; there is no cookie, so no other local server can receive the session. A request outside that path, with another `Host`, or a post from another origin is refused. The session address stays in the browser history for the run (design note, "Known limit").
 
-Your own page instead: `GET /api/view` and `POST /api/event` (the library's `Event` as `application/json`, for example
+Your own page instead: `GET /s/<session>/api/view` and `POST /s/<session>/api/event` (the session segment is in the `Location` of the launch address's redirect; the library's `Event` as `application/json`, for example
 `{"event":"set","key":"port","text":"9000"}`) go through the same checks and the same wizard as the pages. A refused event is
 `422` with the library's message; a body that is not an event is `400` listing the events.
 
