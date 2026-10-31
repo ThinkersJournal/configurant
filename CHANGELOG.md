@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.47
+
+- Docs only: ROADMAP row 29 reads done (`configurant-web` 0.5.46 published), row 32 no longer blocked; HANDOFF rewritten as current state. All crates move to 0.5.47.
+
 ## 0.5.46
 
 - Fix (test only): `a_post_body_over_the_limit_is_refused` failed on the Windows runner (`ConnectionAborted`, os error 10053). The server answers 413 and closes while the client is still writing the over-limit body, and the HTTP client's send then errors; with an 8 MiB body that happens every time (reproduced, 20 of 20). The test now writes the post by hand: a 413 status line, or a hang-up (reset, abort or broken pipe, and no other error kind), counts as refused; it also checks that nothing changed and that a normal post on the same server still gets its 303. Raising the limit to 1 MiB makes it fail. The server is unchanged. All crates move to 0.5.46.
