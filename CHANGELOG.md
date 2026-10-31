@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.37
+
+- Docs only: `docs/BROWSER-WIZARD.md`, the design note for ROADMAP row 29 (browser renderer: options, recommendation, loopback safety rules, what is needed from HTTPAnt); row 29 points to it. All crates move to 0.5.37.
+
 ## 0.5.36
 
 - Docs only: HANDOFF rewritten as current state (the lane is idle; every open row names its blocker). All crates move to 0.5.36.
