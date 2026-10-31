@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.44
+
+- Docs only: patent sweep addendum for row 29, the browser wizard (`docs/PATENT-SWEEP.md`: 9 queries, 9 hits claim-read, all outside as read; closest US8863248B2, with the reason and when to read it again). HANDOFF rewritten as current state (row 29 built, crate awaiting publish, row 32 open). All crates move to 0.5.44.
+
 ## 0.5.43
 
 - `configurant-web` slice c: the `web_wizard` example program (`<schema> --file <config>`, prints one address, writes only after the review is confirmed) with a demo schema, and a README whose complete `main` is the hello path (`cargo add`, run, open the address). The README's Early notice is gone and it describes the JSON endpoints. A fresh-eyes trial of the packaged crate is in the PR. ROADMAP row 29 reads built. All crates move to 0.5.43.

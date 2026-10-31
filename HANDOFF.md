@@ -1,4 +1,4 @@
-# configurant HANDOFF (rewritten 2026-10-30 by the configurant lane; idle, nothing unblocked)
+# configurant HANDOFF (rewritten 2026-10-31 by the configurant lane; idle, waiting on the PM's publish)
 
 You are the `configurant` lane (cwd `C:\Projects\configurant`, repo `ThinkersJournal/configurant`). Tasks come
 from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`; `send_message` takes `to_id`) and the
@@ -6,11 +6,15 @@ pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Ru
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.35 at 063d035; crates.io has 0.5.33, tagged v0.5.33; the PM publishes)
-- **IDLE, correctly:** every open ROADMAP row names its blocker in the "Blocked on" column; none is mine to start (PM
-  2026-10-30: row 31 stays until an adopter asks). Begin work only when a blocker lifts, a [TASK] arrives, or the weekly
-  issue sweep is due (next ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).
-- Done: rows 1-2, 5, 9, 11 (ports, logging, paths), 14-16, 19-23, 26, 28, 30. Known gaps, not tasks: a secret bool/int in a serde error redacts by
+## State (main = 0.5.43 at c91ba09 plus this docs PR; crates.io has 0.5.33; the PM publishes)
+- **Row 29 (browser wizard) is built:** crate `configurant-web` (pages, JSON endpoints, `web_wizard` example, README hello path,
+  fresh-eyes trial done on the packaged form). The PM is publishing `configurant-web` and the changed `configurant` crates; tag
+  `v<version>` follows. Nothing for the lane to do there except answer questions.
+- **IDLE otherwise:** every open ROADMAP row names its blocker in the "Blocked on" column. Row 32 (browser wizard: no cookie for
+  another port to receive) is open and small-to-medium: a mitigation, start it only if the PM asks or nothing else is open. Row 31 waits
+  for an adopter, 27 on RedactAnt. Begin work when a blocker lifts, a [TASK] arrives, or the weekly issue sweep is due (next
+  ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).
+- Done: rows 1-2, 5, 9, 11 (ports, logging, paths), 14-16, 19-23, 26, 28-30. Known gaps, not tasks: a secret bool/int in a serde error redacts by
   substring (over-redacts, safe).
 - Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`); adopting 0.5.x and the `ports` module is the
   Synapse lane's call.
@@ -20,7 +24,7 @@ entry in each (breaking = second number pre-1.0).
 - Box memory limit (PM 2026-10-26, until cleared): CARGO_BUILD_JOBS=2, one cargo at a time, no --workspace unless needed.
 - Primary checkout stays on `main`; work in worktrees, removed after merge. The detached `%TEMP%\.tmp*\wt` worktree in
   `git worktree list` is not ours.
-- CodeQL: a NEW alert on scan code goes to the PM. Lesson: assert on bools, never format a result into an assert message.
+- CodeQL: a NEW alert goes to the PM. Lesson (twice now, scan and web tests): assert on bools, never format a response or result into an assert message; use a case number.
 - Tables/maps are file-only; no `Needs` schema field. TUI/GUI binaries offer only `memory`, `fs`.
 
 ## Toolchain gotchas (this box)

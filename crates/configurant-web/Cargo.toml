@@ -1,6 +1,6 @@
 [package]
 name = "configurant-web"
-version = "0.5.43"
+version = "0.5.44"
 edition = "2024"
 rust-version = "1.95"
 description = "Browser front end for ConfigurAnt: a wizard served on loopback by HTTPAnt, one visitor, with a launch token; the same questions as the terminal and window front ends, and nothing is written until the review is confirmed."
