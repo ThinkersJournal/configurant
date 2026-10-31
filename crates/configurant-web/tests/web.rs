@@ -507,14 +507,78 @@ async fn a_secret_is_never_in_any_response_and_has_no_text_box() {
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }
 
-#[tokio::test]
+/// What a raw post got back: the status line, or the fact that the server hung up on a body it would not take.
+#[derive(Debug, PartialEq)]
+enum Posted {
+    Status(String),
+    HungUp,
+}
+
+/// A post written by hand. A server that refuses a body it has not finished reading may close the socket while
+/// the client is still writing, and Windows then reports a reset or abort; on that path there is no response to
+/// read, so a hang-up (and only those error kinds) counts as the refusal. Any other error panics.
+fn raw_post(web: &Web, cookie: &str, body: &str) -> Posted {
+    use std::io::ErrorKind::{BrokenPipe, ConnectionAborted, ConnectionReset};
+    let origin = base(web);
+    let port = web.addr().port();
+    let head = [
+        "POST /event HTTP/1.1".to_owned(),
+        format!("Host: 127.0.0.1:{port}"),
+        format!("Cookie: cw={cookie}"),
+        format!("Origin: {origin}"),
+        "Content-Type: application/x-www-form-urlencoded".to_owned(),
+        format!("Content-Length: {}", body.len()),
+        "Connection: close".to_owned(),
+    ]
+    .join("\u{d}\u{a}");
+    let mut s = TcpStream::connect(web.addr()).unwrap();
+    s.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    s.set_write_timeout(Some(Duration::from_secs(10))).unwrap();
+    let hung_up =
+        |e: &std::io::Error| matches!(e.kind(), BrokenPipe | ConnectionAborted | ConnectionReset);
+    let sent = s
+        .write_all(format!("{head}\u{d}\u{a}\u{d}\u{a}").as_bytes())
+        .and_then(|()| s.write_all(body.as_bytes()));
+    if let Err(e) = &sent {
+        assert!(
+            hung_up(e),
+            "the write failed for another reason: {:?}",
+            e.kind()
+        );
+    }
+    let mut out = Vec::new();
+    if let Err(e) = s.read_to_end(&mut out) {
+        assert!(
+            hung_up(&e),
+            "the read failed for another reason: {:?}",
+            e.kind()
+        );
+    }
+    match String::from_utf8_lossy(&out).lines().next() {
+        Some(line) if !line.is_empty() => Posted::Status(line.to_owned()),
+        _ => Posted::HungUp,
+    }
+}
+
+// A multi-thread runtime: `raw_post` blocks its thread on a socket while the server answers from another.
+#[tokio::test(flavor = "multi_thread")]
 async fn a_post_body_over_the_limit_is_refused() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
     let cookie = log_in(&web).await;
+    // Over the 64 KiB limit: refused with 413, or the server hung up before the client finished writing.
     let big = format!("v.mode={}&action=next", "a".repeat(100 * 1024));
-    let a = post(&web, &cookie, &big).await;
-    assert_eq!(a.status, 413, "{}", a.everything());
+    let refused = match raw_post(&web, &cookie, &big) {
+        Posted::HungUp => true,
+        Posted::Status(line) => line.starts_with("HTTP/1.1 413"),
+    };
+    assert!(refused, "an over-limit body was not refused");
+    // It changed nothing: still on the first step.
+    let still = page(&web, &cookie).await;
+    assert!(still.body.contains("What do you want to run?"));
+    // The control: a normal body on the same server is accepted (a redirect to the next page).
+    let ok = raw_post(&web, &cookie, "v.mode=server&action=next");
+    assert_eq!(ok, Posted::Status("HTTP/1.1 303 See Other".to_owned()));
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
 }
 
