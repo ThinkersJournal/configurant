@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.43
+
+- `configurant-web` slice c: the `web_wizard` example program (`<schema> --file <config>`, prints one address, writes only after the review is confirmed) with a demo schema, and a README whose complete `main` is the hello path (`cargo add`, run, open the address). The README's Early notice is gone and it describes the JSON endpoints. A fresh-eyes trial of the packaged crate is in the PR. ROADMAP row 29 reads built. All crates move to 0.5.43.
+
 ## 0.5.42
 
 - `configurant-web` slice b: `GET /api/view` and `POST /api/event`, the wizard's own `view::Event` as JSON through the same actor, cookie, `Host`/`Origin` checks and policy headers as the pages. A refused event is `422` with the library's message; a body that is not an event is `400` listing the events (no value quoted); a field an event does not take is refused (serde lets it through on a unit variant, so `parse_event` checks it); a non-JSON content type is `415`. A secret is not settable and appears in no answer. A test walks the same script through the form and through JSON and requires byte-identical files. Each check shown to bite by mutation. Docs: "The JSON endpoints" in `docs/BROWSER-WIZARD.md`. All crates move to 0.5.42.

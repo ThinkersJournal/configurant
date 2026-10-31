@@ -1,0 +1,41 @@
+[project]
+name = "demo"
+version = "0.1.0"
+summary = "A small demo program"
+schema_version = 1
+
+[[value]]
+key = "mode"
+type = "enum"
+choices = ["server", "client"]
+default = "client"
+description = "what the program does"
+prompt = "Should it run as a server or a client?"
+
+[[value]]
+key = "server.port"
+type = "int"
+default = 8080
+min = 1
+max = 65535
+description = "the port it listens on"
+prompt = "Which port should it listen on?"
+hint = "Most people keep the default."
+
+[[value]]
+key = "api.token"
+type = "string"
+secret = true
+env = "DEMO_API_TOKEN"
+description = "a token for the remote service"
+
+[[step]]
+id = "mode"
+title = "What should it do?"
+keys = ["mode"]
+
+[[step]]
+id = "net"
+title = "Where should it listen?"
+keys = ["server.port", "api.token"]
+when = { key = "mode", equals = "server" }
