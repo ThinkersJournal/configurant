@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.4
+
+- Docs only: HANDOFF rewritten as current state (0.6.3 published, rows 29 and 32 done, no unblocked row, Synapse-only messaging). All crates move to 0.6.4.
+
 ## 0.6.3
 
 - Docs only: `docs/PATENT-SWEEP.md` gains the row 32 addendum for the 0.6.0 change from a session cookie to a session path: idea 32, queries Q38 to Q40, eight hits (42 to 49) with every independent claim read in full, all outside as read, and what the change does relative to the closest hit US8863248B2 (it removes the cookie element; the credential elements it rested on are unchanged; re-read triggers extended). No code change. All crates move to 0.6.3.

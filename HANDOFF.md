@@ -1,22 +1,24 @@
 # configurant HANDOFF (rewritten 2026-10-31 by the configurant lane)
 
 You are the `configurant` lane (cwd `C:\Projects\configurant`, repo `ThinkersJournal/configurant`). Tasks come
-from the PM session (peer cwd `C:\Projects`; id rotates: `list_peers`; `send_message` takes `to_id`) and the
-pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Run on Sonnet, never Opus. You CAN
+from the PM session (Synapse role `pm@ciresnave`) and the pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Run on Sonnet, never Opus. You CAN
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.5.46 plus this docs PR; crates.io has configurant, -scan, -secrets, -tui, -gui 0.5.43 and configurant-web 0.5.46; the PM publishes)
-- **Row 29 (browser wizard) is done and published:** crate `configurant-web` 0.5.46 (pages, JSON endpoints, `web_wizard` example,
-  README hello path, fresh-eyes trial on the packaged form, patent record complete). No project tag yet (partial publish). The
-  registry flip waits for one outside use (CireSnave). `easyants-card.toml` describes `configurant` only; it has no web wording.
-- **Next unblocked row: 32** (browser wizard: no cookie for another port to receive): the mitigation, S-M. Row 31 waits
-  for an adopter, 27 on RedactAnt. Begin work when a blocker lifts, a [TASK] arrives, or the weekly issue sweep is due (next
-  ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).
-- Done: rows 1-2, 5, 9, 11 (ports, logging, paths), 14-16, 19-23, 26, 28-30 (29 included). Known gaps, not tasks: a secret bool/int in a serde error redacts by
-  substring (over-redacts, safe).
-- Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`); adopting 0.5.x and the `ports` module is the
-  Synapse lane's call.
+## State (main = 0.6.3, e8f856d; crates.io has all six crates at 0.6.3, tag v0.6.3; the PM publishes)
+- **Rows 29 and 32 are done and published:** `configurant-web` (browser wizard) now serves everything under a random session path
+  `/s/<session>/` with no cookie (0.6.0 breaking, first published as 0.6.3; 0.6.0 to 0.6.2 were never published). `persistant` is
+  0.14.3. The patent record (`docs/PATENT-SWEEP.md`) covers rows 29 and 32; closest hit US8863248B2, outside as read, with
+  re-read triggers (a credential passed from a launching program; a cookie brought back). The registry flip for `configurant-web`
+  waits for one outside use (CireSnave). `easyants-card.toml` describes `configurant` only; no web wording (asked the PM, no answer).
+- **No unblocked row.** Every open row names an outside blocker: 31 waits for an adopter, 27 on RedactAnt, 4/25 on SecretAnt, 7 on
+  PersistAnt, 8 and 13 on CireSnave, 6 and 10 on a request. Begin work when a blocker lifts, a [TASK] arrives, or the weekly issue
+  sweep is due (next ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).
+- Known gaps, not tasks: the browser session address stays in the browser history for the run (`docs/BROWSER-WIZARD.md` "Known limit");
+  a secret bool/int in a serde error redacts by substring (over-redacts, safe); one unexplained PARTIAL (exit 2) of the
+  `configurant-scan` real-rust-analyzer test on the windows runner (the test now says why it failed).
+- Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`); adopting 0.6.x and the `ports` module is the
+  Synapse lane's call. Messaging is Synapse only (PM notice 2026-10-31: claude-peers is out): `mcp__synapse__send` / `ack`.
 - Every PR that adds a hello path must show a fresh-eyes trial (PM 2026-10-29): a Sonnet subagent with ONLY the doc snippet and a
   path dependency, one cargo at a time; put the result and the gaps in the PR body. A library `Loader` reads the environment
   only via `.env(map)`.
