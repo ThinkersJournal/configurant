@@ -10,7 +10,7 @@ entry in each (breaking = second number pre-1.0).
 - **IDLE, correctly:** every open ROADMAP row names its blocker in the "Blocked on" column; none is mine to start (PM
   2026-10-30: row 31 stays until an adopter asks). Begin work only when a blocker lifts, a [TASK] arrives, or the weekly
   issue sweep is due (next ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).
-- Done: rows 1-2, 5, 9, 11 (ports, logging, paths), 14-16, 19-23, 26, 28, 30. Known gaps, not tasks: the unknown-field schema error has no "did you mean"; a secret bool/int in a serde error redacts by
+- Done: rows 1-2, 5, 9, 11 (ports, logging, paths), 14-16, 19-23, 26, 28, 30. Known gaps, not tasks: a secret bool/int in a serde error redacts by
   substring (over-redacts, safe).
 - Consumers: only `synapse/crates/synapsed` depends on configurant (`0.2.34`); adopting 0.5.x and the `ports` module is the
   Synapse lane's call.

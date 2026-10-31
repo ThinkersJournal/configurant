@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.39
+
+- An unknown field or variant in a schema (or a mounted fragment) now ends the error with `(did you mean `x`?)` when a known name is close, e.g. `secrt` gives `secret`; a far-off name gets none, as before. The text is built in `SchemaError`'s `Display`, so the `Parse` variant is unchanged. All crates move to 0.5.39.
+
 ## 0.5.38
 
 - Fix: `edit::Session::stage` now runs the modules' cross-key rules (`Module::validate_all`, interface version 2) over the values that would be in force, as a load does. Before, an editing session accepted a second port that collided with another key's (P5) and the next load refused the file. The refusal names the other key and never a value; a collision with a `secret` key leaks nothing. The loader and the session share one function. All crates move to 0.5.38.
