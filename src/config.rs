@@ -177,7 +177,7 @@ impl<'a> Loader<'a> {
         let Some(modules) = self.modules else {
             return;
         };
-        errors.extend(cross_key_errors(&self.schema, modules, |key| {
+        errors.extend(cross_key_errors(self.schema, modules, |key| {
             chains
                 .get(key)
                 .and_then(|c| c.last())
