@@ -2,7 +2,7 @@
 
 ## 0.6.2
 
-- Dependency: `persistant` 0.12.3 -> 0.14.3 (root optional dependency, `configurant-gui`, `configurant-tui`), read against persistant's CHANGELOG for 0.13 and 0.14. The 0.14.0 gate change (a probe-less `yes` row is no longer on) and the blob-stream additions do not reach us: we call neither `Matrix::lookup`, `enabled` nor `Matrix::parse`, and use only the registry's providers and `explain`. `capant` moves 0.0.7 -> 0.1.0 as persistant's own dependency. No source change; the full workspace test run with all features passes. All crates move to 0.6.2.
+- Dependency: `persistant` 0.12.3 -> 0.14.3 (root optional dependency, `configurant-gui`, `configurant-tui`), read against persistant's CHANGELOG for 0.13 and 0.14. The 0.14.0 gate change (a probe-less `yes` row is no longer on) and the blob-stream additions do not reach us: we call neither `Matrix::lookup`, `enabled` nor `Matrix::parse`, and use only the registry's providers and `explain`. `capant` moves 0.0.7 -> 0.1.0 as persistant's own dependency. No source change; the full workspace test run with all features passes. All crates move to 0.6.2. **First published since 0.5.x: includes 0.6.0 (Breaking, `configurant-web` session path) and 0.6.1, which were never published.**
 
 ## 0.6.1
 
