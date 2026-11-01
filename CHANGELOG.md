@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.6
+
+- Docs only: the HANDOFF wait line is in the exact `WAIT: <event> | check: <command> | wake: <RFC3339 UTC>` format. All crates move to 0.6.6.
+
 ## 0.6.5
 
 - Docs only: HANDOFF records the wait for persistant 0.16.2 (row 7) with its check and wake-up. All crates move to 0.6.5.
