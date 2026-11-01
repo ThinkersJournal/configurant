@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.5
+
+- Docs only: HANDOFF records the wait for persistant 0.16.2 (row 7) with its check and wake-up. All crates move to 0.6.5.
+
 ## 0.6.4
 
 - Docs only: HANDOFF rewritten as current state (0.6.3 published, rows 29 and 32 done, no unblocked row, Synapse-only messaging). All crates move to 0.6.4.
