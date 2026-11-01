@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.8
+
+- ROADMAP row 7, the front ends: the TUI and GUI copy screens show how far the copy got ("copying: 120 of 500 records", then "checking the copy: ..."; "starting" before the first report) instead of a bare spinner. New in the library: `ProgressCell` (a shared slot the job writes and the screen reads; `TransferJob::with_progress`) and `Display` for `TransferProgress`. The front ends ask for the total (`count_first`, one extra key-only scan of the source). Counts only on the screen; no key, value or endpoint. Tests: one per front end plus two in `tests/known_bad_transfer.rs`; mutations (the job not given the cell; the cell not written; the verify wording) each fail one or two. All crates move to 0.6.8.
+
 ## 0.6.7
 
 - ROADMAP row 7, the library part: the transfer reports progress. `PersistantModule::transfer_with_progress`, `transfer_blocking_with_progress`, `copy_between_with_progress` and `TransferJob::run_with_progress` call a `FnMut(TransferProgress)` with the phase (`Copy`, then `Verify`), the records handled so far and, with the new `TransferOptions::count_first`, the total; counts only, no key, value or endpoint, and it cannot cancel. `transfer`, `transfer_blocking`, `copy_between` and `run` are unchanged and call the new ones with a no-op. The copy and the read-back are now `persistant_kv::copy::copy_all_with_progress`; errors are still scrubbed of endpoint secrets here and `TransferError` and `TransferReport` are unchanged. Dependency: `persistant` 0.14.3 -> 0.16.4 (its 0.15 and 0.16 changes are an owner-only file mode, a value ceiling and a breaking `Leaf` list, none of which we use). Tests: four new in `tests/known_bad_transfer.rs`, three mutations each fail one or two of them (verify reported as copy; total dropped; `count_first` ignored). The TUI and GUI still show a spinner; wiring them is the next slice. All crates move to 0.6.7.

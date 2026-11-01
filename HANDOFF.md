@@ -11,7 +11,7 @@ entry in each (breaking = second number pre-1.0).
   0.14.3. The patent record (`docs/PATENT-SWEEP.md`) covers rows 29 and 32; closest hit US8863248B2, outside as read, with
   re-read triggers (a credential passed from a launching program; a cookie brought back). The registry flip for `configurant-web`
   waits for one outside use (CireSnave). `easyants-card.toml` describes `configurant` only; no web wording (asked the PM, no answer).
-- **Row 7 (transfer progress):** the library part is built (0.6.7, `persistant` 0.16.4). Next: show the record count in the TUI and GUI transfer screens in place of the spinner (`TransferJob::run_with_progress` on the worker thread, a shared counter the screen reads each turn).
+- **Row 7 (transfer progress) is done:** library 0.6.7 (`persistant` 0.16.4), TUI and GUI count 0.6.8 (`ProgressCell` shared between the job and the screen).
 - **No unblocked row.** Every open row names an outside blocker: 31 waits for an adopter, 27 on RedactAnt, 4/25 on SecretAnt, 7 on
   PersistAnt, 8 and 13 on CireSnave, 6 and 10 on a request. Begin work when a blocker lifts, a [TASK] arrives, or the weekly issue
   sweep is due (next ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).

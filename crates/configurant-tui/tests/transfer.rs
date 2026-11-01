@@ -307,3 +307,41 @@ fn a_real_copy_runs_before_the_write_and_the_result_says_what_was_copied() {
     assert!(outcome.contains("copied 3 records"), "{outcome}");
     assert!(outcome.contains("verified 3"), "{outcome}");
 }
+
+#[test]
+fn the_copy_screen_shows_how_far_the_copy_got_in_place_of_a_bare_spinner() {
+    let dir = scratch_dir("progress");
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    rt.block_on(async {
+        let gate = ProviderNeeds::new(Vec::new(), Durability::Volatile);
+        let h = registry::open_named("fs", &Endpoint::path(&dir), &gate)
+            .await
+            .unwrap();
+        for i in 0..3u8 {
+            h.kv()
+                .put(&format!("k{i}"), vec![i, 255], None)
+                .await
+                .unwrap();
+        }
+    });
+    let answer = dir.display().to_string();
+    let (before, after) = with_app(Some(setup(&[("fs", &answer)])), module(), |app| {
+        confirm_the_switch(app);
+        press(app, KeyCode::Enter);
+        let Effect::Transfer(job) = press(app, KeyCode::Enter) else {
+            panic!("expected a transfer to start");
+        };
+        let before = screen(app);
+        let result = job.run();
+        // Still on the copy screen: the result has not been handed back yet.
+        let after = screen(app);
+        let _ = app.transferred(result);
+        (before, after)
+    });
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(before.contains("Copying `fs` -> `memory`"));
+    assert!(before.contains("starting"));
+    assert!(after.contains("checking the copy: 3 of 3 records"));
+}

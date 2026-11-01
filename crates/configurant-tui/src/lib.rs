@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 
 use configurant::edit::{Confirmed, Field, Review, Session};
 use configurant::persistant::{
-    EndpointSpec, PersistantModule, TransferEnd, TransferError, TransferJob, TransferOptions,
-    TransferReport, parse_endpoint,
+    EndpointSpec, PersistantModule, ProgressCell, TransferEnd, TransferError, TransferJob,
+    TransferOptions, TransferReport, parse_endpoint,
 };
 use configurant::{ActionKind, Needs};
 use ratatui::Frame;
@@ -89,6 +89,8 @@ pub struct App<'a> {
     report: Option<String>,
     skipped_copy: bool,
     ticks: usize,
+    /// What the running copy has done so far (the job writes it, the screen reads it).
+    progress: ProgressCell,
     #[cfg(feature = "scan")]
     scan: Option<ScanSetup>,
 }
@@ -106,6 +108,7 @@ impl<'a> App<'a> {
             report: None,
             skipped_copy: false,
             ticks: 0,
+            progress: ProgressCell::new(),
             #[cfg(feature = "scan")]
             scan: None,
         }
@@ -547,8 +550,10 @@ impl<'a> App<'a> {
             from,
             to,
             setup.needs.clone(),
-            TransferOptions::default(),
-        );
+            TransferOptions::default().count_first(true),
+        )
+        .with_progress(self.progress.clone());
+        self.progress.clear();
         let (confirmed, ids) = (ask.confirmed.clone(), ask.ids.clone());
         self.message = None;
         self.mode = Mode::Copying(confirmed, ids);
@@ -634,8 +639,12 @@ impl<'a> App<'a> {
                 let spin = ["|", "/", "-", "\\"][self.ticks % 4];
                 frame.render_widget(
                     Paragraph::new(format!(
-                        "Copying `{}` -> `{}` {spin}\n\nNothing is written yet. Ctrl-C abandons the copy and leaves the file as it is.",
-                        ids[0], ids[1]
+                        "Copying `{}` -> `{}` {spin}\n{how_far}\n\nNothing is written yet. Ctrl-C abandons the copy and leaves the file as it is.",
+                        ids[0], ids[1],
+                        how_far = self
+                            .progress
+                            .latest()
+                            .map_or_else(|| "starting".to_owned(), |p| p.to_string())
                     ))
                     .wrap(Wrap { trim: false }),
                     frame.area(),

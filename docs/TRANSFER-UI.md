@@ -52,6 +52,6 @@ flags reach the module. Each mutation-checked. Real fs -> memory transfer end to
 1. **Needs from flags now, schema field later?** Recommend yes.
 2. **Endpoints asked in the UI, URLs only as `env:NAME`, prefilled by `--endpoint`?** Recommend yes.
 3. **Offer "write without copying"?** Recommend yes, as a deliberate key with a warning.
-4. **Progress:** a spinner only at first. Since 0.6.7 the library reports progress (`transfer_with_progress`, `TransferJob::run_with_progress`: a count of records per phase, and a total with `count_first`); the front ends still show a spinner until they are wired to it.
+4. **Progress:** a spinner only at first. Since 0.6.7 the library reports progress (`transfer_with_progress`, `TransferJob::run_with_progress`: a count of records per phase, and a total with `count_first`); since 0.6.8 the TUI and GUI copy screens show "copying: N of M records" (then "checking the copy: ...") under the spinner, read from a `ProgressCell` the job writes.
 5. **Scope split:** core helper `parse_endpoint` + TUI first (one PR), GUI second (another), since one PR at a
    time. Recommend yes.
