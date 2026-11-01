@@ -84,5 +84,7 @@ Each is written failing, then the code under it is mutated to confirm it bites.
 ## As built (0.2.7)
 
 `PersistantModule::transfer` / `transfer_blocking`, `copy_between` for two backends you already hold, and
-`TransferEnd`, `TransferOptions`, `TransferReport`, `TransferError`. Tests: `tests/known_bad_transfer.rs`, each
+`TransferEnd`, `TransferOptions`, `TransferReport`, `TransferError`. Since 0.6.7 the copy and the read-back are `persistant_kv::copy`'s, and
+`transfer_with_progress`, `transfer_blocking_with_progress`, `copy_between_with_progress` and `TransferJob::run_with_progress` call a
+`FnMut(TransferProgress)` with the phase, records done and, with `TransferOptions::count_first`, the total (counts only; it cannot cancel). Tests: `tests/known_bad_transfer.rs`, each
 mutation-checked. Wiring into the TUI and GUI was done afterwards (`TRANSFER-UI.md`). Not done: a `configurant transfer` command (see `ROADMAP.md`).

@@ -24,7 +24,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 4 | SecretAnt adapter crate (`SecretSource` for SecretAnt) | `SECRET-SOURCES.md` s4 item 3 | held: SecretAnt is not on crates.io | SecretAnt lane: the crate is a 0.0.0 placeholder on crates.io |
 | 5 | `Needs` schema field (today `--require`/`--prefer`/`--min-durability` flags) | `TRANSFER-UI.md` | done: ruled flags only, no `Needs` schema field (PM 2026-10-25) | - |
 | 6 | `configurant transfer` command | `TRANSFER.md` s4 "only if wanted" | held: nobody has asked for it | a request from a consumer or CireSnave (nobody has asked) |
-| 7 | Transfer progress callback (a spinner only today) | `TRANSFER-UI.md` q4 | held: PersistAnt has no progress callback | PersistAnt lane: `persistant` has no progress callback |
+| 7 | Transfer progress callback (a spinner only today) | `TRANSFER-UI.md` q4 | library built (0.6.7, `persistant` 0.16.4): `transfer_with_progress` and kin; next: show the count in the TUI and GUI instead of a spinner | - |
 | 8 | Check the GUI with a real screen reader (only the accessibility tree is tested) | `GUI.md` | held: needs a person with a screen reader (CireSnave) | CireSnave: a person with a screen reader (no board item yet) |
 | 9 | GUI arrow-key navigation inside the value list | `GUI.md` "does not give" | done: arrows move the focused row, the detail follows (0.5.1) | - |
 | 10 | Scan assist for Python/TypeScript (Rust only so far) | `SCAN.md` q2 | held: not wanted yet (PM 2026-10-23: Rust only first) | PM ruling 2026-10-23 (Rust only first); reopens on a consumer request |

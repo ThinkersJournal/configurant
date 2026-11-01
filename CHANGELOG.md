@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.7
+
+- ROADMAP row 7, the library part: the transfer reports progress. `PersistantModule::transfer_with_progress`, `transfer_blocking_with_progress`, `copy_between_with_progress` and `TransferJob::run_with_progress` call a `FnMut(TransferProgress)` with the phase (`Copy`, then `Verify`), the records handled so far and, with the new `TransferOptions::count_first`, the total; counts only, no key, value or endpoint, and it cannot cancel. `transfer`, `transfer_blocking`, `copy_between` and `run` are unchanged and call the new ones with a no-op. The copy and the read-back are now `persistant_kv::copy::copy_all_with_progress`; errors are still scrubbed of endpoint secrets here and `TransferError` and `TransferReport` are unchanged. Dependency: `persistant` 0.14.3 -> 0.16.4 (its 0.15 and 0.16 changes are an owner-only file mode, a value ceiling and a breaking `Leaf` list, none of which we use). Tests: four new in `tests/known_bad_transfer.rs`, three mutations each fail one or two of them (verify reported as copy; total dropped; `count_first` ignored). The TUI and GUI still show a spinner; wiring them is the next slice. All crates move to 0.6.7.
+
 ## 0.6.6
 
 - Docs only: the HANDOFF wait line is in the exact `WAIT: <event> | check: <command> | wake: <RFC3339 UTC>` format. All crates move to 0.6.6.

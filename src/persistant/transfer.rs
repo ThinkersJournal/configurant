@@ -11,10 +11,10 @@
 //!
 //! Only the key-value kind is copied. Leases, blob and relational data are not, and the report says so.
 
-use std::collections::HashSet;
 use std::fmt;
 
 use ::persistant::capability::provider::{EndpointSpec, ProviderNeeds};
+use ::persistant::kv::copy::{self, CopyError, CopyOptions, Phase, Side};
 use ::persistant::kv::{KvBackend, KvError};
 use ::persistant::registry::{self, Endpoint};
 
@@ -107,6 +107,8 @@ pub struct TransferOptions {
     pub allow_existing: bool,
     /// Records read from the source per page.
     pub page_size: usize,
+    /// Count the source's records first, so [`TransferProgress::total`] is known. One extra key-only scan.
+    pub count_first: bool,
 }
 
 impl Default for TransferOptions {
@@ -114,6 +116,7 @@ impl Default for TransferOptions {
         TransferOptions {
             allow_existing: false,
             page_size: 256,
+            count_first: false,
         }
     }
 }
@@ -130,6 +133,34 @@ impl TransferOptions {
         self.page_size = n.max(1);
         self
     }
+
+    /// Count the source first so a progress report has a total (see [`TransferProgress`]).
+    #[must_use]
+    pub fn count_first(mut self, yes: bool) -> Self {
+        self.count_first = yes;
+        self
+    }
+}
+
+/// The part of a transfer a [`TransferProgress`] is about.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum TransferPhase {
+    /// Records are being written to the target.
+    Copy,
+    /// The copy is being read back and compared with the source.
+    Verify,
+}
+
+/// How far a transfer has got, in records of the source handled so far in this phase. Counts only: no key,
+/// value or endpoint. Reported once at the start of each phase (`done` is 0) and after every record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct TransferProgress {
+    pub phase: TransferPhase,
+    pub done: u64,
+    /// The source's record count when the transfer began, if [`TransferOptions::count_first`] asked for it.
+    pub total: Option<u64>,
 }
 
 /// What a finished transfer did.
@@ -261,6 +292,20 @@ impl PersistantModule {
         needs: &Needs,
         options: &TransferOptions,
     ) -> Result<TransferReport, TransferError> {
+        self.transfer_with_progress(from, to, needs, options, &mut |_| {})
+            .await
+    }
+
+    /// As [`Self::transfer`], calling `progress` as the work goes (see [`TransferProgress`]). The callback
+    /// runs inline between awaits, must be quick, and cannot cancel the transfer.
+    pub async fn transfer_with_progress(
+        &self,
+        from: &TransferEnd,
+        to: &TransferEnd,
+        needs: &Needs,
+        options: &TransferOptions,
+        progress: &mut dyn FnMut(TransferProgress),
+    ) -> Result<TransferReport, TransferError> {
         if from.id == to.id {
             return Err(TransferError::SameBackend(from.id.clone()));
         }
@@ -278,7 +323,7 @@ impl PersistantModule {
         let dst = registry::open_named(&to.id, &to.endpoint, &target_gate)
             .await
             .map_err(|e| open_err("target", e))?;
-        copy_and_verify(src.kv(), dst.kv(), options, &hide).await
+        copy_and_verify(src.kv(), dst.kv(), options, &hide, progress).await
     }
 
     /// As [`Self::transfer`], on a current-thread runtime of its own (feature `persistant-blocking`).
@@ -290,11 +335,25 @@ impl PersistantModule {
         needs: &Needs,
         options: &TransferOptions,
     ) -> Result<TransferReport, TransferError> {
+        self.transfer_blocking_with_progress(from, to, needs, options, &mut |_| {})
+    }
+
+    /// As [`Self::transfer_blocking`], calling `progress` on the thread that is blocked (feature
+    /// `persistant-blocking`).
+    #[cfg(feature = "persistant-blocking")]
+    pub fn transfer_blocking_with_progress(
+        &self,
+        from: &TransferEnd,
+        to: &TransferEnd,
+        needs: &Needs,
+        options: &TransferOptions,
+        progress: &mut dyn FnMut(TransferProgress),
+    ) -> Result<TransferReport, TransferError> {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .map_err(|e| TransferError::Runtime(e.to_string()))?;
-        rt.block_on(self.transfer(from, to, needs, options))
+        rt.block_on(self.transfer_with_progress(from, to, needs, options, progress))
     }
 }
 
@@ -306,175 +365,81 @@ pub async fn copy_between<S: KvBackend, T: KvBackend>(
     target: &T,
     options: &TransferOptions,
 ) -> Result<TransferReport, TransferError> {
-    copy_and_verify(source, target, options, &[]).await
+    copy_between_with_progress(source, target, options, &mut |_| {}).await
 }
 
-/// One page of the source, as `(key, value)` pairs and the cursor for the next. Backends that can scan
-/// keys and values together in one snapshot (`ordered_scan_values`) do; the blob-based ones (`memory`, `fs`)
-/// scan keys only, so each value is then read with `get` (a key that expired in between is skipped).
-async fn read_page<S: KvBackend>(
+/// As [`copy_between`], calling `progress` as the work goes (see [`TransferProgress`]).
+pub async fn copy_between_with_progress<S: KvBackend, T: KvBackend>(
     source: &S,
-    after: Option<&str>,
-    limit: usize,
-    hide: &[String],
-) -> Result<(Vec<(String, Vec<u8>)>, Option<String>), TransferError> {
-    match source.ordered_scan_values("", after, limit).await {
-        Ok(page) => return Ok((page.entries, page.next)),
-        Err(KvError::Unsupported(_)) => {}
-        Err(e) => return Err(kv_err("source", "ordered_scan_values", e, hide)),
-    }
-    let keys = source
-        .ordered_scan("", after, limit)
-        .await
-        .map_err(|e| kv_err("source", "ordered_scan", e, hide))?;
-    let mut entries = Vec::with_capacity(keys.keys.len());
-    for key in keys.keys {
-        let got = source
-            .get(&key)
-            .await
-            .map_err(|e| kv_err("source", "get", e, hide))?;
-        if let Some(value) = got {
-            entries.push((key, value));
-        }
-    }
-    Ok((entries, keys.next))
-}
-
-async fn target_has_any<T: KvBackend>(target: &T, hide: &[String]) -> Result<bool, TransferError> {
-    match target.ordered_scan("", None, 1).await {
-        Ok(page) => Ok(!page.keys.is_empty()),
-        Err(KvError::Unsupported(_)) => target
-            .prefix_list("", None, 1)
-            .await
-            .map(|page| !page.keys.is_empty())
-            .map_err(|e| kv_err("target", "prefix_list", e, hide)),
-        Err(e) => Err(kv_err("target", "ordered_scan", e, hide)),
-    }
-}
-
-async fn target_count<T: KvBackend>(
     target: &T,
-    limit: usize,
-    hide: &[String],
-) -> Result<usize, TransferError> {
-    let (mut n, mut after) = (0, None::<String>);
-    loop {
-        let page = target
-            .ordered_scan("", after.as_deref(), limit)
-            .await
-            .map_err(|e| kv_err("target", "ordered_scan", e, hide))?;
-        n += page.keys.len();
-        match page.next {
-            Some(cursor) => after = Some(cursor),
-            None => return Ok(n),
-        }
-    }
+    options: &TransferOptions,
+    progress: &mut dyn FnMut(TransferProgress),
+) -> Result<TransferReport, TransferError> {
+    copy_and_verify(source, target, options, &[], progress).await
 }
 
+/// The copy and the read-back are `persistant_kv::copy`'s; this maps its answer onto ours and scrubs the
+/// backend's own error text of the endpoint secrets, which the library leaves to the caller.
 async fn copy_and_verify<S: KvBackend, T: KvBackend>(
     source: &S,
     target: &T,
     options: &TransferOptions,
     hide: &[String],
+    progress: &mut dyn FnMut(TransferProgress),
 ) -> Result<TransferReport, TransferError> {
-    let limit = options.page_size.max(1);
-    if !options.allow_existing && target_has_any(target, hide).await? {
-        return Err(TransferError::TargetNotEmpty);
-    }
-
-    let (mut copied, mut with_ttl, mut skipped) = (0, 0, 0);
-    let mut kept: HashSet<String> = HashSet::new();
-    let mut after: Option<String> = None;
-    loop {
-        let (entries, next) = read_page(source, after.as_deref(), limit, hide).await?;
-        for (key, value) in entries {
-            let ttl = source
-                .ttl_remaining(&key)
-                .await
-                .map_err(|e| kv_err("source", "ttl_remaining", e, hide))?;
-            if options.allow_existing {
-                let stored = target
-                    .put_if_absent(&key, value, ttl)
-                    .await
-                    .map_err(|e| kv_err("target", "put_if_absent", e, hide))?;
-                if !stored {
-                    skipped += 1;
-                    kept.insert(key);
-                    continue;
-                }
-            } else {
-                target
-                    .put(&key, value, ttl)
-                    .await
-                    .map_err(|e| kv_err("target", "put", e, hide))?;
-            }
-            copied += 1;
-            with_ttl += usize::from(ttl.is_some());
-        }
-        match next {
-            Some(cursor) => after = Some(cursor),
-            None => break,
-        }
-    }
-
-    // Read both sides back. The source is scanned again (not remembered), so what is compared is what
-    // is stored now.
-    let (mut verified, mut missing, mut differing) = (0, 0, 0);
-    let mut sample: Vec<String> = Vec::new();
-    let mut note = |key: String| {
-        if sample.len() < 10 {
-            sample.push(key);
-        }
+    let opts = CopyOptions {
+        allow_existing: options.allow_existing,
+        page_size: options.page_size.max(1),
+        count_first: options.count_first,
     };
-    let mut after: Option<String> = None;
-    loop {
-        let (entries, next) = read_page(source, after.as_deref(), limit, hide).await?;
-        for (key, value) in entries {
-            if kept.contains(&key) {
-                continue;
-            }
-            match target
-                .get(&key)
-                .await
-                .map_err(|e| kv_err("target", "get", e, hide))?
-            {
-                None => {
-                    missing += 1;
-                    note(key);
-                }
-                Some(stored) if stored != value => {
-                    differing += 1;
-                    note(key);
-                }
-                Some(_) => verified += 1,
-            }
-        }
-        match next {
-            Some(cursor) => after = Some(cursor),
-            None => break,
-        }
-    }
-    let extra = if options.allow_existing {
-        0
-    } else {
-        target_count(target, limit, hide)
-            .await?
-            .saturating_sub(verified + differing)
+    let mut relay = |p: copy::Progress| {
+        progress(TransferProgress {
+            phase: match p.phase {
+                Phase::Copy => TransferPhase::Copy,
+                _ => TransferPhase::Verify,
+            },
+            done: p.done,
+            total: p.total,
+        });
     };
-    if missing + differing + extra > 0 {
-        return Err(TransferError::Mismatch {
+    match copy::copy_all_with_progress(source, target, &opts, &mut relay).await {
+        Ok(r) => Ok(TransferReport {
+            copied: to_usize(r.copied),
+            with_ttl: to_usize(r.with_ttl),
+            skipped: to_usize(r.skipped),
+            verified: to_usize(r.verified),
+        }),
+        Err(CopyError::TargetNotEmpty) => Err(TransferError::TargetNotEmpty),
+        Err(CopyError::Kv { side, op, error }) => Err(kv_err(
+            match side {
+                Side::Source => "source",
+                _ => "target",
+            },
+            op,
+            error,
+            hide,
+        )),
+        Err(CopyError::Mismatch {
             missing,
             differing,
             extra,
             sample,
-        });
+        }) => Err(TransferError::Mismatch {
+            missing: to_usize(missing),
+            differing: to_usize(differing),
+            extra: to_usize(extra),
+            sample,
+        }),
+        Err(_) => Err(TransferError::Backend {
+            side: "target",
+            op: "copy",
+            reason: "the copy failed".to_owned(),
+        }),
     }
-    Ok(TransferReport {
-        copied,
-        with_ttl,
-        skipped,
-        verified,
-    })
+}
+
+fn to_usize(n: u64) -> usize {
+    usize::try_from(n).unwrap_or(usize::MAX)
 }
 
 #[cfg(test)]
@@ -577,7 +542,20 @@ impl TransferJob {
 
     /// Run it, blocking the calling thread until it finishes.
     pub fn run(self) -> Result<TransferReport, TransferError> {
-        self.module
-            .transfer_blocking(&self.from, &self.to, &self.needs, &self.options)
+        self.run_with_progress(&mut |_| {})
+    }
+
+    /// As [`Self::run`], calling `progress` on the worker thread as the work goes.
+    pub fn run_with_progress(
+        self,
+        progress: &mut dyn FnMut(TransferProgress),
+    ) -> Result<TransferReport, TransferError> {
+        self.module.transfer_blocking_with_progress(
+            &self.from,
+            &self.to,
+            &self.needs,
+            &self.options,
+            progress,
+        )
     }
 }

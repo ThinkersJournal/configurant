@@ -811,7 +811,7 @@ dependencies = [
 
 [[package]]
 name = "configurant"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "clap",
  "persistant",
@@ -827,7 +827,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-gui"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "clap",
  "configurant",
@@ -840,7 +840,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-scan"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "clap",
  "configurant",
@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-secrets"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "configurant",
  "tempfile",
@@ -864,7 +864,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-tui"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "clap",
  "configurant",
@@ -876,7 +876,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-web"
-version = "0.6.6"
+version = "0.6.7"
 dependencies = [
  "configurant",
  "getrandom 0.4.3",
@@ -3399,9 +3399,9 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "persistant"
-version = "0.14.3"
+version = "0.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "799df5b1e1d92baa938d93d30931651384cb018d19dbf4959536b29cd9236538"
+checksum = "231434c8877022efcc162cba38a0a5c26db5f1648e8b60f44685a3ec21c13561"
 dependencies = [
  "futures-util",
  "opendal",
@@ -3417,27 +3417,28 @@ dependencies = [
 
 [[package]]
 name = "persistant-blob"
-version = "0.14.3"
+version = "0.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9a1a850aee203930a1621eda56ba679ac72b1bdc7de032673f7c5ebb2b69b5f"
+checksum = "c90d1eda18e8480334d6c60902c2010f4eec202169d7af2a6edba3f4d888614f"
 dependencies = [
  "persistant-core",
 ]
 
 [[package]]
 name = "persistant-core"
-version = "0.14.3"
+version = "0.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a37a2527cd3f396967dcec9f62bb2aa96cfb377688bfa24b7b74660111e1016"
+checksum = "8b6a74b90f8ffec8ffe37f8f72af252b6aaa3f41d29e968c96a612eb6a842b9b"
 dependencies = [
  "capant",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "persistant-kv"
-version = "0.14.3"
+version = "0.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ba4f943db77b3814646173b08a21c0d01f3f6664ef6aa314f38995c459318e9"
+checksum = "4e564687391ebc81c20075a7204196b4b4fdf470e00de37f3c8fb01060c1b77f"
 dependencies = [
  "persistant-blob",
  "persistant-core",
@@ -3448,9 +3449,9 @@ dependencies = [
 
 [[package]]
 name = "persistant-opendal"
-version = "0.14.3"
+version = "0.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd98691715ee3ce397560c3da085fd74a25fd0c237a44a07c7002756943d3aca"
+checksum = "5de74ca662f8b87dbc1f3e41b0d01068bcf9c5eaea5b8ac64b8c83c868513935"
 dependencies = [
  "futures-util",
  "opendal",
@@ -3461,9 +3462,9 @@ dependencies = [
 
 [[package]]
 name = "persistant-relational"
-version = "0.14.3"
+version = "0.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d8047af5376a081c910dc8638944ca448a24df58b2687d25729419cbc312c55"
+checksum = "f689325cc294614e2b2dad8c5a3b1174f4b1f968412cb405b64f35f5f9cde19e"
 dependencies = [
  "persistant-core",
 ]
