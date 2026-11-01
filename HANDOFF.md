@@ -12,9 +12,11 @@ entry in each (breaking = second number pre-1.0).
   re-read triggers (a credential passed from a launching program; a cookie brought back). The registry flip for `configurant-web`
   waits for one outside use (CireSnave). `easyants-card.toml` describes `configurant` only; no web wording (asked the PM, no answer).
 - **Row 7 (transfer progress) is done:** library 0.6.7 (`persistant` 0.16.4), TUI and GUI count 0.6.8 (`ProgressCell` shared between the job and the screen).
-- **No unblocked row.** Every open row names an outside blocker: 31 waits for an adopter, 27 on RedactAnt, 4/25 on SecretAnt, 7 on
-  PersistAnt, 8 and 13 on CireSnave, 6 and 10 on a request. Begin work when a blocker lifts, a [TASK] arrives, or the weekly issue
-  sweep is due (next ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).
+WAIT: weekly issue sweep and any new ROADMAP row | check: gh api repos/ThinkersJournal/configurant/issues --jq length | wake: 2026-11-07T09:00:00Z
+- **Soft-stopped (PM 2026-11-01, CireSnave: every lane works or is soft-stopped).** No row is unblocked: 31 waits for an adopter, 27 on RedactAnt,
+  4/25 on SecretAnt, 8 and 13 on CireSnave, 6 and 10 on a request. The PM restarts the lane on 2026-11-07 or when a row appears.
+- **First task on restart:** the weekly issue sweep (close fixed issues with evidence, comment status on the rest, answer outsiders within 3 days,
+  `Part of #N` in PRs); report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`. Then the next ROADMAP row if one has appeared.
 - Known gaps, not tasks: the browser session address stays in the browser history for the run (`docs/BROWSER-WIZARD.md` "Known limit");
   a secret bool/int in a serde error redacts by substring (over-redacts, safe); one unexplained PARTIAL (exit 2) of the
   `configurant-scan` real-rust-analyzer test on the windows runner (the test now says why it failed).
