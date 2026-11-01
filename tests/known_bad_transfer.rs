@@ -14,6 +14,8 @@ use configurant::persistant::{
     Durability, Endpoint, PersistantModule, TransferEnd, TransferError, TransferOptions,
     TransferPhase, TransferProgress, copy_between, copy_between_with_progress,
 };
+#[cfg(feature = "persistant-blocking")]
+use configurant::persistant::{ProgressCell, TransferJob};
 use persistant::capability::provider::ProviderNeeds;
 use persistant::kv::{Defect, KeyPage, KvBackend, KvError, MemoryKv, ValuePage};
 use persistant::registry;
@@ -501,4 +503,71 @@ fn the_blocking_wrapper_reports_progress_to_its_caller() {
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(report.expect("transfer").copied, 3);
     assert_eq!(last_copy, 3);
+}
+
+#[cfg(feature = "persistant-blocking")]
+#[test]
+fn a_job_with_a_progress_cell_leaves_its_last_report_there_for_the_screen() {
+    let dir = scratch_dir("cell");
+    run(async {
+        let gate = ProviderNeeds::new(Vec::new(), Durability::Volatile);
+        let h = registry::open_named("fs", &Endpoint::path(&dir), &gate)
+            .await
+            .unwrap();
+        for k in ["a", "b", "c"] {
+            h.kv().put(k, b"1".to_vec(), None).await.unwrap();
+        }
+    });
+    let job = |cell: Option<&ProgressCell>| {
+        let job = TransferJob::new(
+            module(),
+            TransferEnd::new("fs", Endpoint::path(&dir)),
+            TransferEnd::new("memory", Endpoint::None),
+            needs(),
+            TransferOptions::default().count_first(true),
+        );
+        match cell {
+            Some(c) => job.with_progress(c.clone()),
+            None => job,
+        }
+    };
+    let cell = ProgressCell::new();
+    assert!(cell.latest().is_none(), "nothing before the first report");
+    let report = job(Some(&cell)).run();
+    assert!(report.is_ok(), "the job finished");
+    let last = cell.latest().expect("a report was left");
+    assert!(
+        last.phase == TransferPhase::Verify && last.done == 3 && last.total == Some(3),
+        "the last report is the end of the read-back"
+    );
+    assert!(
+        last.to_string() == "checking the copy: 3 of 3 records",
+        "the line a screen shows"
+    );
+    cell.clear();
+    assert!(cell.latest().is_none(), "cleared for the next transfer");
+    // A job without a cell just runs.
+    assert!(job(None).run().is_ok(), "no cell, no harm");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_progress_line_names_the_phase_and_has_a_total_only_when_known() {
+    let lines = |options: &TransferOptions| {
+        let (src, dst) = (MemoryKv::new(), MemoryKv::new());
+        fill(&src, 2);
+        let mut out: Vec<String> = Vec::new();
+        let result = run(copy_between_with_progress(&src, &dst, options, &mut |p| {
+            out.push(p.to_string());
+        }));
+        assert!(result.is_ok(), "the copy finished");
+        out
+    };
+    let plain = lines(&TransferOptions::default());
+    assert!(plain.first().map(String::as_str) == Some("copying: 0 records"));
+    assert!(plain.contains(&"copying: 2 records".to_owned()));
+    assert!(plain.last().map(String::as_str) == Some("checking the copy: 2 records"));
+    let counted = lines(&TransferOptions::default().count_first(true));
+    assert!(counted.first().map(String::as_str) == Some("copying: 0 of 2 records"));
+    assert!(counted.last().map(String::as_str) == Some("checking the copy: 2 of 2 records"));
 }

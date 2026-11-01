@@ -12,6 +12,7 @@
 //! Only the key-value kind is copied. Leases, blob and relational data are not, and the report says so.
 
 use std::fmt;
+use std::sync::{Arc, Mutex};
 
 use ::persistant::capability::provider::{EndpointSpec, ProviderNeeds};
 use ::persistant::kv::copy::{self, CopyError, CopyOptions, Phase, Side};
@@ -161,6 +162,45 @@ pub struct TransferProgress {
     pub done: u64,
     /// The source's record count when the transfer began, if [`TransferOptions::count_first`] asked for it.
     pub total: Option<u64>,
+}
+
+impl fmt::Display for TransferProgress {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let what = match self.phase {
+            TransferPhase::Copy => "copying",
+            TransferPhase::Verify => "checking the copy",
+        };
+        match self.total {
+            Some(total) => write!(f, "{what}: {} of {total} records", self.done),
+            None => write!(f, "{what}: {} records", self.done),
+        }
+    }
+}
+
+/// The latest [`TransferProgress`] of a transfer running on another thread, for a front end to read on each
+/// turn of its loop. Cheap to clone (the clones share one slot). A [`TransferJob`] given one with
+/// [`TransferJob::with_progress`] writes it as the work goes; the screen calls [`Self::latest`].
+#[derive(Debug, Clone, Default)]
+pub struct ProgressCell(Arc<Mutex<Option<TransferProgress>>>);
+
+impl ProgressCell {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Forget the last report (a new transfer is about to start).
+    pub fn clear(&self) {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// The most recent report, or `None` before the first.
+    pub fn latest(&self) -> Option<TransferProgress> {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn set(&self, p: TransferProgress) {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(p);
+    }
 }
 
 /// What a finished transfer did.
@@ -512,6 +552,7 @@ pub struct TransferJob {
     to: TransferEnd,
     needs: Needs,
     options: TransferOptions,
+    progress: Option<ProgressCell>,
 }
 
 #[cfg(feature = "persistant-blocking")]
@@ -529,7 +570,15 @@ impl TransferJob {
             to,
             needs,
             options,
+            progress: None,
         }
+    }
+
+    /// Have [`Self::run`] write its progress into `cell`, which the front end reads while the job runs.
+    #[must_use]
+    pub fn with_progress(mut self, cell: ProgressCell) -> Self {
+        self.progress = Some(cell);
+        self
     }
 
     pub fn from_id(&self) -> &str {
@@ -542,7 +591,10 @@ impl TransferJob {
 
     /// Run it, blocking the calling thread until it finishes.
     pub fn run(self) -> Result<TransferReport, TransferError> {
-        self.run_with_progress(&mut |_| {})
+        match self.progress.clone() {
+            Some(cell) => self.run_with_progress(&mut |p| cell.set(p)),
+            None => self.run_with_progress(&mut |_| {}),
+        }
     }
 
     /// As [`Self::run`], calling `progress` on the worker thread as the work goes.
