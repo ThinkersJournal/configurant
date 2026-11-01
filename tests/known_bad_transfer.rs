@@ -12,7 +12,7 @@ use std::time::Duration;
 use configurant::Needs;
 use configurant::persistant::{
     Durability, Endpoint, PersistantModule, TransferEnd, TransferError, TransferOptions,
-    copy_between,
+    TransferPhase, TransferProgress, copy_between, copy_between_with_progress,
 };
 use persistant::capability::provider::ProviderNeeds;
 use persistant::kv::{Defect, KeyPage, KvBackend, KvError, MemoryKv, ValuePage};
@@ -378,4 +378,127 @@ fn the_blocking_wrapper_runs_the_same_transfer() {
     let report = module().transfer_blocking(&from, &to, &needs(), &TransferOptions::default());
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(report.expect("transfer").verified, 1);
+}
+
+/// Every report of a progress run, as `(phase, done, total)`.
+fn progress_of(
+    src: &MemoryKv,
+    dst: &MemoryKv,
+    options: &TransferOptions,
+) -> (Vec<(TransferPhase, u64, Option<u64>)>, bool) {
+    let mut seen = Vec::new();
+    let result = run(copy_between_with_progress(
+        src,
+        dst,
+        options,
+        &mut |p: TransferProgress| {
+            seen.push((p.phase, p.done, p.total));
+        },
+    ));
+    (seen, result.is_ok())
+}
+
+fn expected(n: u64, total: Option<u64>) -> Vec<(TransferPhase, u64, Option<u64>)> {
+    let mut out = Vec::new();
+    for phase in [TransferPhase::Copy, TransferPhase::Verify] {
+        for done in 0..=n {
+            out.push((phase, done, total));
+        }
+    }
+    out
+}
+
+#[test]
+fn progress_counts_records_through_the_copy_and_then_the_read_back() {
+    let (src, dst) = (MemoryKv::new(), MemoryKv::new());
+    fill(&src, 5);
+    let (seen, ok) = progress_of(&src, &dst, &TransferOptions::default());
+    assert!(ok, "the copy finished");
+    assert!(
+        seen == expected(5, None),
+        "start of each phase, then every record"
+    );
+}
+
+#[test]
+fn progress_has_a_total_only_when_asked_for() {
+    let (src, dst) = (MemoryKv::new(), MemoryKv::new());
+    fill(&src, 4);
+    let (seen, ok) = progress_of(&src, &dst, &TransferOptions::default().count_first(true));
+    assert!(ok, "the copy finished");
+    assert!(
+        seen == expected(4, Some(4)),
+        "total known from the first report"
+    );
+    let (src, dst) = (MemoryKv::new(), MemoryKv::new());
+    fill(&src, 4);
+    let (seen, _) = progress_of(&src, &dst, &TransferOptions::default());
+    assert!(
+        seen.iter().all(|(_, _, total)| total.is_none()),
+        "no total without count_first"
+    );
+}
+
+#[test]
+fn a_copy_that_fails_halfway_reported_how_far_it_got_and_a_refusal_reports_nothing() {
+    let (src, dst) = (MemoryKv::new(), MemoryKv::new());
+    fill(&src, 6);
+    let mut wrap = Wrap::new(&dst);
+    wrap.fail_put_after = Some(2);
+    let mut seen = Vec::new();
+    let result = run(copy_between_with_progress(
+        &src,
+        &wrap,
+        &TransferOptions::default(),
+        &mut |p| seen.push((p.phase, p.done)),
+    ));
+    assert!(result.is_err(), "the third write fails");
+    assert!(
+        seen.last() == Some(&(TransferPhase::Copy, 2)),
+        "the last report is the two that were written"
+    );
+    assert!(
+        seen.iter().all(|(phase, _)| *phase == TransferPhase::Copy),
+        "it never reached the read-back"
+    );
+    // A target that already holds records is refused before any work: nothing to report.
+    let (src, dst) = (MemoryKv::new(), MemoryKv::new());
+    fill(&src, 2);
+    fill(&dst, 1);
+    let (seen, ok) = progress_of(&src, &dst, &TransferOptions::default());
+    assert!(!ok, "refused");
+    assert!(seen.is_empty(), "no report before a refusal");
+}
+
+#[cfg(feature = "persistant-blocking")]
+#[test]
+fn the_blocking_wrapper_reports_progress_to_its_caller() {
+    let dir = scratch_dir("blocking-progress");
+    run(async {
+        let gate = ProviderNeeds::new(Vec::new(), Durability::Volatile);
+        let h = registry::open_named("fs", &Endpoint::path(&dir), &gate)
+            .await
+            .unwrap();
+        for k in ["a", "b", "c"] {
+            h.kv().put(k, b"1".to_vec(), None).await.unwrap();
+        }
+    });
+    let from = TransferEnd::new("fs", Endpoint::path(&dir));
+    let to = TransferEnd::new("memory", Endpoint::None);
+    let mut last_copy = 0;
+    let report = module().transfer_blocking_with_progress(
+        &from,
+        &to,
+        &needs(),
+        &TransferOptions::default().count_first(true),
+        &mut |p| {
+            if p.phase == TransferPhase::Copy {
+                last_copy = p.done;
+            }
+            assert!(p.total == Some(3), "the total is 3 in every report");
+        },
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(report.expect("transfer").copied, 3);
+    assert_eq!(last_copy, 3);
 }

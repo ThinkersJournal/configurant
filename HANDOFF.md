@@ -11,8 +11,7 @@ entry in each (breaking = second number pre-1.0).
   0.14.3. The patent record (`docs/PATENT-SWEEP.md`) covers rows 29 and 32; closest hit US8863248B2, outside as read, with
   re-read triggers (a credential passed from a launching program; a cookie brought back). The registry flip for `configurant-web`
   waits for one outside use (CireSnave). `easyants-card.toml` describes `configurant` only; no web wording (asked the PM, no answer).
-WAIT: persistant-kv 0.16.2 on crates.io | check: curl -sf -A configurant-lane https://crates.io/api/v1/crates/persistant-kv/0.16.2 | wake: 2026-11-01T18:00:00Z
-- That wait unblocks ROADMAP row 7 (PersistAnt progress callback): read persistant's CHANGELOG for the callback, bump `persistant`, build it. A background poll (5 min) is armed in the live session; re-arm it after a restart.
+- **Row 7 (transfer progress):** the library part is built (0.6.7, `persistant` 0.16.4). Next: show the record count in the TUI and GUI transfer screens in place of the spinner (`TransferJob::run_with_progress` on the worker thread, a shared counter the screen reads each turn).
 - **No unblocked row.** Every open row names an outside blocker: 31 waits for an adopter, 27 on RedactAnt, 4/25 on SecretAnt, 7 on
   PersistAnt, 8 and 13 on CireSnave, 6 and 10 on a request. Begin work when a blocker lifts, a [TASK] arrives, or the weekly issue
   sweep is due (next ~2026-11-07: report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`).

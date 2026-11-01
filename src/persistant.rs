@@ -26,8 +26,8 @@ pub use ::persistant::registry::Endpoint;
 #[cfg(feature = "persistant-blocking")]
 pub use transfer::TransferJob;
 pub use transfer::{
-    NOT_COPIED, TransferEnd, TransferError, TransferOptions, TransferReport, copy_between,
-    parse_endpoint,
+    NOT_COPIED, TransferEnd, TransferError, TransferOptions, TransferPhase, TransferProgress,
+    TransferReport, copy_between, copy_between_with_progress, parse_endpoint,
 };
 
 use crate::error::suggestion;
