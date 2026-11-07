@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.9
+
+- ROADMAP row 6: `configurant transfer --from <id> --to <id> [--endpoint <id>=<path|env:NAME>]... [--require C] [--prefer C] [--min-durability volatile|process|machine]` runs the same copy-and-verify as the TUI and GUI, so all three front ends offer it. It prints "copying..." and "checking the copy..." to stderr and the report to stdout; exit 2 on any refusal. It changes neither the source nor any configuration file (edit the file yourself afterwards). A typed URL is refused without being echoed; an `--endpoint` for a backend on neither end is refused. Only built with feature `persistant-blocking` (`cargo install configurant --features persistant-blocking`), and only `memory` and `fs` exist in this binary, so `fs` to `memory` is a check, not a migration, until the binary offers a database backend. Tests: `tests/known_bad_transfer_cli.rs` (7); two mutations (the neither-end check removed; the answer echoed in an error) each fail one. All crates move to 0.6.9.
 ## 0.6.8
 
 - ROADMAP row 7, the front ends: the TUI and GUI copy screens show how far the copy got ("copying: 120 of 500 records", then "checking the copy: ..."; "starting" before the first report) instead of a bare spinner. New in the library: `ProgressCell` (a shared slot the job writes and the screen reads; `TransferJob::with_progress`) and `Display` for `TransferProgress`. The front ends ask for the total (`count_first`, one extra key-only scan of the source). Counts only on the screen; no key, value or endpoint. Tests: one per front end plus two in `tests/known_bad_transfer.rs`; mutations (the job not given the cell; the cell not written; the verify wording) each fail one or two. All crates move to 0.6.8.
