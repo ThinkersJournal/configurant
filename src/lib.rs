@@ -8,6 +8,7 @@ pub mod config;
 pub mod edit;
 pub mod error;
 pub mod exec;
+pub mod json_schema;
 pub mod keycheck;
 pub mod migrate;
 pub mod module;

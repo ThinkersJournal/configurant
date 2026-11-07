@@ -32,6 +32,9 @@ enum Command {
         #[arg(last = true)]
         app_args: Vec<String>,
     },
+    /// Print the schema as a JSON Schema for the configuration file, so an editor can complete keys and check
+    /// types (secrets are left out). Writes nothing else.
+    JsonSchema { schema: PathBuf },
     /// Find the places in Rust source (a directory, e.g. `src`) that ask for a key the schema does not
     /// define. Exits 1 if there are any. Writes nothing.
     Keys { schema: PathBuf, dir: PathBuf },
@@ -220,6 +223,13 @@ fn main() -> ExitCode {
                         d.source.as_deref().unwrap_or_default()
                     );
                 }
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(e),
+        },
+        Command::JsonSchema { schema } => match load_schema(&schema) {
+            Ok(s) => {
+                print!("{}", s.json_schema());
                 ExitCode::SUCCESS
             }
             Err(e) => fail(e),

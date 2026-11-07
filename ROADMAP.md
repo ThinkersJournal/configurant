@@ -30,7 +30,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 10 | Scan assist for Python/TypeScript (Rust only so far) | `SCAN.md` q2 | held: not wanted yet (PM 2026-10-23: Rust only first) | PM ruling 2026-10-23 (Rust only first); reopens on a consumer request |
 | 11 | Other modules: ports, paths, logging | spec s4 "Other modules" | done: design `docs/MODULES.md` (#63, 0.5.24); ports P1-P4 (#64, 0.5.25), interface v2 + P5 (#66, 0.5.27), logging L1-L3 (#68, 0.5.29), paths T1-T5 (#70, 0.5.31), patent re-sweep (#72); `synapsed` adopts ports in its own PR (the Synapse lane said yes 2026-10-30) | - |
 | 12 | Further customers: lanes' tooling, direct-backend projects through PersistAnt | spec "First customers" | held: each project's own lane adopts | each consumer's own lane: synapse (`synapsed` adopting `ports`, said yes 2026-10-30), AntSpawn |
-| 13 | Export a schema as JSON Schema for editors | `PRIOR-ART.md` (schemars) | held: not scheduled, needs a CireSnave call | CireSnave call (no board item yet; the PM puts it on the decision board if wanted) |
+| 13 | Export a schema as JSON Schema for editors | `PRIOR-ART.md` (schemars) | done (CireSnave 2026-11-07: "Row 13 is approved."): `Schema::json_schema` and `configurant json-schema <schema>`; secrets left out | - |
 | 14 | Env/CLI list items containing a comma | HANDOFF "Known gaps" | done: backslash escape `\,` (PM 2026-10-25), 0.3.0 | - |
 | 15 | Module validation for schema defaults | HANDOFF "Known gaps" | done: defaults checked by a registered module at load (PM 2026-10-25), 0.4.0 | - |
 | 16 | `ValueDef.min/max` as f64 (ints above 2^53) | HANDOFF "Known gaps" | done: `Bound` (int or float), exact int comparison, 0.5.0 | - |
