@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.11
+
+- Docs only: HANDOFF rewritten as current state (rows 6 and 13 done, main 0.6.10, next sweep 2026-11-14). All crates move to 0.6.11.
+
 ## 0.6.10
 
 - ROADMAP row 13 (CireSnave 2026-11-07: "Row 13 is approved."): `Schema::json_schema()` and `configurant json-schema <schema>` export a schema as a JSON Schema (draft 2020-12) describing the configuration file, so an editor with JSON Schema support for TOML (taplo, Even Better TOML) completes keys, checks types and shows descriptions. Dotted keys nest; tables are arrays of objects; maps are objects of one value type; bounds, defaults, enum choices and `config_version` carry over; a required key makes its parents required; every object is closed (`additionalProperties: false`). A `secret` value is left out entirely (key, description, default): a file may not hold one. A value that takes a module's list exports as its plain type. No new dependency (a small JSON printer of its own); no feature needed. Tests: `tests/known_bad_json_schema.rs` (11) and a doctest; three mutations (secret filter removed; required not propagated; quote not escaped) each fail tests. All crates move to 0.6.10.
