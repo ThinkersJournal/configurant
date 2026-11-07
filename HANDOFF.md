@@ -1,20 +1,21 @@
-# configurant HANDOFF (rewritten 2026-10-31 by the configurant lane)
+# configurant HANDOFF (rewritten 2026-11-07 by the configurant lane)
 
 You are the `configurant` lane (cwd `C:\Projects\configurant`, repo `ThinkersJournal/configurant`). Tasks come
 from the PM session (Synapse role `pm@ciresnave`) and the pm-assist lane (merge notices). Read `C:\Projects\CLAUDE.md` and `CLAUDE.md`. Run on Sonnet, never Opus. You CAN
 push your own branches: push, open the PR, send [READY]. One PR at a time, not stacked; version bump + CHANGELOG
 entry in each (breaking = second number pre-1.0).
 
-## State (main = 0.6.3, e8f856d; crates.io has all six crates at 0.6.3, tag v0.6.3; the PM publishes)
+## State (main = 0.6.10, b0f24eb; crates.io has all six crates at 0.6.3, tag v0.6.3; 0.6.4 to 0.6.10 are unpublished; the PM publishes)
 - **Rows 29 and 32 are done and published:** `configurant-web` (browser wizard) now serves everything under a random session path
   `/s/<session>/` with no cookie (0.6.0 breaking, first published as 0.6.3; 0.6.0 to 0.6.2 were never published). `persistant` is
   0.14.3. The patent record (`docs/PATENT-SWEEP.md`) covers rows 29 and 32; closest hit US8863248B2, outside as read, with
   re-read triggers (a credential passed from a launching program; a cookie brought back). The registry flip for `configurant-web`
   waits for one outside use (CireSnave). `easyants-card.toml` describes `configurant` only; no web wording (asked the PM, no answer).
 - **Row 7 (transfer progress) is done:** library 0.6.7 (`persistant` 0.16.4), TUI and GUI count 0.6.8 (`ProgressCell` shared between the job and the screen).
-WAIT: weekly issue sweep and any new ROADMAP row | check: gh api repos/ThinkersJournal/configurant/issues --jq length | wake: 2026-11-07T09:00:00Z
+- **Rows 6 and 13 are done (CireSnave 2026-11-07, in chat with this lane, relayed to the PM and archived):** 6 "Where possible, GUI, TUI, and the command line should offer the same overall functionality.  Please add it." 0.6.9: `configurant transfer` (feature `persistant-blocking`; copies and verifies, writes no config file; `--set KEY` for that is an open offer). 13 "Row 13 is approved." 0.6.10: `Schema::json_schema` and `configurant json-schema`, secrets left out. Not checked: real config files against the export with a JSON Schema validator.
+WAIT: weekly issue sweep and any new ROADMAP row | check: gh api repos/ThinkersJournal/configurant/issues --jq length | wake: 2026-11-14T09:00:00Z
 - **Soft-stopped (PM 2026-11-01, CireSnave: every lane works or is soft-stopped).** No row is unblocked: 31 waits for an adopter, 27 on RedactAnt,
-  4/25 on SecretAnt, 8 and 13 on CireSnave, 6 and 10 on a request. The PM restarts the lane on 2026-11-07 or when a row appears.
+  4/25 on SecretAnt, 8 on a person with a screen reader (CireSnave), 10 on a consumer request (PM 2026-10-23: Rust only first). The PM restarts the lane on or after 2026-11-14 or when a row appears.
 - **First task on restart:** the weekly issue sweep (close fixed issues with evidence, comment status on the rest, answer outsiders within 3 days,
   `Part of #N` in PRs); report `issues: open N, closed N, outsiders answered N; roadmap: open N, done N, stale N`. Then the next ROADMAP row if one has appeared.
 - Known gaps, not tasks: the browser session address stays in the browser history for the run (`docs/BROWSER-WIZARD.md` "Known limit");
@@ -25,6 +26,7 @@ WAIT: weekly issue sweep and any new ROADMAP row | check: gh api repos/ThinkersJ
 - Every PR that adds a hello path must show a fresh-eyes trial (PM 2026-10-29): a Sonnet subagent with ONLY the doc snippet and a
   path dependency, one cargo at a time; put the result and the gaps in the PR body. A library `Loader` reads the environment
   only via `.env(map)`.
+- `%TEMP%\cg.ps1` was repaired 2026-11-07 (a control character had corrupted the MSVC path); it now matches `*VC*Tools*MSVC*14.51.36231*lib*x64`.
 - Box memory limit (PM 2026-10-26, until cleared): CARGO_BUILD_JOBS=2, one cargo at a time, no --workspace unless needed.
 - Primary checkout stays on `main`; work in worktrees, removed after merge. The detached `%TEMP%\.tmp*\wt` worktree in
   `git worktree list` is not ours.
