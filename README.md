@@ -33,6 +33,7 @@ The commands below need the binary: `cargo install configurant` (the examples ar
 configurant check   examples/configurant.toml
 configurant describe examples/configurant.toml
 configurant migrate examples/configurant.toml app.toml --from 1   # prints; --write saves app.toml.bak first
+configurant json-schema examples/configurant.toml > configurant.schema.json   # for editors (taplo, Even Better TOML); secrets left out
 DEMO_PORT=9000 configurant explain examples/configurant.toml server.port -- --port 9100
 ```
 
