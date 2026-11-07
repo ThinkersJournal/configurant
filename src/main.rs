@@ -50,6 +50,104 @@ enum Command {
         #[arg(long)]
         write: bool,
     },
+    /// Copy the data of one PersistAnt backend into another and read the copy back (the same copy the TUI
+    /// and GUI run). Changes neither the source nor any configuration file: edit the file yourself after
+    /// it succeeds. Only the backends this build offers (`memory`, `fs`) are available.
+    #[cfg(feature = "persistant-blocking")]
+    Transfer {
+        /// The backend id to copy from.
+        #[arg(long)]
+        from: String,
+        /// The backend id to copy into.
+        #[arg(long)]
+        to: String,
+        /// Where a backend opens from: `<backend id>=<path>` or `<backend id>=env:NAME` (the variable that
+        /// holds a connection URL; a URL itself is refused). Repeatable; `memory` needs none.
+        #[arg(long = "endpoint", value_name = "ID=ANSWER")]
+        endpoint: Vec<String>,
+        /// A capability the target backend must have, e.g. `kv.ttl` (repeatable).
+        #[arg(long = "require", value_name = "CAPABILITY")]
+        require: Vec<String>,
+        /// A capability that matters, most important first (repeatable).
+        #[arg(long = "prefer", value_name = "CAPABILITY")]
+        prefer: Vec<String>,
+        /// The lowest durability the target backend may have.
+        #[arg(long, value_enum, default_value = "process")]
+        min_durability: MinDurability,
+    },
+}
+
+#[cfg(feature = "persistant-blocking")]
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum MinDurability {
+    Volatile,
+    Process,
+    Machine,
+}
+
+/// `configurant transfer`: the endpoints are checked before anything opens, and no answer is echoed (it may
+/// be a URL typed by mistake).
+#[cfg(feature = "persistant-blocking")]
+fn transfer(
+    from: &str,
+    to: &str,
+    endpoint: &[String],
+    needs: configurant::Needs,
+    min: MinDurability,
+) -> Result<String, String> {
+    use configurant::persistant::{
+        Durability, PersistantModule, TransferEnd, TransferOptions, TransferPhase, parse_endpoint,
+    };
+
+    let module = PersistantModule::new().min_durability(match min {
+        MinDurability::Volatile => Durability::Volatile,
+        MinDurability::Process => Durability::Process,
+        MinDurability::Machine => Durability::Machine,
+    });
+    let mut answers = BTreeMap::new();
+    for item in endpoint {
+        let Some((id, answer)) = item.split_once('=') else {
+            return Err("--endpoint wants ID=ANSWER".to_owned());
+        };
+        if id != from && id != to {
+            return Err(format!(
+                "--endpoint: backend `{id}` is neither the source nor the target"
+            ));
+        }
+        answers.insert(id.to_owned(), answer.to_owned());
+    }
+    let mut end = |id: &str| -> Result<TransferEnd, String> {
+        let spec = module
+            .endpoint_spec(id)
+            .ok_or_else(|| format!("backend `{id}` is not offered by this build"))?;
+        let answer = answers.remove(id).unwrap_or_default();
+        let endpoint = parse_endpoint(&answer, &spec)
+            .map_err(|e| format!("endpoint for `{id}` (--endpoint {id}=...): {e}"))?;
+        Ok(TransferEnd::new(id, endpoint))
+    };
+    let (src, dst) = (end(from)?, end(to)?);
+    let mut phase = None;
+    let report = module
+        .transfer_blocking_with_progress(
+            &src,
+            &dst,
+            &needs,
+            &TransferOptions::default().count_first(true),
+            &mut |p| {
+                if phase != Some(p.phase) {
+                    phase = Some(p.phase);
+                    match p.phase {
+                        TransferPhase::Copy => eprintln!("copying..."),
+                        TransferPhase::Verify => eprintln!("checking the copy..."),
+                        _ => {}
+                    }
+                }
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(format!(
+        "{report}\nthe source and every configuration file are unchanged; point the configuration at `{to}` yourself"
+    ))
 }
 
 fn migrate(
@@ -164,6 +262,27 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => fail(e),
         },
+        #[cfg(feature = "persistant-blocking")]
+        Command::Transfer {
+            from,
+            to,
+            endpoint,
+            require,
+            prefer,
+            min_durability,
+        } => {
+            let needs = configurant::Needs {
+                required: require,
+                order: prefer,
+            };
+            match transfer(&from, &to, &endpoint, needs, min_durability) {
+                Ok(msg) => {
+                    println!("{msg}");
+                    ExitCode::SUCCESS
+                }
+                Err(e) => fail(e),
+            }
+        }
         Command::Explain {
             schema,
             key,
