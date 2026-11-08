@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+- **Breaking** (WebServAnt finding, 2026-11-08): `Config::deserialize` no longer creates an empty table for every schema key prefix. A table exists only once a value under it is set, as the doc always said, so a nested `Option<struct>` is `None` when nothing under it is set (it was `Some(default)`). A struct field that is not an `Option` and whose keys can all be unset now needs `#[serde(default)]`, or deserializing fails with a missing-field error. Tests: `tests/known_bad_unset_tables.rs` (2; the first was red before the fix); `known_bad.rs` marks its `db` field `#[serde(default)]`. All crates move to 0.7.0.
+
 ## 0.6.11
 
 - Docs only: HANDOFF rewritten as current state (rows 6 and 13 done, main 0.6.10, next sweep 2026-11-14). All crates move to 0.6.11.

@@ -440,6 +440,7 @@ fn a_provider_value_needs_its_module_and_is_checked_by_it() {
 struct Settings {
     storage: StorageSettings,
     server: ServerSettings,
+    #[serde(default)]
     db: DbSettings,
     log: LogSettings,
 }
@@ -454,7 +455,7 @@ struct ServerSettings {
     port: u16,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Default, serde::Deserialize)]
 struct DbSettings {
     password: Option<String>,
 }
