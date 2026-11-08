@@ -32,6 +32,21 @@ enum Command {
         #[arg(last = true)]
         app_args: Vec<String>,
     },
+    /// Print the resolved non-secret values as a host's settings block: `--format env`, `wrangler` (a
+    /// `[vars]` table) or `compose` (an `environment:` mapping). A secret is named, never printed: only its
+    /// variable and its source reference. Reads the schema defaults and `--file`; add `--from-env` to layer
+    /// this process's environment too. Writes nothing.
+    Project {
+        schema: PathBuf,
+        #[arg(long)]
+        format: String,
+        /// A configuration file to layer over the defaults.
+        #[arg(long)]
+        file: Option<PathBuf>,
+        /// Also layer this process's environment (a required secret must then be set in it).
+        #[arg(long)]
+        from_env: bool,
+    },
     /// Print the schema as a JSON Schema for the configuration file, so an editor can complete keys and check
     /// types (secrets are left out). Writes nothing else.
     JsonSchema { schema: PathBuf },
@@ -234,6 +249,39 @@ fn main() -> ExitCode {
             }
             Err(e) => fail(e),
         },
+        Command::Project {
+            schema,
+            format,
+            file,
+            from_env,
+        } => {
+            let Some(fmt) = configurant::HostFormat::parse(&format) else {
+                return fail(format!(
+                    "unknown format `{format}`: expected env, wrangler or compose"
+                ));
+            };
+            let s = match load_schema(&schema) {
+                Ok(s) => s,
+                Err(e) => return fail(e),
+            };
+            let mut loader = Loader::new(&s);
+            if from_env {
+                loader = loader.env(std::env::vars().collect::<BTreeMap<_, _>>());
+            }
+            if let Some(path) = file {
+                match std::fs::read_to_string(&path) {
+                    Ok(text) => loader = loader.file(&path.display().to_string(), &text),
+                    Err(e) => return fail(format!("cannot read {}: {e}", path.display())),
+                }
+            }
+            match loader.build() {
+                Ok(c) => {
+                    print!("{}", c.project().render(fmt));
+                    ExitCode::SUCCESS
+                }
+                Err(e) => fail(e),
+            }
+        }
         Command::Keys { schema, dir } => {
             let s = match load_schema(&schema) {
                 Ok(s) => s,

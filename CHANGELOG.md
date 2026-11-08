@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+- ROADMAP row 33 (PM task from CireSnave's ruling 2026-11-08, design D7; WebHostAnt is the named customer): projection. `Config::project()` returns the resolved non-secret values as `Var { name, value }` (the name is the schema's `env`) and `Projection::render(HostFormat)` writes them as `env` (`NAME="value"`), `wrangler` (a `[vars]` table) or `compose` (an `environment:` mapping, `$` doubled). `configurant project <schema> --format env|wrangler|compose [--file F] [--from-env]` prints it (the process environment is layered only with `--from-env`). A `secret` value is never read: it appears only as its variable name and its `source` reference (`# secret NAME`, `wrangler secret put NAME`, `NAME: ${NAME:?...}`). A value with no `env`, an unset value, a table or map and an invalid variable name are listed as `# skipped KEY: reason`, never silently dropped. Lists use the loader's escaping so they read back. Not built, by ruling: the embeddable question flow and any write-back from a host. Tests: `tests/known_bad_project.rs` (8); two mutations (secret not filtered; `$` not doubled) fail 3 and 1. All crates move to 0.7.1.
+
 ## 0.7.0
 
 - **Breaking** (WebServAnt finding, 2026-11-08): `Config::deserialize` no longer creates an empty table for every schema key prefix. A table exists only once a value under it is set, as the doc always said, so a nested `Option<struct>` is `None` when nothing under it is set (it was `Some(default)`). A struct field that is not an `Option` and whose keys can all be unset now needs `#[serde(default)]`, or deserializing fails with a missing-field error. Tests: `tests/known_bad_unset_tables.rs` (2; the first was red before the fix); `known_bad.rs` marks its `db` field `#[serde(default)]`. All crates move to 0.7.0.
