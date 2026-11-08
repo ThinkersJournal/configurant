@@ -821,7 +821,9 @@ impl Config {
 
     /// Bind the winning values to a struct of the caller's own, by dotted key (`server.port` is the
     /// field `port` of the field `server`). Opt-in and generates nothing: the schema stays the source of
-    /// truth and the struct is only a typed view. Unset keys are absent, so an `Option` field is `None`.
+    /// truth and the struct is only a typed view. Unset keys are absent, and so is a table with nothing set under it: an `Option` field, or an
+    /// `Option` of a struct, is `None`. A struct field that is not an `Option` needs `#[serde(default)]` if
+    /// all of its keys can be unset.
     /// An error never carries a secret's value: if serde's message would contain one, it is withheld.
     pub fn deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, ConfigError> {
         let mut root = toml::Table::new();
@@ -831,6 +833,8 @@ impl Config {
             if let Some(v) = v.filter(|_| self.schema.get(key).is_some_and(|d| d.secret)) {
                 secrets.push(v.clone());
             }
+            // A table exists only once a value under it is set, so an unset branch is absent.
+            let Some(v) = v else { continue };
             let mut parts: Vec<&str> = key.split('.').collect();
             let leaf = parts.pop().unwrap_or_default();
             let mut table = &mut root;
@@ -841,9 +845,7 @@ impl Config {
                     .as_table_mut()
                     .expect("the schema rejects a key that is both a value and a table prefix");
             }
-            if let Some(v) = v {
-                table.insert(leaf.to_owned(), v.to_toml());
-            }
+            table.insert(leaf.to_owned(), v.to_toml());
         }
         T::deserialize(toml::Value::Table(root)).map_err(|e| {
             let reason = e.to_string();
