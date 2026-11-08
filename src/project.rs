@@ -66,11 +66,11 @@ pub struct Var {
 
 /// A secret the host must supply: never a value.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SecretRef {
+pub struct HostSupplied {
     /// The environment variable the app reads it from.
     pub name: String,
     /// The schema's `<source>:<reference>`, if it declares one.
-    pub source: Option<String>,
+    pub origin: Option<String>,
 }
 
 /// A value that has no place in the projection, and why.
@@ -88,7 +88,7 @@ pub struct Projection {
     /// Non-secret settings, in schema order.
     pub vars: Vec<Var>,
     /// Secrets the host supplies, in schema order.
-    pub secrets: Vec<SecretRef>,
+    pub supplied: Vec<HostSupplied>,
     /// What was left out and why.
     pub skipped: Vec<Skipped>,
 }
@@ -114,9 +114,9 @@ impl Config {
                 continue;
             }
             if def.secret {
-                p.secrets.push(SecretRef {
+                p.supplied.push(HostSupplied {
                     name: name.to_owned(),
-                    source: def.source.clone(),
+                    origin: def.source.clone(),
                 });
                 continue;
             }
@@ -202,8 +202,8 @@ impl Projection {
                 for v in &self.vars {
                     let _ = writeln!(out, "{}={}", v.name, quoted(&v.value));
                 }
-                for s in &self.secrets {
-                    let _ = writeln!(out, "# secret {}{}", s.name, source_note(s));
+                for s in &self.supplied {
+                    let _ = writeln!(out, "# secret {}{}", s.name, origin_note(s));
                 }
             }
             HostFormat::Wrangler => {
@@ -211,13 +211,13 @@ impl Projection {
                 for v in &self.vars {
                     let _ = writeln!(out, "{} = {}", v.name, quoted(&v.value));
                 }
-                for s in &self.secrets {
+                for s in &self.supplied {
                     let _ = writeln!(
                         out,
                         "# secret {}: set with `wrangler secret put {}`{}",
                         s.name,
                         s.name,
-                        source_note(s)
+                        origin_note(s)
                     );
                 }
             }
@@ -227,14 +227,14 @@ impl Projection {
                     // Compose interpolates `$`; a doubled one is a literal.
                     let _ = writeln!(out, "  {}: {}", v.name, quoted(&v.value.replace('$', "$$")));
                 }
-                for s in &self.secrets {
+                for s in &self.supplied {
                     let _ = writeln!(
                         out,
                         "  {}: ${{{}:?set {} in the host environment}}{}",
                         s.name,
                         s.name,
                         s.name,
-                        source_note_comment(s)
+                        origin_note_comment(s)
                     );
                 }
             }
@@ -246,15 +246,15 @@ impl Projection {
     }
 }
 
-fn source_note(s: &SecretRef) -> String {
-    match &s.source {
+fn origin_note(s: &HostSupplied) -> String {
+    match &s.origin {
         Some(src) => format!(" (source {})", comment(src)),
         None => String::new(),
     }
 }
 
-fn source_note_comment(s: &SecretRef) -> String {
-    match &s.source {
+fn origin_note_comment(s: &HostSupplied) -> String {
+    match &s.origin {
         Some(src) => format!(" # source {}", comment(src)),
         None => String::new(),
     }

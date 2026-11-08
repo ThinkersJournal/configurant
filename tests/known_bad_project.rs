@@ -116,12 +116,12 @@ fn case_1_a_secret_value_reaches_no_format_and_its_description_neither() {
 #[test]
 fn case_2_a_secret_is_a_reference_and_the_source_is_shown() {
     let p = project(true);
-    assert_eq!(p.secrets.len(), 2);
+    assert_eq!(p.supplied.len(), 2);
     assert_eq!(
-        p.secrets[0].source.as_deref(),
+        p.supplied[0].origin.as_deref(),
         Some("vault:APP_DB_PASSWORD")
     );
-    assert_eq!(p.secrets[1].source, None);
+    assert_eq!(p.supplied[1].origin, None);
     let compose = p.render(HostFormat::Compose);
     assert!(compose.contains("APP_DB_PASSWORD: ${APP_DB_PASSWORD:?"));
     assert!(compose.contains("# source vault:APP_DB_PASSWORD"));

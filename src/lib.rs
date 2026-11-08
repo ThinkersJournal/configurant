@@ -29,7 +29,7 @@ pub use module::{
     Action, ActionKind, Choice, ChoiceList, INTERFACE_VERSION, MIN_INTERFACE_VERSION, Module,
     ModuleError, Modules, Needs, Plan,
 };
-pub use project::{HostFormat, Projection, SecretRef, Skipped, Var};
+pub use project::{HostFormat, HostSupplied, Projection, Skipped, Var};
 pub use schema::{
     Bound, MapDef, Migration, Mount, Op, Project, Schema, SchemaError, Step, TableDef, ValueDef,
     When,
