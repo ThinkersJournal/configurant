@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.2
+
+- ROADMAP row 27 (RedactAnt 0.1.2 published, notice 2026-11-08): redaction is now `redactant`'s. Our `REDACTED` constants in `src/config.rs` and `src/edit.rs` are `redactant::PLACEHOLDER` (same bytes, `<redacted>`), and the substring check behind `Config::deserialize`'s error (`Value::appears_in`) is replaced by `Scrubber::clean_or_drop`, with the same message as before. Redactant refuses a form under four bytes, so a short secret (a bool, a small number) is still matched directly and the whole message withheld: it over-redacts, never leaks. No behaviour change. Tests: the existing `binding_never_leaks_a_secret_into_its_error` fails when the scrubber is bypassed. Dependency: `redactant` 0.1.2. All crates move to 0.7.2.
+
 ## 0.7.1
 
 - ROADMAP row 33 (PM task from CireSnave's ruling 2026-11-08, design D7; WebHostAnt is the named customer): projection. `Config::project()` returns the resolved non-secret values as `Var { name, value }` (the name is the schema's `env`) and `Projection::render(HostFormat)` writes them as `env` (`NAME="value"`), `wrangler` (a `[vars]` table) or `compose` (an `environment:` mapping, `$` doubled). `configurant project <schema> --format env|wrangler|compose [--file F] [--from-env]` prints it (the process environment is layered only with `--from-env`). A `secret` value is never read: it appears only as its variable name and its `source` reference (`# secret NAME`, `wrangler secret put NAME`, `NAME: ${NAME:?...}`). A value with no `env`, an unset value, a table or map and an invalid variable name are listed as `# skipped KEY: reason`, never silently dropped. Lists use the loader's escaping so they read back. Not built, by ruling: the embeddable question flow and any write-back from a host. Tests: `tests/known_bad_project.rs` (8); two mutations (secret not filtered; `$` not doubled) fail 3 and 1. All crates move to 0.7.1.

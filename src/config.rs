@@ -14,7 +14,7 @@ use crate::module::Modules;
 use crate::schema::{MapDef, Schema, TableDef, ValueDef, Violation};
 use crate::value::{Row, Value, ValueType};
 
-const REDACTED: &str = "<redacted>";
+use redactant::PLACEHOLDER as REDACTED;
 
 /// A source of values. Later layers in the order override earlier ones.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -827,7 +827,7 @@ impl Config {
     /// An error never carries a secret's value: if serde's message would contain one, it is withheld.
     pub fn deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, ConfigError> {
         let mut root = toml::Table::new();
-        let mut secrets = Vec::new();
+        let mut secrets: Vec<Value> = Vec::new();
         for key in self.schema.all_keys() {
             let v = self.value(key);
             if let Some(v) = v.filter(|_| self.schema.get(key).is_some_and(|d| d.secret)) {
@@ -849,13 +849,8 @@ impl Config {
         }
         T::deserialize(toml::Value::Table(root)).map_err(|e| {
             let reason = e.to_string();
-            let leaks = secrets.iter().any(|s| s.appears_in(&reason));
             ConfigError::Deserialize {
-                reason: if leaks {
-                    format!("{REDACTED}: the message quoted a secret value")
-                } else {
-                    reason
-                },
+                reason: scrub(&secrets, &reason),
             }
         })
     }
@@ -899,6 +894,27 @@ impl Config {
             suggestion: suggestion(key, known),
             origin: Origin::Lookup,
         }
+    }
+}
+
+/// Withhold a message that quotes any of these secret values (raw or `Debug`-quoted), as a whole.
+/// Redactant's scrubber refuses a form under four bytes, so such a form is matched here directly:
+/// a short secret (a bool, a small number) over-redacts, it never leaks.
+fn scrub(secrets: &[Value], message: &str) -> String {
+    let mut scrubber = redactant::Scrubber::new();
+    let mut short: Vec<String> = Vec::new();
+    for form in secrets.iter().flat_map(Value::text_forms) {
+        if scrubber
+            .register(&redactant::Secret::new(form.clone()))
+            .is_err()
+        {
+            short.push(form);
+        }
+    }
+    if short.iter().any(|f| message.contains(f.as_str())) {
+        format!("{REDACTED}: the message quoted a secret value")
+    } else {
+        scrubber.clean_or_drop(message)
     }
 }
 

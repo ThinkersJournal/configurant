@@ -19,7 +19,7 @@ use crate::error::{ConfigError, Origin, suggestion};
 use crate::module::{Choice, Modules, Needs, Plan};
 use crate::value::{Value, ValueType};
 
-const REDACTED: &str = "<redacted>";
+use redactant::PLACEHOLDER as REDACTED;
 
 /// One value as a front end lists it. A secret's value is `<redacted>` and it is not editable.
 #[derive(Debug, Clone, PartialEq, Eq)]

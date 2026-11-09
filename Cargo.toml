@@ -3,7 +3,7 @@ members = ["crates/configurant-tui", "crates/configurant-gui", "crates/configura
 
 [package]
 name = "configurant"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2024"
 rust-version = "1.95"
 description = "Schema-first configuration: declare values in a TOML schema, layer defaults, file, environment and command line, validate with named errors, explain where each value came from. No generated code; secrets never printed."
@@ -38,6 +38,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 sha2 = "0.11"
 thiserror = "2.0.21"
 toml = "1.1.8"
+redactant = "0.1.2"
 toml_edit = "0.25.17"
 
 [dev-dependencies]
