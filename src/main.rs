@@ -67,6 +67,10 @@ enum Command {
         /// Write the result over the file (after saving `<file>.bak`, which must not exist).
         #[arg(long)]
         write: bool,
+        /// A library's schema fragment mounted into the schema, as `NAME=FILE` (repeatable), so its options
+        /// are carried to the fragment's own config version too.
+        #[arg(long = "mount", value_name = "NAME=FILE")]
+        mounts: Vec<String>,
     },
     /// Copy the data of one PersistAnt backend into another and read the copy back (the same copy the TUI
     /// and GUI run). Changes neither the source nor any configuration file: edit the file yourself after
@@ -174,8 +178,9 @@ fn migrate(
     from: Option<u32>,
     to: Option<u32>,
     write: bool,
+    mounts: &[String],
 ) -> Result<(), String> {
-    let s = load_schema(schema)?;
+    let s = load_schema_with(schema, mounts)?;
     let text = std::fs::read_to_string(file)
         .map_err(|e| format!("cannot read {}: {e}", file.display()))?;
     let result = match to {
@@ -215,9 +220,24 @@ fn fail(msg: impl std::fmt::Display) -> ExitCode {
 }
 
 fn load_schema(path: &PathBuf) -> Result<Schema, String> {
+    load_schema_with(path, &[])
+}
+
+/// The schema with each `NAME=FILE` fragment mounted under NAME.
+fn load_schema_with(path: &PathBuf, mounts: &[String]) -> Result<Schema, String> {
     let text = std::fs::read_to_string(path)
         .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
-    Schema::parse(&text).map_err(|e| format!("{}: {e}", path.display()))
+    let mut parsed = Vec::new();
+    for m in mounts {
+        let (name, file) = m
+            .split_once('=')
+            .filter(|(n, f)| !n.is_empty() && !f.is_empty())
+            .ok_or_else(|| format!("--mount `{m}` must be NAME=FILE"))?;
+        let fragment =
+            std::fs::read_to_string(file).map_err(|e| format!("cannot read {file}: {e}"))?;
+        parsed.push(configurant::Mount::new(name, &fragment));
+    }
+    Schema::parse_with(&text, &parsed).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 fn main() -> ExitCode {
@@ -316,7 +336,8 @@ fn main() -> ExitCode {
             from,
             to,
             write,
-        } => match migrate(&schema, &file, from, to, write) {
+            mounts,
+        } => match migrate(&schema, &file, from, to, write, &mounts) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => fail(e),
         },

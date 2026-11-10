@@ -127,3 +127,57 @@ fn migrate_prints_by_default_and_writes_only_when_told_keeping_a_backup() {
     assert!(text(&o).contains("--from"), "{}", text(&o));
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn migrate_carries_a_mounted_fragments_options_with_mount_and_refuses_a_bad_mount() {
+    let dir =
+        std::env::temp_dir().join(format!("configurant-migrate-mount-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let schema = dir.join("schema.toml");
+    let fragment = dir.join("webhost.toml");
+    let file = dir.join("app.toml");
+    std::fs::write(&schema, std::fs::read_to_string(SCHEMA).unwrap()).unwrap();
+    std::fs::write(
+        &fragment,
+        "[fragment]\nname = \"webhost\"\nversion = \"2.0.0\"\nschema_version = 1\nconfig_version = 2\n\n\
+         [[value]]\nkey = \"listen.port\"\ntype = \"int\"\ndefault = 8080\ndescription = \"port\"\n\n\
+         [[migration]]\nfrom = 1\nto = 2\nops = [{ op = \"rename\", from = \"port\", to = \"listen.port\" }]\n",
+    )
+    .unwrap();
+    std::fs::write(&file, "# mine\n[webhost]\nport = 9000\n").unwrap();
+    let (s, f) = (schema.to_str().unwrap(), file.to_str().unwrap());
+    let mount = format!("webhost={}", fragment.display());
+
+    let o = run(&["migrate", s, f, "--from", "1", "--mount", &mount], &[]);
+    assert!(o.status.success(), "{}", text(&o));
+    let t = text(&o);
+    assert!(
+        t.contains("# mine") && t.contains("config_version = 2") && t.contains("[webhost.listen]"),
+        "{t}"
+    );
+
+    // Without the mount the file's `webhost` table is not the schema's business here: nothing to carry.
+    let o = run(&["migrate", s, f, "--from", "1"], &[]);
+    assert!(o.status.success(), "{}", text(&o));
+    assert!(!text(&o).contains("config_version = 2"), "{}", text(&o));
+
+    // A mount with no `=`, and a fragment file that is not there, are named errors.
+    let o = run(&["migrate", s, f, "--from", "1", "--mount", "webhost"], &[]);
+    assert_eq!(o.status.code(), Some(2));
+    assert!(text(&o).contains("NAME=FILE"), "{}", text(&o));
+    let o = run(
+        &[
+            "migrate",
+            s,
+            f,
+            "--from",
+            "1",
+            "--mount",
+            "webhost=/no/such/file.toml",
+        ],
+        &[],
+    );
+    assert_eq!(o.status.code(), Some(2));
+    assert!(text(&o).contains("cannot read"), "{}", text(&o));
+    std::fs::remove_dir_all(&dir).ok();
+}
