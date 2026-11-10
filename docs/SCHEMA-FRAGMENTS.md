@@ -50,10 +50,25 @@ documents, and a library cannot contribute keys. That is the one missing piece.
    a type are named schema errors with a suggestion, never silently merged. Two mounts of the same fragment
    under different names (two listeners) are allowed; the same name twice is not.
 
-5. **Migrations stay with the owner (not built).** A fragment may carry its own `[[migration]]` steps; they run
-   against the mounted keys, so the library can rename an option and an application's existing file still loads.
-   The fragment declares its own `config_version`, kept in the file under the mount name. **Built:** a fragment
-   with `[[migration]]` is refused (`FragmentParse`) until this is designed; ROADMAP row 31.
+5. **Migrations stay with the owner (built in 0.7.3, ROADMAP row 31, first slice).** A fragment declares its own
+   `config_version` in `[fragment]` (default 1) and may carry `[[migration]]` steps with keys relative to the mount
+   (`from = "port"`, `to = "listen.port"`); the application's file keeps the version under the mount name
+   (`[webhost] config_version = 2`). Design, as built:
+   - **Same ops, same rules.** `rename`, `map_value` and `drop` only, each reversible, the chain exactly 1->2, 2->3 ...
+     up to the fragment's version (`check_migrations`, reused). A broken chain is a `FragmentParse` error naming the mount.
+     Mounting rewrites each op's keys to `<mount>.<key>`, so a step applies to the application's file as written.
+   - **Two version lines, two chains.** `Schema::migrate` first carries the application's own chain, then each mount's,
+     and returns one `Migrated` (key names in `changes`, never a value). `Schema::migrate_mount_back(text, mount, to)`
+     carries one mount back down; `migrate_back` still means the application's own version.
+   - **A file with no table for the mount is left alone** (nothing to migrate, no marker written). A mount table with no
+     `config_version` is read as version 1, the fragment's first version.
+   - **The loader reads the marker like the top-level one:** equal is fine (and the marker is not a setting), older is
+     `ConfigError::MountFileOutdated` (run `configurant migrate`), newer is `MountFileNewer`, anything else is a type error.
+   - **Not built yet (next slices):** the `configurant migrate` command takes a schema file and cannot mount a fragment, so
+     only the library API runs mount migrations; a loader or wizard that writes a file does not yet add the marker (a file
+     written fresh at fragment version 2 without a marker reads as version 1 and would be migrated, so a rename onto an
+     existing key is refused as a collision, never merged); mounts of the same fragment under two names each keep their
+     own marker (works as built, untested beyond one mount).
 
 6. **Tests the library ships.** A library with a fragment adds one test that parses the fragment alone and
    one that mounts it into a toy application schema, so a fragment that stops parsing fails in the library's

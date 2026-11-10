@@ -192,6 +192,18 @@ struct Raw {
     migrations: Vec<Migration>,
     #[serde(default, rename = "step")]
     steps: Vec<Step>,
+    /// Filled by `splice`, never read from the application's text.
+    #[serde(skip)]
+    mount_versions: Vec<MountVersion>,
+}
+
+/// A mounted fragment's own file version and the steps that carry its options up to it. The ops' keys are
+/// already prefixed with the mount name, so they apply to the application's file as written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MountVersion {
+    pub(crate) name: String,
+    pub(crate) config_version: u32,
+    pub(crate) migrations: Vec<Migration>,
 }
 
 /// A condition that shows a step only sometimes: exactly one of `equals = "text"`, `not_equals = "text"` or
@@ -274,12 +286,17 @@ struct FragmentInfo {
     #[serde(default)]
     summary: String,
     schema_version: u32,
+    /// The version of this library's options in a configuration file (kept under the mount name).
+    #[serde(default = "first_config_version")]
+    config_version: u32,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawFragment {
     fragment: FragmentInfo,
+    #[serde(default, rename = "migration")]
+    migrations: Vec<Migration>,
     #[serde(default, rename = "value")]
     values: Vec<ValueDef>,
     #[serde(default, rename = "table")]
@@ -393,6 +410,7 @@ pub struct Schema {
     tables: Vec<TableDef>,
     maps: Vec<MapDef>,
     migrations: Vec<Migration>,
+    mount_versions: Vec<MountVersion>,
     steps: Vec<Step>,
 }
 
@@ -611,6 +629,7 @@ impl Schema {
             tables: raw.tables,
             maps: raw.maps,
             migrations: raw.migrations,
+            mount_versions: raw.mount_versions,
             steps: raw.steps,
         })
     }
@@ -721,6 +740,11 @@ impl Schema {
     /// Every declared value, in schema order.
     pub fn values(&self) -> &[ValueDef] {
         &self.values
+    }
+
+    /// Each mounted fragment's own file version and migration steps (keys already under the mount name).
+    pub(crate) fn mount_versions(&self) -> &[MountVersion] {
+        &self.mount_versions
     }
 
     /// The declared migrations, oldest first.
@@ -890,6 +914,35 @@ fn splice(raw: &mut Raw, m: &Mount) -> Result<(), SchemaError> {
     }
     let env_prefix = raw.project.env_prefix.clone().unwrap_or_default();
     let name = &m.name;
+    // A fragment's migrations are its own: a complete chain up to its `config_version`, each step reversible.
+    check_migrations(frag.fragment.config_version, &frag.migrations).map_err(|e| {
+        SchemaError::FragmentParse {
+            mount: m.name.clone(),
+            reason: e.to_string(),
+        }
+    })?;
+    let at = |k: &str| format!("{name}.{k}");
+    let migrations = frag
+        .migrations
+        .into_iter()
+        .map(|mut step| {
+            for op in &mut step.ops {
+                match op {
+                    Op::Rename { from, to } => {
+                        *from = at(from);
+                        *to = at(to);
+                    }
+                    Op::MapValue { key, .. } | Op::Drop { key, .. } => *key = at(key),
+                }
+            }
+            step
+        })
+        .collect();
+    raw.mount_versions.push(MountVersion {
+        name: name.clone(),
+        config_version: frag.fragment.config_version,
+        migrations,
+    });
     for mut v in frag.values {
         v.key = format!("{name}.{}", v.key);
         v.env = v.env.map(|e| {

@@ -236,13 +236,6 @@ fn a_fragment_that_is_a_project_or_a_newer_version_is_refused() {
 }
 
 #[test]
-fn a_fragment_with_migrations_is_refused_for_now() {
-    let with = format!("{FRAGMENT}\n[[migration]]\nfrom = 1\nto = 2\n");
-    let e = Schema::parse_with(&app(""), &[Mount::new("w", &with)]).expect_err("refused");
-    assert!(matches!(e, SchemaError::FragmentParse { .. }), "{e:?}");
-}
-
-#[test]
 fn a_typo_in_a_mounted_key_is_an_unknown_key_with_a_suggestion() {
     let s = mounted("").expect("mounts");
     let file = "[webhost]\nprot = 1\n";
