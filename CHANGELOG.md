@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.4
+
+- ROADMAP row 31, second slice: `configurant migrate SCHEMA FILE --mount NAME=FILE` (repeatable) mounts a library's schema fragment before migrating, so the command carries the fragment's options to its own config version as well as the application's. A `--mount` without `NAME=FILE`, or a fragment file that cannot be read, is a named error (exit 2). `--to` still means the application's version. Test: `migrate_carries_a_mounted_fragments_options_with_mount_and_refuses_a_bad_mount` in `tests/cli.rs`; ignoring the mounts fails it. All crates move to 0.7.4.
+
 ## 0.7.3
 
 - ROADMAP row 31 (PM task 2026-11-10: build ahead in small slices), first slice: fragment migrations. A fragment may now carry `config_version` (in `[fragment]`, default 1) and `[[migration]]` steps with keys relative to the mount; before this it was refused. The file keeps the fragment's version under the mount name (`[webhost] config_version = 2`). `Schema::migrate` carries the application's chain and then each mount's in one pass; `Schema::migrate_mount_back(text, mount, to)` carries one mount back down. The loader reads the marker (older gives `ConfigError::MountFileOutdated`, newer `MountFileNewer`) and does not treat it as a setting. A broken fragment chain is a `FragmentParse` error. Not built yet: the `migrate` command with a mounted fragment, and writing the marker when a file is first written (`docs/SCHEMA-FRAGMENTS.md` item 5). New `MigrateError` and `ConfigError` variants (both non-exhaustive). Tests: `tests/known_bad_fragment_migrations.rs` (8); the test that refused fragment migrations is removed; skipping the mount pass fails 2. All crates move to 0.7.3.

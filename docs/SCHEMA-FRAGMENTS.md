@@ -64,8 +64,10 @@ documents, and a library cannot contribute keys. That is the one missing piece.
      `config_version` is read as version 1, the fragment's first version.
    - **The loader reads the marker like the top-level one:** equal is fine (and the marker is not a setting), older is
      `ConfigError::MountFileOutdated` (run `configurant migrate`), newer is `MountFileNewer`, anything else is a type error.
-   - **Not built yet (next slices):** the `configurant migrate` command takes a schema file and cannot mount a fragment, so
-     only the library API runs mount migrations; a loader or wizard that writes a file does not yet add the marker (a file
+   - **`configurant migrate SCHEMA FILE --mount NAME=FILE`** (0.7.4, repeatable) mounts the fragments first, so the command
+     carries their options too. `--to` still means the application's own version; carrying one mount back is the library
+     call `migrate_mount_back` only.
+   - **Not built yet (next slices):** a loader or wizard that writes a file does not yet add the marker (a file
      written fresh at fragment version 2 without a marker reads as version 1 and would be migrated, so a rename onto an
      existing key is refused as a collision, never merged); mounts of the same fragment under two names each keep their
      own marker (works as built, untested beyond one mount).
