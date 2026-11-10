@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 
 use toml_edit::{DocumentMut, Item, Table, TableLike, Value as EditValue};
 
-use crate::schema::{Op, Schema};
+use crate::schema::{MountVersion, Op, Schema};
 
 /// The result of a migration.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,6 +54,27 @@ pub enum MigrateError {
         "`{key}` holds a value other than the one this migration drops, so dropping it would lose data"
     )]
     DropMismatch { key: String },
+    #[error(
+        "`{mount}` is at config version {found} in the file, newer than the fragment's {current}"
+    )]
+    MountNewer {
+        mount: String,
+        found: u32,
+        current: u32,
+    },
+    #[error("`{mount}.config_version` must be a positive integer")]
+    BadMountVersion { mount: String },
+    #[error("no mounted fragment is named `{mount}`")]
+    UnknownMount { mount: String },
+    #[error(
+        "cannot carry `{mount}` to config version {target}: the file is at {found} and the fragment is at {current}"
+    )]
+    BadMountTarget {
+        mount: String,
+        target: u32,
+        found: u32,
+        current: u32,
+    },
 }
 
 impl Schema {
@@ -78,7 +99,70 @@ impl Schema {
                 apply(&mut doc, op, false, step.from, step.to, &mut changes)?;
             }
         }
+        // Each mounted library's options carry their own version under the mount name.
+        for mv in self.mount_versions() {
+            mount_up(&mut doc, mv, &mut changes)?;
+        }
         Ok(finish(doc, text, found, current, changes))
+    }
+
+    /// Carry one mounted library's options in a file back down to its config version `to` (the application's
+    /// own version is not touched; `migrate_back` does that).
+    pub fn migrate_mount_back(
+        &self,
+        text: &str,
+        mount: &str,
+        to: u32,
+    ) -> Result<Migrated, MigrateError> {
+        let mv = self
+            .mount_versions()
+            .iter()
+            .find(|m| m.name == mount)
+            .ok_or_else(|| MigrateError::UnknownMount {
+                mount: mount.to_owned(),
+            })?;
+        let mut doc = parse(text)?;
+        let current = mv.config_version;
+        let found = mount_file_version(&doc, mount)?.ok_or(MigrateError::VersionMissing)?;
+        if found > current {
+            return Err(MigrateError::MountNewer {
+                mount: mount.to_owned(),
+                found,
+                current,
+            });
+        }
+        if to == 0 || to > found {
+            return Err(MigrateError::BadMountTarget {
+                mount: mount.to_owned(),
+                target: to,
+                found,
+                current,
+            });
+        }
+        let mut changes = Vec::new();
+        for step in mv.migrations[(to as usize - 1)..(found as usize - 1)]
+            .iter()
+            .rev()
+        {
+            for op in step.ops.iter().rev() {
+                apply(&mut doc, op, true, step.to, step.from, &mut changes)?;
+            }
+        }
+        if changes.is_empty() && found == to {
+            return Ok(Migrated {
+                text: text.to_owned(),
+                from: found,
+                to,
+                changes,
+            });
+        }
+        set_mount_version(&mut doc, mount, to);
+        Ok(Migrated {
+            text: doc.to_string(),
+            from: found,
+            to,
+            changes,
+        })
     }
 
     /// Carry a versioned file back down to config version `to`.
@@ -139,6 +223,67 @@ fn file_version(doc: &DocumentMut) -> Result<Option<u32>, MigrateError> {
     }
 }
 
+/// The version a file records for the mounted library `name`: `None` when the file has no table for it
+/// (nothing to migrate), 1 when the table has no `config_version` (the fragment's first version).
+fn mount_file_version(doc: &DocumentMut, name: &str) -> Result<Option<u32>, MigrateError> {
+    let Some(table) = doc.get(name).and_then(Item::as_table_like) else {
+        return Ok(None);
+    };
+    match table.get("config_version") {
+        None => Ok(Some(1)),
+        Some(item) => item
+            .as_integer()
+            .and_then(|n| u32::try_from(n).ok())
+            .filter(|n| *n >= 1)
+            .map(Some)
+            .ok_or_else(|| MigrateError::BadMountVersion {
+                mount: name.to_owned(),
+            }),
+    }
+}
+
+/// Record `version` under the mount's table, if the file still has one.
+fn set_mount_version(doc: &mut DocumentMut, name: &str, version: u32) {
+    let Some(table) = doc.get_mut(name).and_then(Item::as_table_like_mut) else {
+        return;
+    };
+    let mut v = EditValue::from(i64::from(version));
+    if let Some(old) = table.get("config_version").and_then(Item::as_value) {
+        *v.decor_mut() = old.decor().clone();
+    }
+    table.insert("config_version", Item::Value(v));
+}
+
+/// Carry the mount's options up to the fragment's version. Nothing happens for a file that has no table
+/// for the mount, or one already at the fragment's version.
+fn mount_up(
+    doc: &mut DocumentMut,
+    mv: &MountVersion,
+    changes: &mut Vec<String>,
+) -> Result<(), MigrateError> {
+    let Some(found) = mount_file_version(doc, &mv.name)? else {
+        return Ok(());
+    };
+    let current = mv.config_version;
+    if found > current {
+        return Err(MigrateError::MountNewer {
+            mount: mv.name.clone(),
+            found,
+            current,
+        });
+    }
+    if found == current {
+        return Ok(());
+    }
+    for step in &mv.migrations[(found as usize - 1)..(current as usize - 1)] {
+        for op in &step.ops {
+            apply(doc, op, false, step.from, step.to, changes)?;
+        }
+    }
+    set_mount_version(doc, &mv.name, current);
+    Ok(())
+}
+
 fn finish(
     mut doc: DocumentMut,
     original: &str,
@@ -146,7 +291,7 @@ fn finish(
     to: u32,
     changes: Vec<String>,
 ) -> Migrated {
-    if from == to {
+    if from == to && changes.is_empty() {
         return Migrated {
             text: original.to_owned(),
             from,
@@ -154,11 +299,13 @@ fn finish(
             changes,
         };
     }
-    let mut v = EditValue::from(i64::from(to));
-    if let Some(old) = doc.get("config_version").and_then(Item::as_value) {
-        *v.decor_mut() = old.decor().clone();
+    if from != to {
+        let mut v = EditValue::from(i64::from(to));
+        if let Some(old) = doc.get("config_version").and_then(Item::as_value) {
+            *v.decor_mut() = old.decor().clone();
+        }
+        doc["config_version"] = Item::Value(v);
     }
-    doc["config_version"] = Item::Value(v);
     Migrated {
         text: doc.to_string(),
         from,

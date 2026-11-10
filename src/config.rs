@@ -263,6 +263,47 @@ impl<'a> Loader<'a> {
                 }),
             }
         }
+        // Each mounted library keeps its own `config_version` under the mount name, read the same way.
+        for mv in self.schema.mount_versions() {
+            let Some(mounted) = table.get_mut(&mv.name).and_then(toml::Value::as_table_mut) else {
+                continue;
+            };
+            let Some(v) = mounted.remove("config_version") else {
+                continue;
+            };
+            // A table holding only the marker is not a setting of its own.
+            if mounted.is_empty() {
+                table.remove(&mv.name);
+            }
+            let current = mv.config_version;
+            match v {
+                toml::Value::Integer(n) if n == i64::from(current) => {}
+                toml::Value::Integer(n) if (1..i64::from(current)).contains(&n) => {
+                    errors.push(ConfigError::MountFileOutdated {
+                        name: name.clone(),
+                        mount: mv.name.clone(),
+                        found: n as u32,
+                        current,
+                    });
+                    return Vec::new();
+                }
+                toml::Value::Integer(n) if n > i64::from(current) && n <= i64::from(u32::MAX) => {
+                    errors.push(ConfigError::MountFileNewer {
+                        name: name.clone(),
+                        mount: mv.name.clone(),
+                        found: n as u32,
+                        current,
+                    });
+                    return Vec::new();
+                }
+                other => errors.push(ConfigError::WrongType {
+                    key: format!("{}.config_version", mv.name),
+                    expected: "a positive int no newer than the fragment's",
+                    found: other.type_str().into(),
+                    origin: Origin::File(name.clone()),
+                }),
+            }
+        }
         let mut out = Vec::new();
         self.flatten("", &table, name, &mut out, errors);
         out

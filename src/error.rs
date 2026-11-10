@@ -106,6 +106,24 @@ pub enum ConfigError {
         found: u32,
         current: u32,
     },
+    #[error(
+        "configuration file `{name}` has `{mount}` at config version {found}, the fragment is at {current}; run `configurant migrate`"
+    )]
+    MountFileOutdated {
+        name: String,
+        mount: String,
+        found: u32,
+        current: u32,
+    },
+    #[error(
+        "configuration file `{name}` has `{mount}` at config version {found}, newer than the fragment's {current}"
+    )]
+    MountFileNewer {
+        name: String,
+        mount: String,
+        found: u32,
+        current: u32,
+    },
     #[error("map `{key}` from {origin} has an empty key")]
     EmptyMapKey { key: String, origin: Origin },
     #[error("`{key}` is an array of tables or a map, which only the configuration file can set")]
