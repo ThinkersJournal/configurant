@@ -273,6 +273,14 @@ impl<'a> Session<'a> {
             restart,
             plan,
             values,
+            markers: Markers {
+                app: schema.project.config_version,
+                mounts: schema
+                    .mount_versions()
+                    .iter()
+                    .map(|m| (m.name.clone(), m.config_version))
+                    .collect(),
+            },
         }
     }
 }
@@ -301,6 +309,15 @@ pub struct Review {
     restart: Vec<String>,
     plan: Plan,
     values: Vec<(String, Value)>,
+    markers: Markers,
+}
+
+/// The format versions this schema writes into a file it creates: the application's and each mounted
+/// library's (`docs/SCHEMA-FRAGMENTS.md` item 5).
+#[derive(Debug, Clone)]
+struct Markers {
+    app: u32,
+    mounts: Vec<(String, u32)>,
 }
 
 impl Review {
@@ -328,6 +345,7 @@ impl Review {
             changes: self.changes,
             plan: self.plan,
             values: self.values,
+            markers: self.markers,
         }
     }
 }
@@ -338,6 +356,7 @@ pub struct Confirmed {
     changes: Vec<Change>,
     plan: Plan,
     values: Vec<(String, Value)>,
+    markers: Markers,
 }
 
 /// Why new file text could not be made.
@@ -379,12 +398,43 @@ impl Confirmed {
 
     /// `existing` (a configuration file's text; empty is fine) with the changes applied. Comments and
     /// layout survive; the caller writes the result (keeping a backup is the caller's job).
+    ///
+    /// The editor owns the format version of what it creates: a file with no content yet gets the
+    /// application's `config_version`, and a table for a mounted library that the edit creates gets that
+    /// library's. A file that already has content is never stamped, since the editor cannot know which
+    /// version an unmarked file is at (`configurant migrate --from N` is how it gets a marker), and a marker
+    /// that is already there is never changed.
     pub fn file_text(&self, existing: &str) -> Result<String, EditError> {
         let mut doc: DocumentMut = existing
             .parse()
             .map_err(|e: toml_edit::TomlError| EditError::Parse(e.message().to_owned()))?;
+        let new_file = doc.as_table().is_empty();
+        let had: Vec<bool> = self
+            .markers
+            .mounts
+            .iter()
+            .map(|(name, _)| doc.contains_key(name))
+            .collect();
         for (key, value) in &self.values {
             set(doc.as_table_mut(), key, value)?;
+        }
+        if !self.values.is_empty() {
+            if new_file {
+                doc["config_version"] = Item::Value(EditValue::from(i64::from(self.markers.app)));
+            }
+            for ((name, version), had) in self.markers.mounts.iter().zip(had) {
+                if had {
+                    continue;
+                }
+                if let Some(table) = doc.get_mut(name).and_then(Item::as_table_like_mut)
+                    && !table.contains_key("config_version")
+                {
+                    table.insert(
+                        "config_version",
+                        Item::Value(EditValue::from(i64::from(*version))),
+                    );
+                }
+            }
         }
         Ok(doc.to_string())
     }

@@ -67,10 +67,14 @@ documents, and a library cannot contribute keys. That is the one missing piece.
    - **`configurant migrate SCHEMA FILE --mount NAME=FILE`** (0.7.4, repeatable) mounts the fragments first, so the command
      carries their options too. `--to` still means the application's own version; carrying one mount back is the library
      call `migrate_mount_back` only.
-   - **Not built yet (next slices):** a loader or wizard that writes a file does not yet add the marker (a file
-     written fresh at fragment version 2 without a marker reads as version 1 and would be migrated, so a rename onto an
-     existing key is refused as a collision, never merged); mounts of the same fragment under two names each keep their
-     own marker (works as built, untested beyond one mount).
+   - **The editor writes the markers on a file it creates (0.7.5, PM ruling 2026-11-10: a config library that creates
+     files owns their format version).** `Confirmed::file_text` gives a file with no content yet the application's
+     `config_version`, and a table for a mounted library that the edit itself creates that library's. **An existing
+     unmarked file is not stamped**: the editor cannot know which version it is at, and stamping it current would hide
+     a migration it still needs; `configurant migrate --from N` is how it gets a marker. A marker already in a file is
+     never changed, and an edit that changes nothing writes nothing.
+   - **Known gap:** two mounts of the same fragment under different names each keep their own marker (it works as
+     built and is tested with one mount only).
 
 6. **Tests the library ships.** A library with a fragment adds one test that parses the fragment alone and
    one that mounts it into a toy application schema, so a fragment that stops parsing fails in the library's
