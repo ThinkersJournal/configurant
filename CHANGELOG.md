@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.6
+
+- Docs only: ROADMAP row 31 marked done (slices 0.7.3 to 0.7.5); HANDOFF rewritten as current state. All crates move to 0.7.6.
+
 ## 0.7.5
 
 - ROADMAP row 31, third slice (PM ruling 2026-11-10, option A: a config library that creates files owns their format version): `Confirmed::file_text` writes the markers on a file the editor creates. A file with no content gets the application's `config_version`; a table for a mounted library that the edit creates gets that library's. An existing file is never stamped (the editor cannot know which version an unmarked file is at; `configurant migrate --from N` stamps it), an existing marker is never changed, and an edit that changes nothing writes nothing. This changes the text `file_text("")` returns (one more line, `config_version = N`). Tests: `tests/known_bad_markers.rs` (6); disabling the stamp fails 2. All crates move to 0.7.5.
