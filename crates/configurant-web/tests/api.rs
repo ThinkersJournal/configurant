@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
-use std::net::TcpStream;
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::time::Duration;
 
@@ -424,9 +424,12 @@ impl Raw {
 /// A JSON request written by hand, so the `Host` header can be anything. The sid, `Origin`, content type and
 /// body are all good, so `Host` is the only thing that can make it fail.
 fn raw_api(web: &Web, method: &str, path: &str, host: &str, sid: &str) -> Raw {
+    raw_to(web.addr(), &base(web), method, path, host, sid)
+}
+
+fn raw_to(addr: SocketAddr, origin: &str, method: &str, path: &str, host: &str, sid: &str) -> Raw {
     let body = r#"{"event":"set","key":"mode","text":"server"}"#;
-    let origin = base(web);
-    let mut s = TcpStream::connect(web.addr()).unwrap();
+    let mut s = TcpStream::connect(addr).unwrap();
     s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     let head = [
         format!("{method} /s/{sid}/{path} HTTP/1.1"),
@@ -441,6 +444,20 @@ fn raw_api(web: &Web, method: &str, path: &str, host: &str, sid: &str) -> Raw {
     let mut text = String::new();
     let read_error = s.read_to_string(&mut text).err().map(|e| e.kind());
     Raw { text, read_error }
+}
+
+/// Is this a refusal? Exactly two outcomes count (PM ruling 2026-11-12, #109): a 403 that does not carry the
+/// view, or a connection the OS aborted before a single byte arrived (the refusal was sent and the socket
+/// closed with request bytes unread, so the reset won the race; nothing was served and nothing leaked). Any
+/// other status, any bytes without a 403, any view, any other read error, or an empty close is a failure.
+fn refused(got: &Raw) -> bool {
+    if got.text.contains("\"view\"") {
+        return false;
+    }
+    matches!(
+        (got.status(), got.read_error, got.text.len()),
+        (Some(403), _, _) | (None, Some(std::io::ErrorKind::ConnectionAborted), 0)
+    )
 }
 
 /// One round of the foreign-host check on a fresh server. Returns one line per request that was not answered
@@ -462,7 +479,7 @@ async fn foreign_host_round() -> Vec<String> {
         for (case, host) in foreign.iter().enumerate() {
             let got = raw_api(&web, method, path, host, &sid);
             let leaked = got.text.contains("\"view\"");
-            if got.status() != Some(403) || leaked {
+            if !refused(&got) {
                 bad.push(format!(
                     "{method} {path} foreign case {case}: {} leaked_view={leaked}",
                     got.summary()
@@ -506,5 +523,118 @@ async fn a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_
         failures.is_empty(),
         "{} bad answer(s) in {rounds} round(s): {failures:?}",
         failures.len()
+    );
+}
+
+/// A server that answers every request with `reply` (bytes, or nothing) and closes: the sabotage the refusal
+/// rule must catch. Returns its address; it serves one connection.
+fn fake_server(reply: &'static [u8]) -> SocketAddr {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    std::thread::spawn(move || {
+        if let Ok((mut c, _)) = listener.accept() {
+            // Read the whole request (it ends with the JSON body's `}`) before answering, so the client's
+            // write is never met by a reset: this fake exercises the rule, not the race.
+            let mut got = Vec::new();
+            let mut buf = [0u8; 4096];
+            while !got.ends_with(b"}") {
+                match c.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => got.extend_from_slice(&buf[..n]),
+                }
+            }
+            let _ = c.write_all(reply);
+        }
+    });
+    addr
+}
+
+fn asked_of(reply: &'static [u8]) -> Raw {
+    raw_to(
+        fake_server(reply),
+        "http://127.0.0.1:1",
+        "GET",
+        "api/view",
+        "evil.test",
+        "sid",
+    )
+}
+
+// The refusal rule must bite: a server that serves the view, answers 200 without it, redirects, errors, or
+// closes without a word is NOT a refusal. Only a 403 (with no view) or an abort with zero bytes is.
+#[test]
+fn the_refusal_rule_fails_a_server_that_answers_200_or_anything_but_a_403() {
+    let served = asked_of(
+        b"HTTP/1.1 200 OK
+Content-Length: 14
+Connection: close
+
+{\"view\":{\"a\":1}}",
+    );
+    assert_eq!(served.status(), Some(200));
+    assert!(!refused(&served), "a 200 that carries the view");
+    let ok_no_view = asked_of(
+        b"HTTP/1.1 200 OK
+Content-Length: 2
+Connection: close
+
+{}",
+    );
+    assert!(!refused(&ok_no_view), "a 200 without the view");
+    let moved = asked_of(
+        b"HTTP/1.1 302 Found
+Location: /
+Connection: close
+
+",
+    );
+    assert!(!refused(&moved), "a 3xx");
+    let broken = asked_of(
+        b"HTTP/1.1 500 Oops
+Connection: close
+
+",
+    );
+    assert!(!refused(&broken), "a 5xx");
+    let view_in_403 = asked_of(
+        b"HTTP/1.1 403 Forbidden
+Connection: close
+
+{\"view\":1}",
+    );
+    assert!(!refused(&view_in_403), "a 403 that leaks the view");
+    let silent = asked_of(b"");
+    assert!(
+        !refused(&silent),
+        "a clean close with no bytes is not an abort"
+    );
+    let forbidden = asked_of(
+        b"HTTP/1.1 403 Forbidden
+Connection: close
+
+",
+    );
+    assert!(refused(&forbidden), "a plain 403 is a refusal");
+}
+
+#[test]
+fn the_refusal_rule_accepts_an_abort_with_zero_bytes_and_nothing_else() {
+    let abort = |kind, text: &str| Raw {
+        text: text.to_owned(),
+        read_error: Some(kind),
+    };
+    use std::io::ErrorKind::{ConnectionAborted, ConnectionReset};
+    assert!(refused(&abort(ConnectionAborted, "")));
+    assert!(
+        !refused(&abort(ConnectionReset, "")),
+        "only an abort, not any read error"
+    );
+    assert!(
+        !refused(&abort(ConnectionAborted, "HTTP/1.1 200 OK")),
+        "an abort after bytes"
+    );
+    assert!(
+        !refused(&abort(ConnectionAborted, "partial")),
+        "an abort after any bytes"
     );
 }

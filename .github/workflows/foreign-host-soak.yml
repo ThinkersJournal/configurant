@@ -1,15 +1,13 @@
 # Soak for one security assertion: a foreign Host is refused with 403 on the JSON routes (#109).
 # Runs only that test, many rounds on a fresh server each, on both operating systems, and prints what the
-# client received for any round that was not answered as it must be. Not a required check.
+# client received for any round that was not answered as it must be. Manual and nightly on main, never a PR
+# check (PM ruling 2026-11-12: a check that is red by design is one people learn to ignore).
 name: Foreign host soak
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'crates/configurant-web/**'
-      - '.github/workflows/foreign-host-soak.yml'
   workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
 
 permissions:
   contents: read
