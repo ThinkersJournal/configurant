@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
-use std::net::TcpStream;
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::time::Duration;
 
@@ -398,12 +398,38 @@ async fn a_json_event_after_the_end_is_refused() {
     assert!(matches!(web.finished().await.unwrap(), Outcome::Written(_)));
 }
 
+/// What a hand-written request got back. Only the parts that are safe to print are exposed: the status code
+/// as a number, the kind of any read error, and the byte count. The body never goes into an assert message.
+struct Raw {
+    text: String,
+    read_error: Option<std::io::ErrorKind>,
+}
+
+impl Raw {
+    fn status(&self) -> Option<u16> {
+        self.text.strip_prefix("HTTP/1.1 ")?.get(..3)?.parse().ok()
+    }
+
+    /// `status=Some(403) read_error=None bytes=123`: what the client received, with no body in it.
+    fn summary(&self) -> String {
+        format!(
+            "status={:?} read_error={:?} bytes={}",
+            self.status(),
+            self.read_error,
+            self.text.len()
+        )
+    }
+}
+
 /// A JSON request written by hand, so the `Host` header can be anything. The sid, `Origin`, content type and
 /// body are all good, so `Host` is the only thing that can make it fail.
-fn raw_api(web: &Web, method: &str, path: &str, host: &str, sid: &str) -> String {
+fn raw_api(web: &Web, method: &str, path: &str, host: &str, sid: &str) -> Raw {
+    raw_to(web.addr(), &base(web), method, path, host, sid)
+}
+
+fn raw_to(addr: SocketAddr, origin: &str, method: &str, path: &str, host: &str, sid: &str) -> Raw {
     let body = r#"{"event":"set","key":"mode","text":"server"}"#;
-    let origin = base(web);
-    let mut s = TcpStream::connect(web.addr()).unwrap();
+    let mut s = TcpStream::connect(addr).unwrap();
     s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     let head = [
         format!("{method} /s/{sid}/{path} HTTP/1.1"),
@@ -415,16 +441,29 @@ fn raw_api(web: &Web, method: &str, path: &str, host: &str, sid: &str) -> String
     ]
     .join("\u{d}\u{a}");
     write!(s, "{head}\u{d}\u{a}\u{d}\u{a}{body}").unwrap();
-    let mut out = String::new();
-    if let Err(e) = s.read_to_string(&mut out) {
-        out.push_str(&format!("[read error: {e}]"));
-    }
-    out
+    let mut text = String::new();
+    let read_error = s.read_to_string(&mut text).err().map(|e| e.kind());
+    Raw { text, read_error }
 }
 
-// A multi-thread runtime: `raw_api` blocks its thread on a socket while the server answers from another.
-#[tokio::test(flavor = "multi_thread")]
-async fn a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_right() {
+/// Is this a refusal? Exactly two outcomes count (PM ruling 2026-11-12, #109): a 403 that does not carry the
+/// view, or a connection the OS aborted before a single byte arrived (the refusal was sent and the socket
+/// closed with request bytes unread, so the reset won the race; nothing was served and nothing leaked). Any
+/// other status, any bytes without a 403, any view, any other read error, or an empty close is a failure.
+fn refused(got: &Raw) -> bool {
+    if got.text.contains("\"view\"") {
+        return false;
+    }
+    matches!(
+        (got.status(), got.read_error, got.text.len()),
+        (Some(403), _, _) | (None, Some(std::io::ErrorKind::ConnectionAborted), 0)
+    )
+}
+
+/// One round of the foreign-host check on a fresh server. Returns one line per request that was not answered
+/// as it must be (a foreign `Host` is a 403 that does not carry the view; the two browser names are a 200),
+/// each saying what the client received, so a failure is evidence and not only a verdict.
+async fn foreign_host_round() -> Vec<String> {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
     let sid = log_in(&web).await;
@@ -435,26 +474,167 @@ async fn a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_
         format!("evil.test:{port}"),
         format!("127.0.0.1:{}", port + 1),
     ];
+    let mut bad = Vec::new();
     for (method, path) in routes {
         for (case, host) in foreign.iter().enumerate() {
-            let out = raw_api(&web, method, path, host, &sid);
-            let refused = out.starts_with("HTTP/1.1 403");
-            assert!(
-                refused,
-                "{method} {path}: foreign host case {case} was not refused"
-            );
-            let leaked = out.contains("\"view\"");
-            assert!(
-                !leaked,
-                "{method} {path}: foreign host case {case} got the view"
-            );
+            let got = raw_api(&web, method, path, host, &sid);
+            let leaked = got.text.contains("\"view\"");
+            if !refused(&got) {
+                bad.push(format!(
+                    "{method} {path} foreign case {case}: {} leaked_view={leaked}",
+                    got.summary()
+                ));
+            }
         }
         // The controls: both names a browser uses are served.
-        for host in [format!("127.0.0.1:{port}"), format!("localhost:{port}")] {
-            let out = raw_api(&web, method, path, &host, &sid);
-            let served = out.starts_with("HTTP/1.1 200");
-            assert!(served, "{method} {path}: control host was not served");
+        for (case, host) in [format!("127.0.0.1:{port}"), format!("localhost:{port}")]
+            .iter()
+            .enumerate()
+        {
+            let got = raw_api(&web, method, path, host, &sid);
+            if got.status() != Some(200) {
+                bad.push(format!(
+                    "{method} {path} control case {case}: {}",
+                    got.summary()
+                ));
+            }
         }
     }
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
+    bad
+}
+
+// A multi-thread runtime: `raw_api` blocks its thread on a socket while the server answers from another.
+// `CONFIGURANT_FOREIGN_HOST_ROUNDS` repeats the round on a fresh server each time (the soak job in
+// `.github/workflows/foreign-host-soak.yml` sets it); the default is one.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_right() {
+    let rounds: usize = std::env::var("CONFIGURANT_FOREIGN_HOST_ROUNDS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1);
+    let mut failures = Vec::new();
+    for round in 0..rounds {
+        for line in foreign_host_round().await {
+            failures.push(format!("round {round}: {line}"));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} bad answer(s) in {rounds} round(s): {failures:?}",
+        failures.len()
+    );
+}
+
+/// A server that answers every request with `reply` (bytes, or nothing) and closes: the sabotage the refusal
+/// rule must catch. Returns its address; it serves one connection.
+fn fake_server(reply: &'static [u8]) -> SocketAddr {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    std::thread::spawn(move || {
+        if let Ok((mut c, _)) = listener.accept() {
+            // Read the whole request (it ends with the JSON body's `}`) before answering, so the client's
+            // write is never met by a reset: this fake exercises the rule, not the race.
+            let mut got = Vec::new();
+            let mut buf = [0u8; 4096];
+            while !got.ends_with(b"}") {
+                match c.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => got.extend_from_slice(&buf[..n]),
+                }
+            }
+            let _ = c.write_all(reply);
+        }
+    });
+    addr
+}
+
+fn asked_of(reply: &'static [u8]) -> Raw {
+    raw_to(
+        fake_server(reply),
+        "http://127.0.0.1:1",
+        "GET",
+        "api/view",
+        "evil.test",
+        "sid",
+    )
+}
+
+// The refusal rule must bite: a server that serves the view, answers 200 without it, redirects, errors, or
+// closes without a word is NOT a refusal. Only a 403 (with no view) or an abort with zero bytes is.
+#[test]
+fn the_refusal_rule_fails_a_server_that_answers_200_or_anything_but_a_403() {
+    let served = asked_of(
+        b"HTTP/1.1 200 OK
+Content-Length: 14
+Connection: close
+
+{\"view\":{\"a\":1}}",
+    );
+    assert_eq!(served.status(), Some(200));
+    assert!(!refused(&served), "a 200 that carries the view");
+    let ok_no_view = asked_of(
+        b"HTTP/1.1 200 OK
+Content-Length: 2
+Connection: close
+
+{}",
+    );
+    assert!(!refused(&ok_no_view), "a 200 without the view");
+    let moved = asked_of(
+        b"HTTP/1.1 302 Found
+Location: /
+Connection: close
+
+",
+    );
+    assert!(!refused(&moved), "a 3xx");
+    let broken = asked_of(
+        b"HTTP/1.1 500 Oops
+Connection: close
+
+",
+    );
+    assert!(!refused(&broken), "a 5xx");
+    let view_in_403 = asked_of(
+        b"HTTP/1.1 403 Forbidden
+Connection: close
+
+{\"view\":1}",
+    );
+    assert!(!refused(&view_in_403), "a 403 that leaks the view");
+    let silent = asked_of(b"");
+    assert!(
+        !refused(&silent),
+        "a clean close with no bytes is not an abort"
+    );
+    let forbidden = asked_of(
+        b"HTTP/1.1 403 Forbidden
+Connection: close
+
+",
+    );
+    assert!(refused(&forbidden), "a plain 403 is a refusal");
+}
+
+#[test]
+fn the_refusal_rule_accepts_an_abort_with_zero_bytes_and_nothing_else() {
+    let abort = |kind, text: &str| Raw {
+        text: text.to_owned(),
+        read_error: Some(kind),
+    };
+    use std::io::ErrorKind::{ConnectionAborted, ConnectionReset};
+    assert!(refused(&abort(ConnectionAborted, "")));
+    assert!(
+        !refused(&abort(ConnectionReset, "")),
+        "only an abort, not any read error"
+    );
+    assert!(
+        !refused(&abort(ConnectionAborted, "HTTP/1.1 200 OK")),
+        "an abort after bytes"
+    );
+    assert!(
+        !refused(&abort(ConnectionAborted, "partial")),
+        "an abort after any bytes"
+    );
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.9 — foreign-host test reports what the client received, accepts a refused-by-abort, soak job
+
+Issue #109 (PM task and rulings 2026-11-12): `a_foreign_host_is_refused_on_the_json_routes_even_with_everything_else_right` failed on the windows runner with only "not refused". The test now collects every request not answered as it must be and reports the status code, the kind of any read error, the byte count and whether the body carried the view (numbers and an error kind only, never the body); `CONFIGURANT_FOREIGN_HOST_ROUNDS` repeats it on a fresh server each round. A captured sighting (1 in 2000 rounds under load: no bytes, `ConnectionAborted`, no view) led to the rule `refused`: a 403 without the view, or an abort with zero bytes, counts as refused; any other status, any bytes without a 403, any view, any other read error and an empty close fail. Two sabotage tests drive fake servers (200 with the view, 200 without, 302, 500, a 403 that leaks, a silent close; an abort after bytes, a reset) and show each fails the rule; widening the rule to accept a 200 fails both. New workflow `.github/workflows/foreign-host-soak.yml` (manual and nightly on main, not a PR check) runs just that test, 500 rounds, ubuntu and windows in 4 shards each, plus 4 windows shards under load. The server answering 403 reliably under load is a separate row. Test and workflow only; no product change.
+
 ## 0.7.8 — fragment kit v3 (tools only)
 
 PM notice 2026-11-12: re-copied `tools/stamp-version.py` and `tools/check-fragment.py` from the portfolio kit, refactored after Codacy flagged the first copies (subprocess use, cyclomatic complexity). No library change and no change in behaviour.
