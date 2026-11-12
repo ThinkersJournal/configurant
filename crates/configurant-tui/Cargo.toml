@@ -26,5 +26,5 @@ configurant-scan = { version = "0.7.10", path = "../configurant-scan", optional 
 scan = ["dep:configurant-scan"]
 
 [dev-dependencies]
-persistant = { version = "0.16.4", default-features = false, features = ["registry"] }
+persistant = { version = "0.17.1", default-features = false, features = ["registry"] }
 tokio = { version = "1.54.1", default-features = false, features = ["rt"] }

@@ -86,6 +86,10 @@ impl TransferEnd {
 }
 
 impl fmt::Debug for TransferEnd {
+    #[allow(
+        deprecated,
+        reason = "a caller may still hand us `Endpoint::Url`; it must be shown as hidden, never printed"
+    )]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let kind = match &self.endpoint {
             Endpoint::None => "none",
@@ -292,6 +296,10 @@ fn scrub(mut text: String, hide: &[String]) -> String {
 }
 
 /// What must never appear: the URL, and the password inside it.
+#[allow(
+    deprecated,
+    reason = "a caller may still hand us `Endpoint::Url` (persistant 0.17 deprecates it): its URL must still be hidden"
+)]
 fn secrets_of(endpoint: &Endpoint) -> Vec<String> {
     let url = match endpoint {
         Endpoint::Url(u) => Some(u.clone()),
@@ -485,11 +493,12 @@ fn to_usize(n: u64) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ::persistant::relational::ConnectionSecret;
 
     #[test]
     fn a_url_and_the_password_inside_it_are_scrubbed_from_a_backend_message() {
         let url = "postgres://appuser:hunter2@db.internal/prod";
-        let hide = secrets_of(&Endpoint::Url(url.to_owned()));
+        let hide = secrets_of(&Endpoint::Secret(ConnectionSecret::literal(url)));
         let said = format!("connect to {url} failed: password authentication failed for hunter2");
         let clean = scrub(said, &hide);
         assert!(
@@ -497,6 +506,29 @@ mod tests {
             "{clean}"
         );
         assert!(clean.contains("<hidden>"), "{clean}");
+    }
+
+    // The deprecated variant is still accepted from a caller, and still hidden.
+    #[test]
+    #[allow(
+        deprecated,
+        reason = "this is the test that `Endpoint::Url` is still hidden"
+    )]
+    fn a_deprecated_url_endpoint_is_still_scrubbed() {
+        let url = "postgres://appuser:hunter2@db.internal/prod";
+        let hide = secrets_of(&Endpoint::Url(url.to_owned()));
+        let clean = scrub(format!("connect to {url} failed: hunter2"), &hide);
+        assert!(
+            !clean.contains("hunter2") && !clean.contains("db.internal"),
+            "{clean}"
+        );
+        assert!(
+            format!(
+                "{:?}",
+                TransferEnd::new("pg", Endpoint::Url(url.to_owned()))
+            )
+            .contains("url (hidden)")
+        );
     }
 
     #[test]
