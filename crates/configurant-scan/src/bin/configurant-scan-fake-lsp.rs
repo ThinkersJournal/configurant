@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //! A language server that answers `initialize` and then knows nothing: every definition request gets `null`.
 //! The `cli` tests start it to see what the binary does when a server cannot resolve a call. Test support
-//! only (an example, so `cargo test` builds it beside the binary).
+//! only (a bin of this package, so the `cli` tests reach it through `CARGO_BIN_EXE_configurant-scan-fake-lsp`,
+//! the one path cargo promises on every layout).
 
 use std::io::{BufRead, Write};
 

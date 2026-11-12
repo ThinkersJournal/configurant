@@ -56,21 +56,9 @@ fn write_without_accept_is_refused() {
     assert_ne!(code, 0);
 }
 
-/// The fake server built beside the test binary (`target/<profile>/examples/fake_lsp`).
+/// The fake server: a bin of this package, so cargo hands tests its path on every build layout.
 fn fake_server() -> std::path::PathBuf {
-    let mut p = std::env::current_exe().unwrap();
-    p.pop();
-    if p.ends_with("deps") {
-        p.pop();
-    }
-    p.push("examples");
-    p.push(format!("fake_lsp{}", std::env::consts::EXE_SUFFIX));
-    assert!(
-        p.exists(),
-        "build the example first (cargo test builds it): {}",
-        p.display()
-    );
-    p
+    std::path::PathBuf::from(env!("CARGO_BIN_EXE_configurant-scan-fake-lsp"))
 }
 
 fn project_reading_an_env_var(name: &str) -> std::path::PathBuf {
