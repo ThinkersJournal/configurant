@@ -313,8 +313,23 @@ fn a_wrong_kind_of_endpoint_is_refused_before_anything_is_created() {
 #[test]
 fn a_secret_endpoint_is_in_no_error_and_no_debug() {
     let url = "postgres://appuser:hunter2hunter2@db.internal/prod";
+    let from = TransferEnd::new(
+        "fs",
+        Endpoint::Secret(persistant::relational::ConnectionSecret::literal(url)),
+    );
+    a_url_endpoint_never_comes_back(from);
+}
+
+// persistant 0.17 deprecates `Endpoint::Url`, but a caller can still hand it to us: it must stay hidden.
+#[test]
+#[allow(deprecated, reason = "the deprecated variant must still be hidden")]
+fn a_deprecated_url_endpoint_is_in_no_error_and_no_debug() {
+    let url = "postgres://appuser:hunter2hunter2@db.internal/prod";
+    a_url_endpoint_never_comes_back(TransferEnd::new("fs", Endpoint::Url(url.to_owned())));
+}
+
+fn a_url_endpoint_never_comes_back(from: TransferEnd) {
     // An fs backend refuses a URL endpoint; the URL must not come back in the refusal.
-    let from = TransferEnd::new("fs", Endpoint::Url(url.to_owned()));
     let to = TransferEnd::new("memory", Endpoint::None);
     let err =
         run(module().transfer(&from, &to, &needs(), &TransferOptions::default())).unwrap_err();
