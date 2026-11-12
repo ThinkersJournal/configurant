@@ -638,3 +638,53 @@ fn the_refusal_rule_accepts_an_abort_with_zero_bytes_and_nothing_else() {
         "an abort after any bytes"
     );
 }
+
+/// A refused request whose body the server does not want must still get its 403 (configurant#111, httpant#70).
+/// The client writes `size` body bytes (stopping if the server closes first), then reads to the end.
+fn refused_with_body(web: &Web, sid: &str, size: usize) -> (Raw, bool) {
+    let mut s = TcpStream::connect(web.addr()).unwrap();
+    s.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    let head = format!(
+        "GET /s/{sid}/api/view HTTP/1.1\r\nHost: evil.test\r\nConnection: close\r\nContent-Length: {size}\r\n\r\n"
+    );
+    let mut wrote_all = s.write_all(head.as_bytes()).is_ok();
+    let chunk = vec![b'x'; 65536];
+    let mut sent = 0;
+    while wrote_all && sent < size {
+        let n = chunk.len().min(size - sent);
+        wrote_all = s.write_all(&chunk[..n]).is_ok();
+        sent += n;
+    }
+    let mut text = String::new();
+    let read_error = s.read_to_string(&mut text).err().map(|e| e.kind());
+    (Raw { text, read_error }, wrote_all)
+}
+
+// STRICT: no abort is accepted here, unlike the soak rule. These sizes are the ones that deliver the 403 today.
+// A 1 MB or 5 MB unread body is reset instead (httpant#70); its acceptance test is in that issue and is added
+// with httpant's fix, not ignored here.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_refused_request_with_an_unread_body_still_gets_its_403() {
+    let dir = tmp();
+    let web = start(&dir.path().join("app.toml")).await;
+    let sid = log_in(&web).await;
+    let mut bad = Vec::new();
+    for size in [50usize, 16_000] {
+        for round in 0..20 {
+            let (got, wrote_all) = refused_with_body(&web, &sid, size);
+            if got.status() != Some(403) || got.text.contains("\"view\"") {
+                bad.push(format!(
+                    "size {size} round {round}: {} wrote_all={wrote_all}",
+                    got.summary()
+                ));
+            }
+        }
+    }
+    let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
+    assert!(
+        bad.is_empty(),
+        "{} of 40 not a clean 403: {:?}",
+        bad.len(),
+        &bad[..bad.len().min(6)]
+    );
+}
