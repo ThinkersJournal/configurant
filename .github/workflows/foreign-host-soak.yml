@@ -1,0 +1,42 @@
+# Soak for one security assertion: a foreign Host is refused with 403 on the JSON routes (#109).
+# Runs only that test, many rounds on a fresh server each, on both operating systems, and prints what the
+# client received for any round that was not answered as it must be. Not a required check.
+name: Foreign host soak
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crates/configurant-web/**'
+      - '.github/workflows/foreign-host-soak.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  soak:
+    name: soak (${{ matrix.os }}, shard ${{ matrix.shard }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: stable
+
+      - name: 500 rounds of the foreign-host test
+        env:
+          CONFIGURANT_FOREIGN_HOST_ROUNDS: '500'
+        run: cargo test --locked -p configurant-web --test api a_foreign_host -- --nocapture
