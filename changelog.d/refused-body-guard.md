@@ -1,0 +1,3 @@
+kind: a refused request with a small unread body still gets its 403 (guard)
+---
+Issue #111 (PM ruling 2026-11-12): `a_refused_request_with_an_unread_body_still_gets_its_403` is a strict guard (no abort accepted) for a refused foreign-`Host` `GET` that carries a 50 B or 16 KB body: a clean 403 every time, 12 full-suite runs with no failure. Bodies of 1 MB and 5 MB are reset instead of answered (30 of 30 in a probe, `httpant#70`) and a 70 KB body was reset in 3 of 6 full-suite runs; their acceptance test lives in that issue and is added with httpant's fix. An app-side bounded drain with `Connection: close` was built and dropped: it defended none of the failing cases. Test only; no product change.
