@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.7 — changelog fragments adopted
+
+PM task 2026-11-12 (CireSnave: every PR stops editing version lines so stacked and parallel PRs stop conflicting): adopts the portfolio fragment kit. A PR now adds one `changelog.d/<topic>.md` and leaves every version alone; the gate runs `python tools/stamp-version.py <version>`, which sets the crate versions and the matching `Cargo.lock` entries and writes the CHANGELOG entry. New: `tools/stamp-version.py`, `tools/check-fragment.py`, `.github/workflows/changelog-fragment.yml` (checkout pinned to the SHA `ci.yml` uses), `changelog.d/README.md`. No library change. The kit's `stamp-version.py` missed dependency lines written `{ version = "x", path = ... }` (it only matched `path` before `version`); our copy matches both orders (13 lines stamped, none left at the old number). Verified: a throwaway fragment with `--dry-run` lists the root and five crate `Cargo.toml` files, `Cargo.lock` and `CHANGELOG.md`. This PR bumps the version once itself (the one allowed bump). All crates move to 0.7.7.
+
 ## 0.7.6
 
 - Docs only: ROADMAP row 31 marked done (slices 0.7.3 to 0.7.5); HANDOFF rewritten as current state. All crates move to 0.7.6.
