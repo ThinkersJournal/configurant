@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 — **BREAKING**: persistant 0.17.1
+
+PM notice 2026-11-12 (PersistAnt 0.17.1 published, a 0.17 breaking line): every `persistant*` pin moves from 0.16.4 to 0.17.1 (`configurant`, `configurant-gui`, `configurant-tui`; the six `Cargo.lock` entries follow). `configurant::persistant` re-exports persistant's `Endpoint`, whose `Url` variant is now deprecated, so a consumer that builds `Endpoint::Url` gets the deprecation (use `Endpoint::Secret(ConnectionSecret::literal(url))` or `Endpoint::url_env(name)`). We still accept a caller's `Endpoint::Url` and still hide it: the two places that read it carry `#[allow(deprecated)]` with a reason, and the leak tests (`src/persistant/transfer.rs`, `tests/known_bad_transfer.rs`) now run for both the `Secret` form and the deprecated `Url` form. Verified: clippy `-D warnings` default and all features, and the full workspace suite with `--no-fail-fast`, default and `--all-features`, 0 failures.
+
 ## 0.7.10 — a refused request with a small unread body still gets its 403 (guard)
 
 Issue #111 (PM ruling 2026-11-12): `a_refused_request_with_an_unread_body_still_gets_its_403` is a strict guard (no abort accepted) for a refused foreign-`Host` `GET` that carries a 50 B or 16 KB body: a clean 403 every time, 12 full-suite runs with no failure. Bodies of 1 MB and 5 MB are reset instead of answered (30 of 30 in a probe, `httpant#70`) and a 70 KB body was reset in 3 of 6 full-suite runs; their acceptance test lives in that issue and is added with httpant's fix. An app-side bounded drain with `Connection: close` was built and dropped: it defended none of the failing cases. Test only; no product change.
