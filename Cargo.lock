@@ -817,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "configurant"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "clap",
  "persistant",
@@ -834,7 +834,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-gui"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "clap",
  "configurant",
@@ -847,7 +847,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-scan"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "clap",
  "configurant",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-secrets"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "configurant",
  "tempfile",
@@ -871,7 +871,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-tui"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "clap",
  "configurant",
@@ -883,7 +883,7 @@ dependencies = [
 
 [[package]]
 name = "configurant-web"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "configurant",
  "getrandom 0.4.3",
@@ -2043,9 +2043,9 @@ dependencies = [
 
 [[package]]
 name = "httpant"
-version = "0.5.19"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d8915589e1725e91bdd6cbf3b1966835eaca937be1c663e928906fd8fd8e586"
+checksum = "fbac29ae4d8ea680af8f6b87d8df8ece490d04c904d7a489a963468e53c72b6e"
 dependencies = [
  "httpant-client",
  "httpant-core",
@@ -2054,40 +2054,46 @@ dependencies = [
 
 [[package]]
 name = "httpant-client"
-version = "0.5.19"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5623c5eb9acd9492925f41b6fcef06a126944bc001df1b12923d7403c2a6383"
+checksum = "20bed04080ffba4e5eb3d2312a4c926c4c05042ca24377277bd39f686fdbcfdc"
 dependencies = [
+ "bytes",
+ "http-body",
  "httpant-core",
  "hyper",
  "hyper-util",
  "tokio",
+ "tower",
 ]
 
 [[package]]
 name = "httpant-core"
-version = "0.5.19"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74457ca02b2234edc2bc41dbb1ffb0214755bfdadd56581cc234c2051cd058e9"
+checksum = "aa8ff467712b0bb9cfd924576720c6e8233aa8965682d638c8e7d863142686f5"
 dependencies = [
  "bytes",
  "http",
  "http-body",
  "http-body-util",
+ "serde",
+ "serde_urlencoded",
  "thiserror 2.0.21",
  "tower",
 ]
 
 [[package]]
 name = "httpant-server"
-version = "0.5.19"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "457bca95de9205b6db4cbb79d53c61eb75a3514a354dcadfc30fd3f338226cf7"
+checksum = "8936471381bb45522f5feecdab15a4952b3dcd450e99464b18b02107798ec908"
 dependencies = [
  "http-body",
  "httpant-core",
  "hyper",
  "hyper-util",
+ "serde",
  "tokio",
  "tower",
 ]
@@ -2139,6 +2145,7 @@ version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddc03d96684f9226b8a787cdb71488417b53ab5ea8fdb1dac946cb9431cc8bff"
 dependencies = [
+ "base64 0.23.1",
  "bytes",
  "futures-channel",
  "futures-util",
@@ -2146,7 +2153,9 @@ dependencies = [
  "http-body",
  "httparse",
  "hyper",
+ "ipnet",
  "libc",
+ "percent-encoding",
  "pin-project-lite",
  "socket2",
  "tokio",
@@ -2309,6 +2318,12 @@ dependencies = [
  "quote",
  "syn 3.0.9",
 ]
+
+[[package]]
+name = "ipnet"
+version = "2.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "791930b43c0d5973160d90a8f3894509f2b273430f5c5c73b668636d0287c5c0"
 
 [[package]]
 name = "is_terminal_polyfill"
@@ -4246,6 +4261,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7523beb55eece201a2356bee0bbca0d1ab466c14c07703b2e0ee6d42cb0c2c"
 dependencies = [
  "serde_core",
+]
+
+[[package]]
+name = "serde_urlencoded"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd"
+dependencies = [
+ "form_urlencoded",
+ "itoa",
+ "ryu",
+ "serde",
 ]
 
 [[package]]

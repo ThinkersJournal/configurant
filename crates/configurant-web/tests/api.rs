@@ -660,19 +660,21 @@ fn refused_with_body(web: &Web, sid: &str, size: usize) -> (Raw, bool) {
     (Raw { text, read_error }, wrote_all)
 }
 
-// STRICT: no abort is accepted here, unlike the soak rule. These sizes are the ones that deliver the 403 today.
-// A 1 MB or 5 MB unread body is reset instead (httpant#70); its acceptance test is in that issue and is added
-// with httpant's fix, not ignored here.
+// STRICT: no abort is accepted here, unlike the soak rule. Sizes up to 5 MB are under httpant 0.7.10's drain cap
+// (8 MiB); before it, 1 MB and 5 MB were reset 40/40 on Windows and 70 KB under load (httpant#70).
 #[tokio::test(flavor = "multi_thread")]
 async fn a_refused_request_with_an_unread_body_still_gets_its_403() {
     let dir = tmp();
     let web = start(&dir.path().join("app.toml")).await;
     let sid = log_in(&web).await;
     let mut bad = Vec::new();
-    for size in [50usize, 16_000] {
+    for size in [50usize, 16_000, 70_000, 1_000_000, 5_000_000] {
         for round in 0..20 {
+            // httpant's own 2 MiB body limit answers a declared 5 MB body with its 413 before our check runs:
+            // still an answer that must arrive, which is what is under test.
+            let expected = if size > 2 * 1024 * 1024 { 413 } else { 403 };
             let (got, wrote_all) = refused_with_body(&web, &sid, size);
-            if got.status() != Some(403) || got.text.contains("\"view\"") {
+            if got.status() != Some(expected) || got.text.contains("\"view\"") {
                 bad.push(format!(
                     "size {size} round {round}: {} wrote_all={wrote_all}",
                     got.summary()
@@ -683,7 +685,7 @@ async fn a_refused_request_with_an_unread_body_still_gets_its_403() {
     let _ = web.idle_timeout(Duration::from_millis(1)).finished().await;
     assert!(
         bad.is_empty(),
-        "{} of 40 not a clean 403: {:?}",
+        "{} of 100 not the expected clean answer (403, 413 over 2 MiB): {:?}",
         bad.len(),
         &bad[..bad.len().min(6)]
     );
