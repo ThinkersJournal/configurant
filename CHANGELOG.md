@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 — httpant 0.7.10, refused requests reliably deliver their 403
+
+`configurant-web` now needs httpant 0.7.10 (was 0.5.19). A refused request whose body was never read (a foreign `Host`, a bad origin) now reliably gets its 403: httpant drains the unread body, up to 8 MiB, before it answers, where it used to lose the answer to a TCP reset on Windows (configurant#111, httpant#70). The guard test covers 50 B, 16 KB, 70 KB, 1 MB and 5 MB bodies, strict 403 each. — lane: configurant
+
 ## 0.8.0 — **BREAKING**: persistant 0.17.1
 
 PM notice 2026-11-12 (PersistAnt 0.17.1 published, a 0.17 breaking line): every `persistant*` pin moves from 0.16.4 to 0.17.1 (`configurant`, `configurant-gui`, `configurant-tui`; the six `Cargo.lock` entries follow). `configurant::persistant` re-exports persistant's `Endpoint`, whose `Url` variant is now deprecated, so a consumer that builds `Endpoint::Url` gets the deprecation (use `Endpoint::Secret(ConnectionSecret::literal(url))` or `Endpoint::url_env(name)`). We still accept a caller's `Endpoint::Url` and still hide it: the two places that read it carry `#[allow(deprecated)]` with a reason, and the leak tests (`src/persistant/transfer.rs`, `tests/known_bad_transfer.rs`) now run for both the `Secret` form and the deprecated `Url` form. Verified: clippy `-D warnings` default and all features, and the full workspace suite with `--no-fail-fast`, default and `--all-features`, 0 failures.
