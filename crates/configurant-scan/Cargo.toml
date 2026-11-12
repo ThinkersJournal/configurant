@@ -14,10 +14,15 @@ categories = ["config", "development-tools"]
 name = "configurant-scan"
 path = "src/main.rs"
 
-# Test support: a language server that cannot resolve anything. Cargo gives tests `CARGO_BIN_EXE_<name>` for bins only.
+# Test support: a language server that cannot resolve anything. Cargo gives tests `CARGO_BIN_EXE_<name>` for bins only;
+# the feature is off by default, so `cargo install` and `cargo publish` do not ship it. The self dev-dependency turns it on for tests.
 [[bin]]
 name = "configurant-scan-fake-lsp"
 path = "src/bin/configurant-scan-fake-lsp.rs"
+required-features = ["test-support"]
+
+[features]
+test-support = []
 
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }
@@ -28,3 +33,6 @@ thiserror = "2.0.21"
 tokio = { version = "1.54.1", default-features = false, features = ["rt", "rt-multi-thread", "time"] }
 url = "2.5"
 toml = "1.1.8"
+
+[dev-dependencies]
+configurant-scan = { path = ".", features = ["test-support"] }
