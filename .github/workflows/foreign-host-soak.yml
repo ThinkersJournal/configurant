@@ -19,13 +19,21 @@ env:
 
 jobs:
   soak:
-    name: soak (${{ matrix.os }}, shard ${{ matrix.shard }})
+    name: soak (${{ matrix.os }}, ${{ matrix.load }}, shard ${{ matrix.shard }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         shard: [1, 2, 3, 4]
+        load: [none]
+        include:
+          # The original failure (#109) was inside the full workspace test run, on windows: the same rounds
+          # while the rest of the workspace tests, busy loops and a disk loop run in the same job.
+          - { os: windows-latest, shard: 1, load: busy }
+          - { os: windows-latest, shard: 2, load: busy }
+          - { os: windows-latest, shard: 3, load: busy }
+          - { os: windows-latest, shard: 4, load: busy }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -36,7 +44,33 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Build the test before any load starts
+        run: cargo test --locked -p configurant-web --test api --no-run
+
+      - name: Start the load (windows only)
+        if: matrix.load == 'busy'
+        shell: pwsh
+        run: |
+          $n = [Environment]::ProcessorCount * 2
+          1..$n | ForEach-Object {
+            Start-Process pwsh -WindowStyle Hidden -ArgumentList '-NoProfile', '-Command', 'while ($true) { $x = 1; 1..100000 | ForEach-Object { $x = ($x * 3) % 7 } }'
+          }
+          $io = 'while ($true) { $f = Join-Path $env:RUNNER_TEMP "io.bin"; [IO.File]::WriteAllBytes($f, (New-Object byte[] 50MB)); [void][IO.File]::ReadAllBytes($f) }'
+          Start-Process pwsh -WindowStyle Hidden -ArgumentList '-NoProfile', '-Command', $io
+          # The rest of the workspace suite, in its own target dir so it does not wait on this job's cargo lock.
+          $env:CARGO_TARGET_DIR = Join-Path $env:RUNNER_TEMP 'loadtarget'
+          Start-Process cargo -WindowStyle Hidden -ArgumentList 'test', '--workspace', '--locked', '--no-fail-fast'
+          Remove-Item Env:CARGO_TARGET_DIR
+          Start-Sleep -Seconds 20
+          "load started: cores=$([Environment]::ProcessorCount) busy_pwsh=$((Get-Process pwsh).Count) cargo=$((Get-Process cargo -ErrorAction SilentlyContinue).Count)"
+
       - name: 500 rounds of the foreign-host test
         env:
           CONFIGURANT_FOREIGN_HOST_ROUNDS: '500'
         run: cargo test --locked -p configurant-web --test api a_foreign_host -- --nocapture
+
+      - name: Was the load still running at the end (windows only)
+        if: always() && matrix.load == 'busy'
+        shell: pwsh
+        run: |
+          "load at end: busy_pwsh=$((Get-Process pwsh).Count) cargo=$((Get-Process cargo -ErrorAction SilentlyContinue).Count) rustc=$((Get-Process rustc -ErrorAction SilentlyContinue).Count)"
