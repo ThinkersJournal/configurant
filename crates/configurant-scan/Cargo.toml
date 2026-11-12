@@ -14,6 +14,11 @@ categories = ["config", "development-tools"]
 name = "configurant-scan"
 path = "src/main.rs"
 
+# Test support: a language server that cannot resolve anything. Cargo gives tests `CARGO_BIN_EXE_<name>` for bins only.
+[[bin]]
+name = "configurant-scan-fake-lsp"
+path = "src/bin/configurant-scan-fake-lsp.rs"
+
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }
 configurant = { version = "0.8.1", path = "../.." }
