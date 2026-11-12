@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.2 — configurant-scan tests find their fake language server on Cargo 1.100
+
+Cargo 1.100 puts test executables under `target/<profile>/build/<pkg>/<hash>/out/`, so the `cli` tests, which located the
+`fake_lsp` example from `current_exe()`, failed 2 of 5 (`a_server_that_cannot_resolve_makes_the_scan_partial_with_exit_2`,
+`server_args_reach_the_server`). The fake server is now a bin of the package (`configurant-scan-fake-lsp`, test support
+only, behind the off-by-default `test-support` feature that a self dev-dependency turns on for tests, so `cargo install` does not ship it) and the tests take its path from `CARGO_BIN_EXE_configurant-scan-fake-lsp`, the only path Cargo promises on every
+layout. Verified on cargo 1.100.0: red before, green after. Found by the PM's scan of tracked files. No library change.
+
 ## 0.8.1 — httpant 0.7.10, refused requests reliably deliver their 403
 
 `configurant-web` now needs httpant 0.7.10 (was 0.5.19). A refused request whose body was never read (a foreign `Host`, a bad origin) now reliably gets its 403: httpant drains the unread body, up to 8 MiB, before it answers, where it used to lose the answer to a TCP reset on Windows (configurant#111, httpant#70). The guard test covers 50 B, 16 KB, 70 KB, 1 MB and 5 MB bodies, strict 403 each. — lane: configurant
