@@ -279,7 +279,10 @@ impl Mount {
 /// The `[fragment]` table: what a fragment is, in place of a project.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-#[allow(dead_code)]
+#[allow(
+    dead_code,
+    reason = "fields are read only by serde: they are validated on parse, not used after"
+)]
 struct FragmentInfo {
     name: String,
     version: String,

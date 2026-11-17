@@ -288,6 +288,7 @@ impl<'a> Driver<'a> {
     }
 
     /// Handle one event. A refused event changes nothing and the reply says why.
+    #[must_use = "a refused event is reported only in the reply"]
     pub fn apply(&mut self, event: Event) -> Reply {
         let mut refused = None;
         let mut confirmed = false;
