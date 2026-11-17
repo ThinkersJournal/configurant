@@ -12,6 +12,9 @@ use url::Url;
 
 use crate::{Resolver, ScanError};
 
+/// How long a call may keep asking after the server has already answered another call (see `definition`).
+const READY_GRACE: Duration = Duration::from_secs(3);
+
 /// A running language server.
 pub struct LspResolver {
     rt: tokio::runtime::Runtime,
@@ -92,7 +95,8 @@ impl Resolver for LspResolver {
                 .block_on(self.bridge.open_document(&self.id, &uri, text))
                 .map_err(|e| err(e.to_string()))?;
         }
-        let deadline = Instant::now() + self.wait;
+        let started = Instant::now();
+        let deadline = started + self.wait;
         loop {
             let asked = self.rt.block_on(self.bridge.go_to_definition(
                 &self.id,
@@ -114,7 +118,10 @@ impl Resolver for LspResolver {
                 };
                 return Ok(Some(path));
             }
-            if self.ready || Instant::now() >= deadline {
+            // Once the server has answered something it is ready, but a later call can still miss while it
+            // indexes the rest of the workspace (#108): give each call a short grace before saying `None`.
+            let now = Instant::now();
+            if now >= deadline || (self.ready && now >= started + READY_GRACE) {
                 return Ok(None);
             }
             self.rt

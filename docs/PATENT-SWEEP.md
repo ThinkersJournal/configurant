@@ -2,6 +2,8 @@
 
 Date: 2026-10-25; Run by: the configurant lane, Claude Sonnet 5.5; Method: AI-assisted search and read; NOT legal advice; NOT a freedom-to-operate opinion.
 
+**Version coverage (checked 2026-11-17 at `origin/main` 8fb5d8a, crate version 0.8.3):** this record covers up to 0.6.0 (the row 32 addendum). Releases 0.6.x to 0.8.x are **NOT swept**: that is ROADMAP rows 6, 7, 13, 27, 31 and 33 (transfer, json-schema export, redaction by `redactant`, fragment migrations and projection are among them; see CHANGELOG.md for each), plus the dependency repins. No verdict is claimed for them; a sweep of those families is owed (the re-sweep rule: a new family of capability, and by 2027-10-25).
+
 Covers the 0.5.x line: the first sweep below at `ad5700c` (version 0.5.0), the addendum for rows 20 to 26 (0.5.7 to 0.5.15, 2026-10-29), the addendum for row 28, the plan executor (0.5.17 to 0.5.21, 2026-10-30), the addendum for row 11, the ports, logging and paths modules (0.5.25 to 0.5.31, 2026-10-30), and the last addendum for row 29, the browser wizard `configurant-web` (0.5.41 to 0.5.43, 2026-10-31). First sweep: the core crate, `configurant-secrets`, `configurant-tui`, `configurant-gui`, `configurant-scan`. Process: `C:\Projects\PATENT-SWEEP-PROCESS.md` (CireSnave, 2026-10-25, board 286). Re-sweep when a new family of capability is added, and by 2027-10-25.
 
 ## Ideas swept

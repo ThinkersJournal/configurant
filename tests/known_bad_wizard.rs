@@ -103,18 +103,18 @@ fn next_walks_the_visible_steps_to_the_review_and_confirm_is_only_there() {
             r.refused.is_some() && !r.confirmed,
             "confirm is for the review"
         );
-        w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
         assert_eq!(at(w).as_deref(), Some("mode"));
-        w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
         assert_eq!(
             at(w).as_deref(),
             Some("secrets"),
             "net is hidden: mode is client"
         );
-        w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
         let v = w.view().wizard.expect("wizard view");
         assert!(v.at_review && v.current.is_none() && !v.can_next);
-        w.apply(ev(r#"{"event":"back"}"#));
+        let _ = w.apply(ev(r#"{"event":"back"}"#));
         assert_eq!(at(w).as_deref(), Some("secrets"));
     });
 }
@@ -122,15 +122,15 @@ fn next_walks_the_visible_steps_to_the_review_and_confirm_is_only_there() {
 #[test]
 fn a_hidden_step_is_skipped_and_shows_when_its_condition_holds() {
     with(|w| {
-        w.apply(ev(r#"{"event":"set","key":"mode","text":"server"}"#));
-        w.apply(ev(r#"{"event":"next"}"#));
-        w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"set","key":"mode","text":"server"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
         assert_eq!(at(w).as_deref(), Some("net"));
-        w.apply(ev(r#"{"event":"back"}"#));
-        w.apply(ev(r#"{"event":"set","key":"mode","text":"client"}"#));
-        w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"back"}"#));
+        let _ = w.apply(ev(r#"{"event":"set","key":"mode","text":"client"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
         assert_eq!(at(w).as_deref(), Some("secrets"));
-        w.apply(ev(r#"{"event":"back"}"#));
+        let _ = w.apply(ev(r#"{"event":"back"}"#));
         assert_eq!(
             at(w).as_deref(),
             Some("mode"),
@@ -145,8 +145,8 @@ fn goto_reaches_only_steps_already_reached_and_an_unknown_id_gets_a_suggestion()
         let r = w.apply(ev(r#"{"event":"goto","step":"secrets"}"#));
         assert!(r.refused.is_some());
         assert_eq!(at(w).as_deref(), Some("name"));
-        w.apply(ev(r#"{"event":"next"}"#));
-        w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
         let r = w.apply(ev(r#"{"event":"goto","step":"name"}"#));
         assert!(r.refused.is_none());
         assert_eq!(at(w).as_deref(), Some("name"));
@@ -176,9 +176,9 @@ fn a_plain_driver_refuses_wizard_events() {
 #[test]
 fn the_review_confirms_and_writes_the_changes() {
     with(|w| {
-        w.apply(ev(r#"{"event":"set","key":"app.name","text":"shop"}"#));
+        let _ = w.apply(ev(r#"{"event":"set","key":"app.name","text":"shop"}"#));
         for _ in 0..3 {
-            w.apply(ev(r#"{"event":"next"}"#));
+            let _ = w.apply(ev(r#"{"event":"next"}"#));
         }
         let r = w.apply(ev(r#"{"event":"confirm"}"#));
         assert!(r.confirmed, "{:?}", r.refused);
@@ -194,8 +194,8 @@ fn the_review_confirms_and_writes_the_changes() {
 #[test]
 fn a_secret_step_passes_and_no_secret_or_value_is_in_the_wizard_json_or_state() {
     with(|w| {
-        w.apply(ev(r#"{"event":"next"}"#));
-        w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
         assert_eq!(at(w).as_deref(), Some("secrets"));
         let r = w.apply(ev(r#"{"event":"next"}"#));
         assert!(
@@ -217,7 +217,7 @@ fn a_secret_step_passes_and_no_secret_or_value_is_in_the_wizard_json_or_state() 
 #[test]
 fn resume_returns_to_the_saved_step_and_a_stale_id_lands_on_the_first_with_a_note() {
     let saved = with(|w| {
-        w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
         serde_json::to_string(&w.state()).expect("serialises")
     });
     let schema = Schema::parse(SCHEMA).expect("valid");
@@ -242,7 +242,7 @@ fn resume_returns_to_the_saved_step_and_a_stale_id_lands_on_the_first_with_a_not
 #[test]
 fn the_step_list_says_done_current_todo_and_hidden() {
     with(|w| {
-        w.apply(ev(r#"{"event":"next"}"#));
+        let _ = w.apply(ev(r#"{"event":"next"}"#));
         let v = w.view().wizard.expect("wizard view");
         let states: Vec<(&str, &str)> = v.steps.iter().map(|s| (s.id.as_str(), s.state)).collect();
         assert_eq!(
@@ -288,7 +288,7 @@ env = "TOKEN"
     let config = Loader::new(&schema).env(env).build().unwrap();
     let mut w = Wizard::new(Driver::new(Session::new(&config, None), Needs::default()));
     assert_eq!(w.plain("name").as_deref(), Some("hello"));
-    w.apply(Event::Set {
+    let _ = w.apply(Event::Set {
         key: "name".into(),
         text: "world".into(),
     });

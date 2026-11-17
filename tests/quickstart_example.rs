@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //! The README and hub-card example (`examples/quickstart.rs`) is run here, so it cannot go stale.
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "include! pulls in examples/quickstart.rs, whose main is not called here"
+)]
 
 include!("../examples/quickstart.rs");
 

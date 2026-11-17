@@ -139,7 +139,7 @@ fn nothing_is_confirmed_until_a_confirm_event_with_a_change() {
             "an empty review cannot be confirmed"
         );
         assert!(d.take_confirmed().is_none());
-        d.apply(ev(r#"{"event":"set","key":"server.port","text":"9000"}"#));
+        let _ = d.apply(ev(r#"{"event":"set","key":"server.port","text":"9000"}"#));
         assert!(
             d.take_confirmed().is_none(),
             "staging alone confirms nothing"
