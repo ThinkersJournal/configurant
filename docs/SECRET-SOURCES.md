@@ -42,9 +42,9 @@ given a **reference** (a name, never a value), returns the secret to the loader 
 - **The vault (`with-secret`) needs no source.** It delivers a vault entry into a child process as the environment
   variable the tool expects (`vault set NAME --env VAR`). That is the supported path today and stays correct: the
   environment layer already carries it. A `vault` source would only matter for a tool that fetches without a wrapper.
-- **SecretAnt** (name queued in the portfolio roadmap, not built) would ship its own adapter crate that implements
-  `SecretSource`. ConfigurAnt takes no dependency on it until it exists on crates.io (CIRESNAVE rule: crates.io
-  versions only); this document fixes only the trait it must meet.
+- **SecretAnt** (crates.io `secretant` 0.1.5) has its adapter in its own crate, `configurant-secretant`
+  (`SecretAntSource`, `source = "secretant:<name>"`), which implements `SecretSource` over `secretant::SecretReader`.
+  The core and `configurant-secrets` take no dependency on SecretAnt; only the adapter crate does, by its crates.io version.
 - **PersistAnt** stays a `Module`. Its endpoint questions already take `env:NAME`, never a URL, because a URL may
   hold a password. A source may later supply the variable's content, by the same trait. A secret is never stored
   *in* PersistAnt data by ConfigurAnt, and a `DataTransfer` plan holds backend ids and endpoint *references*, not
@@ -92,7 +92,10 @@ process of the same user. A secret is held in ordinary memory (no `mlock`); `Sec
    trailing newline removed, content must be UTF-8; on Unix a file readable by group or others is refused (`Denied`); a symlink
    is refused; absent is `NotFound`. Known-bad first: `..` and absolute references, an oversize file, a symlink out of the
    directory, a world-readable file, the canary never in an error.
-4. An adapter for SecretAnt, in its own crate, when SecretAnt is on crates.io (held).
+4. **SecretAnt adapter** (built): `configurant-secretant`. `source = "secretant:<name>"` reads `<name>` from a SecretAnt store the
+   application opens (`SecretAntSource::open(ReadConfig)`; the path and unlock are the application's, never the schema's). The
+   four `ReadError` classes map to `NotFound`, `Denied`, `Unreachable`, `TimedOut`; an entry that is not UTF-8 is `Invalid`; a
+   name that is empty or holds a control character is refused by `check_reference`. Each fetch reads the store afresh.
 5. Publish `configurant-secrets` with the batch the PM releases (crates.io has 0.2.25 and the PM publishes batches).
 
 Not planned, and why: a `vault` source (decision 4: the `with-secret` wrapper already delivers an environment variable); a
