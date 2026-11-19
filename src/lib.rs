@@ -18,6 +18,7 @@ pub mod persistant;
 pub mod project;
 pub mod schema;
 pub mod schema_edit;
+mod typo;
 pub mod value;
 pub mod view;
 pub mod wizard;

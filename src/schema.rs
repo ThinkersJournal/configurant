@@ -894,7 +894,7 @@ fn with_suggestion(e: &toml::de::Error) -> String {
     let Some(unknown) = quoted.next() else {
         return text;
     };
-    match crate::error::suggestion(unknown, quoted) {
+    match crate::typo::suggestion(unknown, quoted) {
         Some(near) => format!(
             "{}
 (did you mean `{near}`?)",

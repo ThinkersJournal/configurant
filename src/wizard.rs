@@ -51,35 +51,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::suggestion;
 use crate::schema::Step;
+use crate::typo::suggestion;
 use crate::view::{Driver, Event, Refusal, Reply, View};
-
-/// One step in the list a renderer draws as progress.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct StepView {
-    pub id: String,
-    pub title: String,
-    /// `done`, `current`, `todo` or `hidden` (its `when` does not hold now).
-    pub state: &'static str,
-}
-
-/// Where the person is, and what they can do next.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct WizardView {
-    pub steps: Vec<StepView>,
-    /// The current step's id; `None` at the review.
-    pub current: Option<String>,
-    pub at_review: bool,
-    /// The current step's title, plain intro and keys (empty at the review).
-    pub title: String,
-    pub intro: String,
-    pub keys: Vec<String>,
-    pub can_back: bool,
-    pub can_next: bool,
-    /// Why the position is not the one saved (a stale step id on resume), once.
-    pub note: Option<String>,
-}
+pub use crate::view::{StepView, WizardView};
 
 /// A saved position: step ids only, never a value.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]

@@ -15,8 +15,9 @@ use std::path::{Path, PathBuf};
 use toml_edit::{Array, DocumentMut, Item, Table, TableLike, Value as EditValue};
 
 use crate::config::{Config, check_value, cross_key_errors};
-use crate::error::{ConfigError, Origin, suggestion};
+use crate::error::{ConfigError, Origin};
 use crate::module::{Choice, Modules, Needs, Plan};
+use crate::typo::suggestion;
 use crate::value::{Value, ValueType};
 
 use redactant::PLACEHOLDER as REDACTED;
