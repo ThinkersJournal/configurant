@@ -50,7 +50,8 @@ def main():
     base = git("merge-base", sys.argv[1], "HEAD").strip()
     names = git("diff", "--name-status", "--diff-filter=A", base, "HEAD").splitlines()
     added = [n.split("\t", 1)[1] for n in names if re.match(r"^A\tchangelog\.d/(?!README\.md$)[^/]+\.md$", n)]
-    manifests = [p for p in git("diff", "--name-only", base, "HEAD").splitlines() if p.endswith("Cargo.toml")]
+    # Only manifests that already existed at the base: a newly ADDED crate must carry a `version =` line, which is not a bump.
+    manifests = [p for p in git("diff", "--name-only", "--diff-filter=M", base, "HEAD").splitlines() if p.endswith("Cargo.toml")]
     changed = any(version_lines(git("diff", "-U0", base, "HEAD", "--", p)) for p in manifests)
     why = judge(added, changed)
     if why:
