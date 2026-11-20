@@ -42,7 +42,7 @@ given a **reference** (a name, never a value), returns the secret to the loader 
 - **The vault (`with-secret`) needs no source.** It delivers a vault entry into a child process as the environment
   variable the tool expects (`vault set NAME --env VAR`). That is the supported path today and stays correct: the
   environment layer already carries it. A `vault` source would only matter for a tool that fetches without a wrapper.
-- **SecretAnt** (crates.io `secretant` 0.1.5) has its adapter in its own crate, `configurant-secretant`
+- **SecretAnt** (crates.io `secretant` 0.2.1) has its adapter in its own crate, `configurant-secretant`
   (`SecretAntSource`, `source = "secretant:<name>"`), which implements `SecretSource` over `secretant::SecretReader`.
   The core and `configurant-secrets` take no dependency on SecretAnt; only the adapter crate does, by its crates.io version.
 - **PersistAnt** stays a `Module`. Its endpoint questions already take `env:NAME`, never a URL, because a URL may

@@ -4319,9 +4319,9 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "secretant"
-version = "0.1.5"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "103b59ebce251ed5705baaba02e3321ca431556ea211a5c1e8184eac7f1ae06d"
+checksum = "1e74165f9ca8e15e6e0ebb48a1437325e84be3bb5d55c994692d8c72de4f630f"
 dependencies = [
  "argon2",
  "chacha20poly1305",
