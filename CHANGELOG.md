@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.5 — Docs: patent sweep addendum for 0.6.1 to 0.8.4; module cycles removed (MOD-002)
+
+`docs/PATENT-SWEEP.md` gains the addendum for ROADMAP rows 6, 7, 13, 31 and 33: ideas 33 to 36, queries Q41 to Q48 (Google Patents through a web search tool, one search each, standard mode, 2026-11-19), ten hits (50 to 59) with their independent claims read (each cut at 1,500 to 1,700 characters, so some tails were not read), all outside as read, none to review. Idea 36 (projection) is thinly searched and says so. The top of the file now states the version coverage; redaction (row 27) belongs to `redactant`'s record.
+
+Code, no behaviour change (CodeRipper MOD-002): the typo-suggestion helper moves from `error` to a private `typo` module, so `error` and `schema` no longer use each other; `StepView` and `WizardView` move to `view`, still re-exported as `configurant::wizard::{StepView, WizardView}`, so `view` and `wizard` no longer use each other. Verified: clippy on the workspace with all targets and features has no warnings, and `cargo test -p configurant --all-features` passes (36 test binaries ok, none failed).
+
 ## 0.8.4 — README status and secrets wording; scan grace for a missed call (#108); must_use on apply
 
 README: status line says 0.8.x, the field list gains `privileged`, and the secrets sentence names the `source` route (the 19-field list was diffed against `ValueDef` in `src/schema.rs`: `privileged` was the only one missing). `docs/PATENT-SWEEP.md` states that 0.6.x to 0.8.x are not swept. Both `allow(dead_code)` carry a reason. `Driver::apply` and `Wizard::apply` are `#[must_use]`; the 21 test calls that dropped the reply now say `let _ =`.
