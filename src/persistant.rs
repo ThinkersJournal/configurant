@@ -30,8 +30,8 @@ pub use transfer::{
     TransferProgress, TransferReport, copy_between, copy_between_with_progress, parse_endpoint,
 };
 
-use crate::error::suggestion;
 use crate::module::{Action, ActionKind, Choice, Module, Needs, Plan};
+use crate::typo::suggestion;
 use crate::value::Value;
 
 /// Why the needs could not be turned into a list of backends.
