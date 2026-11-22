@@ -9,9 +9,10 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::path::PathBuf;
 
-use crate::error::{ConfigError, Errors, Origin, suggestion};
+use crate::error::{ConfigError, Errors, Origin};
 use crate::module::Modules;
 use crate::schema::{MapDef, Schema, TableDef, ValueDef, Violation};
+use crate::typo::suggestion;
 use crate::value::{Row, Value, ValueType};
 
 use redactant::PLACEHOLDER as REDACTED;

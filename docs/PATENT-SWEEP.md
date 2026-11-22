@@ -2,7 +2,7 @@
 
 Date: 2026-10-25; Run by: the configurant lane, Claude Sonnet 5.5; Method: AI-assisted search and read; NOT legal advice; NOT a freedom-to-operate opinion.
 
-**Version coverage (checked 2026-11-17 at `origin/main` 8fb5d8a, crate version 0.8.3):** this record covers up to 0.6.0 (the row 32 addendum). Releases 0.6.x to 0.8.x are **NOT swept**: that is ROADMAP rows 6, 7, 13, 27, 31 and 33 (transfer, json-schema export, redaction by `redactant`, fragment migrations and projection are among them; see CHANGELOG.md for each), plus the dependency repins. No verdict is claimed for them; a sweep of those families is owed (the re-sweep rule: a new family of capability, and by 2027-10-25).
+**Version coverage (checked 2026-11-19 at `656e748`, crate version 0.8.4):** the first sweep and addenda cover 0.5.x to 0.6.0; the last addendum, at the end of this file, covers 0.6.1 to 0.8.4 for rows 6, 7, 13, 31 and 33. Redaction (row 27) is `redactant`'s and is not in this record. Depth and gaps are stated in each addendum.
 
 Covers the 0.5.x line: the first sweep below at `ad5700c` (version 0.5.0), the addendum for rows 20 to 26 (0.5.7 to 0.5.15, 2026-10-29), the addendum for row 28, the plan executor (0.5.17 to 0.5.21, 2026-10-30), the addendum for row 11, the ports, logging and paths modules (0.5.25 to 0.5.31, 2026-10-30), and the last addendum for row 29, the browser wizard `configurant-web` (0.5.41 to 0.5.43, 2026-10-31). First sweep: the core crate, `configurant-secrets`, `configurant-tui`, `configurant-gui`, `configurant-scan`. Process: `C:\Projects\PATENT-SWEEP-PROCESS.md` (CireSnave, 2026-10-25, board 286). Re-sweep when a new family of capability is added, and by 2027-10-25.
 
@@ -385,3 +385,58 @@ None. Every hit that was read is outside, as read, with the reason in the table.
 ### Limitations for row 32
 
 AI-assisted: a language model chose the queries and read the claims. Three queries, one search each, standard mode, one search engine's view of Google Patents, 2026-10-31; Espacenet, WIPO and the USPTO were not queried and no CPC-class search was run (for example H04L 63/08, H04L 67/14 for session management, G06F 21/62). Status and expiry are Google's labels; continuations and family members were not checked, and a granted counterpart of a published application may claim differently. Dependent claims were not analysed. The search tool's results are snippets until a claim is read. The path-versus-cookie security reasoning (that a browser never sends one origin's path to another port) is in `docs/BROWSER-WIZARD.md`, not argued here. Not legal advice and not a freedom-to-operate opinion.
+
+## Addendum for 0.6.1 to 0.8.4 (rows 6, 7, 13, 31, 33; 2026-11-19)
+
+Covers the capabilities added after the row 32 addendum, at `656e748` (0.8.4): the `transfer` command with progress (rows 6 and 7, 0.6.7 to 0.6.9), `json-schema` export (row 13, 0.6.10), fragment migrations (row 31, 0.7.3 to 0.7.5) and projection (row 33, 0.7.1). Run by the configurant lane, Claude Sonnet 5.5, on the PM's go of 2026-11-19. Not legal advice and not a freedom-to-operate opinion. Wording as above: "outside, as read".
+
+**Depth, plainly.** 8 queries (Q41 to Q48), one search each, standard mode, through a web search tool restricted to `patents.google.com` (search-engine ranked, 10 results each), 2026-11-19. Espacenet, WIPO and the USPTO were not queried; no CPC-class search was run. 10 hits were read with `tools/patent-claims.py`: the independent claims were printed and read, **but each claim was cut at 1,500 to 1,700 characters in the printout**, so the tail of a long independent claim was not read where noted below. The other results (up to 70, some repeated) were seen by title only and are **not read, no verdict claimed**. Status and expiry are Google's labels, not the official record. AI-assisted; a lawyer has not reviewed it.
+
+### Ideas swept (new since the sections above)
+
+33. A command copies persisted records from one storage backend to another in two phases, copy then check-the-copy, and reports progress as counts only (phase, records handled, optional total), never a key, value or endpoint.
+34. A schema file of declared configuration values is exported as a JSON Schema describing the TOML configuration file (dotted keys nest, tables are arrays of objects), with secret values left out, for a third-party editor to use.
+35. A library module carries its own versioned migration steps under its mount name; the application's chain runs first and then each mounted fragment's chain, over one configuration file; the library that creates a file stamps its format version on it.
+36. The resolved non-secret values are rendered into a host's format (env map, wrangler `[vars]`, compose `environment:`); a secret appears only as a named reference, never its value.
+
+Not swept here: redaction (row 27) is `redactant`'s mechanism and belongs in that project's record; the 0.7.0 "a table exists only once a value under it is set" change and the dependency repins are not new mechanisms.
+
+### Queries (source, query, date)
+
+All 2026-11-19, Google Patents via web search, standard mode.
+
+| Q | idea | query |
+|---|---|---|
+| 41 | 33 | method copying configuration records between storage backends verifying the copy reporting progress of records copied |
+| 42 | 33 | data migration between storage systems copy phase verify phase progress report number of records handled of total |
+| 43 | 34 | generating JSON Schema from configuration schema definition for editor completion excluding secret values |
+| 44 | 34 | converting configuration schema into validation schema for text editor autocompletion of configuration file keys and types |
+| 45 | 35 | library module declares its own configuration migration steps version, application upgrades configuration file chain of migrations per module |
+| 46 | 35 | configuration file format version upgrade reversible migration rename key value map lossless drop carry back |
+| 47 | 36 | rendering resolved application configuration values into deployment host format environment variables compose file secrets replaced by references |
+| 48 | 36 | generate deployment configuration from schema-defined settings omitting secret values listing secret names for injection at deploy time |
+
+Q47 returned nothing relevant (ten unrelated patents), and Q48 found only generic deployment patents: **idea 36 is thinly searched**; the "secret as a reference" element has effectively no patent coverage in this sweep.
+
+### Hits (independent claims read; tails of long claims unread where marked)
+
+| # | patent | title | assignee | status (Google) | claims read | overlap | our difference | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 50 | WO2016057873A1 | Configuration replication across distributed storage systems | NetApp | Ceased | 1, 10, 17 in full | replicates configuration to a backup node | claims replace an identifier of the primary node in a configuration change with the backup node's, then update the backup configuration; we rewrite no identifiers and copy records | clear |
+| 51 | US9632878B1 | Verification of database table partitions during backup | Amazon | Active | 6 and 17 in full; 1 cut | copy with a verification step before the data is kept | claims package a partition for upload to a remote storage system, verify the package can be restored in the service, and only then upload; we do not package, restore-test or upload, and we check a copy between two endpoints | clear (watch: Active, closest to idea 33) |
+| 52 | US9880756B2 | Successive data fingerprinting for copy accuracy assurance | Actifio | Expired | 1 and 7, tail cut | checks a copy against the source | claims need a series of scheduled successive copies and a partial fingerprint taken from a subset chosen by a changing initialization parameter; we use neither | clear |
+| 53 | US20090030902A1 | Schematized data intelligent assistance for development environments | Microsoft | Abandoned | claim 1 (the opening of 2 to 8 seen; later claims not read) | a schema drives key completion | claim 1 is a component that shows a selection box from a typed string; we only write a file and an editor we do not ship does the completion | clear |
+| 54 | US9858299B2 | Generating a JSON schema from a JSON stream | Oracle | Active | 1, 10, 18 in full | outputs a JSON Schema | infers a schema from a stream of data through type parsers, a factory class and a record-schema concatenator; ours is generated from a declared schema | clear |
+| 55 | US7565519B1 | Upgrading/reverting configurations across product release lines | NetApp | Active | 1, 8, 14 in full | upgrades and reverts a configuration version | claims find a shortest path through a matrix of predetermined transition structures; our steps run in a fixed chain, with no matrix or path search | clear |
+| 56 | US7117482B2 | Migration of configuration data through an upgrade | Sony | Expired | 1, 9, 16, 25, 30 in full | carries settings to a new version | claims store old values, load a new version with defaults, and fill each new setting from the old value or its default; our steps are renames, value maps and drops over a file | clear (expired) |
+| 57 | US7603669B2 | Upgrade and downgrade of data resource components | Microsoft | Active | 1, 7, 10, tails cut | up and down conversion rules between versions | claims keep a saved copy of the deploying tool so it can downgrade, and fall back to a saved copy of an earlier tool; we save no tool and a step's reverse is data in the schema; **the cut tails were not read** | clear on the elements read (watch: Active) |
+| 58 | US7636782B2 | Deployment of services in accordance with various topologies | Microsoft | Expired | 1, 14, 20, tails cut | a schema plus user input drives a deployment | claims are a service topology UI that distributes installation packages to machines; we render values into a text format | clear |
+| 59 | US9996330B2 | Deployment process plugin architecture | SAP | Active | 1, 13, 19, tails cut | defaults overridden at deployment | claims are database artifacts, containers and synonyms with an execution order and build plugins; unrelated to value projection | clear |
+
+### Needs review (to the PM)
+
+None. Two hits are Active and nearest their idea: hit 51 (idea 33) and hit 57 (idea 35); re-read both if the transfer gains a packaging or upload step, or if migrations start to save and replay a tool.
+
+### Limitations for this addendum
+
+As above, and: one search engine's view of Google Patents; two queries per idea; hits beyond the ten read were not read; claims were read with a 1,500 to 1,700 character cut; idea 36 is thinly searched; no non-US or non-Google source was queried; continuations and family members were not followed. A hit not found is not a clearance.

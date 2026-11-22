@@ -10,8 +10,8 @@
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use crate::error::suggestion;
 use crate::schema::Schema;
+use crate::typo::suggestion;
 
 /// One call that asks for a key the schema does not define.
 #[derive(Debug, Clone, PartialEq, Eq)]

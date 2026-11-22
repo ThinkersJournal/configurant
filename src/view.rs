@@ -127,7 +127,7 @@ pub struct View {
     pub file_only: Vec<FileOnlyView>,
     pub review: ReviewView,
     /// Where the person is in the steps; present only in a [`Wizard`](crate::wizard::Wizard)'s view.
-    pub wizard: Option<crate::wizard::WizardView>,
+    pub wizard: Option<WizardView>,
 }
 
 /// What a renderer can ask for.
@@ -337,4 +337,30 @@ impl<'a> Driver<'a> {
     pub fn take_confirmed(&mut self) -> Option<Confirmed> {
         self.confirmed.take()
     }
+}
+
+/// One step in the list a renderer draws as progress.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct StepView {
+    pub id: String,
+    pub title: String,
+    /// `done`, `current`, `todo` or `hidden` (its `when` does not hold now).
+    pub state: &'static str,
+}
+
+/// Where the person is, and what they can do next.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WizardView {
+    pub steps: Vec<StepView>,
+    /// The current step's id; `None` at the review.
+    pub current: Option<String>,
+    pub at_review: bool,
+    /// The current step's title, plain intro and keys (empty at the review).
+    pub title: String,
+    pub intro: String,
+    pub keys: Vec<String>,
+    pub can_back: bool,
+    pub can_next: bool,
+    /// Why the position is not the one saved (a stale step id on resume), once.
+    pub note: Option<String>,
 }
