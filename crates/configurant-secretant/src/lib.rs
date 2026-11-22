@@ -73,3 +73,8 @@ impl SecretSource for SecretAntSource {
         Ok(SecretValue::new(text))
     }
 }
+
+// Compile-checks the README's snippet (`cargo test --doc`).
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;
