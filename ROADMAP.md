@@ -21,7 +21,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 1 | Prior-art review with adopt/differ verdicts, sources, licences | spec "Prior art" | done: `docs/PRIOR-ART.md` (#34) | - |
 | 2 | Synapse (`synapsed`) schema: storage id + endpoint, as `examples/synapsed.toml` + test; then hand the adoption PR to the synapse lane | spec "First customers" | done: #36 (schema + tests); adoption held by the synapse lane | - |
 | 3 | Secret sources slice 3: list the slices after 2 and build the first that needs no SecretAnt | `SECRET-SOURCES.md` s4 | docs in #35; `file` source built in 0.2.34 (CireSnave 2026-10-25 "On decision 277: A"); SecretAnt adapter held | SecretAnt adapter (row 4) |
-| 4 | SecretAnt adapter crate (`SecretSource` for SecretAnt) | `SECRET-SOURCES.md` s4 item 3 | held: SecretAnt is not on crates.io | SecretAnt lane: the crate is a 0.0.0 placeholder on crates.io |
+| 4 | SecretAnt adapter crate (`SecretSource` for SecretAnt) | `SECRET-SOURCES.md` s4 item 3 | done: `configurant-secretant` (`source = "secretant:<name>"`), against secretant 0.2.1 on crates.io | - |
 | 5 | `Needs` schema field (today `--require`/`--prefer`/`--min-durability` flags) | `TRANSFER-UI.md` | done: ruled flags only, no `Needs` schema field (PM 2026-10-25) | - |
 | 6 | `configurant transfer` command | `TRANSFER.md` s4 "only if wanted" | done (0.6.9; CireSnave 2026-11-07: the GUI, TUI and command line should offer the same functionality) | - |
 | 7 | Transfer progress callback (a spinner only today) | `TRANSFER-UI.md` q4 | done (0.6.7 library, 0.6.8 TUI and GUI show "copying: N of M records" next to the spinner) | - |
@@ -42,7 +42,7 @@ Docs read: 10 (`README.md`, `docs/DESIGN.md`, `GUI.md`, `PRIOR-ART.md`, `SCAN.md
 | 22 | Library options as a schema fragment (`Schema::parse_with`, mounts) | `docs/SCHEMA-FRAGMENTS.md` | done: `Schema::parse_with` and `Mount` (0.5.11) | - |
 | 23 | Projection of settings into a form: sections, order and visibility derived from the schema | PM wave 0 | done: `View::sections`, `file_only`, schema `section` and `advanced` (0.5.12) | - |
 | 24 | WebHostAnt options shipped as a fragment | `docs/SCHEMA-FRAGMENTS.md` | held: WebHostAnt lane, needs 22 | WebHostAnt lane (row 22, which it needs, is done) |
-| 25 | SecretAnt connector (`SecretSource` adapter crate); same as row 4 | `SECRET-SOURCES.md` s4 | held: S, SecretAnt is a 0.0.0 placeholder on crates.io | SecretAnt lane (same as row 4) |
+| 25 | SecretAnt connector (`SecretSource` adapter crate); same as row 4 | `SECRET-SOURCES.md` s4 | done: same as row 4 | - |
 | 26 | Step engine: ordered steps, conditions, back/next, resume; one engine for TUI, GUI and browser | PM wave 0 | done: L, needs 20, 21, 23 (all done); design in `docs/STEP-ENGINE.md`, two PRs: (a) schema `[[step]]` + ordering done (0.5.14); (b) `Wizard` + events + `View.wizard` + resume done (0.5.15); renderers (TUI, GUI, browser) adopt it in their own rows | - |
 | 27 | Hand redaction to RedactAnt and delete our copy (`src/config.rs` `REDACTED` and the substring redaction) | ant-fit finding | done: 0.7.2 (PR pending), redactant 0.1.2 | - |
 | 28 | Plan executor with confirmation (dirs, files, commands) for installers | ant-fit finding | done: L, design `docs/PLAN-EXECUTOR.md` (#56, 0.5.17); (a) types, validation, hash, inert `describe` (#58, 0.5.19), (b) run + state + resume (#59, 0.5.20), (c) undo + services (#60, 0.5.21); patent addendum (#61); needs 26 (done) | - |

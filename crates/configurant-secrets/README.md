@@ -17,7 +17,7 @@ One source is built in, `FileSource` (`source = "file:<name>"`): it reads `<name
 `CONFIGURANT_SECRETS_DIR`, a bare file name only, at most 64 KiB of UTF-8, a symlink only if it stays inside the
 directory, and on Unix only a file with no group or other permission bits. Windows has no permission check; see
 `docs/SECRET-SOURCES.md` section 4a. The vault wrapper already delivers an environment variable, so there is no `vault`
-source, and a SecretAnt adapter will be its own crate.
+source, and the SecretAnt adapter is its own crate, `configurant-secretant`.
 
 Limit: any process running as the same user can read what this process can. `SecretValue` is wiped on drop, but
 the loader's copy inside the `Config` is not.
