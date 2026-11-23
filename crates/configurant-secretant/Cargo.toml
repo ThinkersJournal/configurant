@@ -12,7 +12,7 @@ categories = ["config"]
 
 [dependencies]
 configurant-secrets = { version = "0.8.7", path = "../configurant-secrets" }
-secretant = "0.2.1"
+secretant = "0.2.4"
 
 [dev-dependencies]
 configurant = { version = "0.8.7", path = "../.." }
