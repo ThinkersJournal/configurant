@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.7 — configurant-secretant README snippet is a compile-checked doctest; rotate test
+
+The `configurant-secretant` README snippet is now a `no_run` doctest (`cargo test -p configurant-secretant --doc`), so the next audit need not read it. It caught a real defect: the old snippet's `?` on `SourceFailure` (not a `std::error::Error`) never compiled; it now maps errors with `{e:?}` and shows the `Resolved::into_loader` step. `ReadUnlock::Os` is compiled but not executed (it needs the OS keyring). New test `a_rotation_is_a_new_version_and_the_next_fetch_sees_it` runs what `secretant rotate NAME` does in 0.2.1 (`describe`, then `put`) on a real `FileStore`: version 2, the adapter fetch sees it, version 1 is kept. The `secretant` CLI itself is not run. No API change.
+
 ## 0.8.6 — SecretAnt adapter crate `configurant-secretant`
 
 New workspace crate `configurant-secretant`: `SecretAntSource` implements `SecretSource` over `secretant::SecretReader` (secretant 0.2.1 from crates.io), so `source = "secretant:<name>"` reads a secret from a SecretAnt store at load time (ROADMAP rows 4 and 25, `docs/SECRET-SOURCES.md` slice 4). The store path and unlock are the application's, never the schema's. SecretAnt's four error classes map to `NotFound`, `Denied`, `Unreachable` and `TimedOut`; an entry that is not UTF-8 is `Invalid`; an empty or control-character name is refused before any read. Nothing the store holds reaches an error or `Debug`. Six tests (known-bad first: failure kinds with the canary planted, bad names, environment override, rotation, redaction through `resolve` and `explain`); each of three mutations (Denied mapped to Unreachable, lossy UTF-8, no name check) fails a test. Not checked: a store unlocked with the Windows OS wrap or a recovery key (only the passphrase path is tested).
