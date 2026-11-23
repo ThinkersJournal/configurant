@@ -114,6 +114,32 @@ fn a_rotated_value_is_seen_on_the_next_fetch() {
 }
 
 #[test]
+fn a_rotation_is_a_new_version_and_the_next_fetch_sees_it() {
+    // What `secretant rotate NAME` does in 0.2.1 (src/main.rs): `describe` (the entry must exist), then `put` (a new version).
+    let d = tempfile::tempdir().unwrap();
+    let path = store(d.path(), &[("K", b"first")]);
+    let src = source(&path);
+    let mut s = FileStore::open(&path, &pass(PASS)).unwrap();
+    assert!(
+        s.describe("K")
+            .is_ok_and(|m| m.latest == 1 && m.versions == 1)
+    );
+    assert!(s.describe("NOPE").is_err());
+    let v = s
+        .put("K", SecretValue::new(b"second".to_vec()), BTreeMap::new())
+        .unwrap();
+    assert!(v == 2);
+    assert!(src.fetch("K").is_ok_and(|x| x.expose() == "second"));
+    // The old version is kept in the store, but the adapter only ever reads the latest.
+    assert!(
+        FileStore::open(&path, &pass(PASS))
+            .unwrap()
+            .get_version("K", 1)
+            .is_ok_and(|x| x.expose() == b"first")
+    );
+}
+
+#[test]
 fn the_environment_still_wins_and_the_store_is_not_asked() {
     let d = tempfile::tempdir().unwrap();
     // The entry would be a failure (binary) if it were read.
