@@ -2117,9 +2117,9 @@ dependencies = [
 
 [[package]]
 name = "httpant"
-version = "0.7.10"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbac29ae4d8ea680af8f6b87d8df8ece490d04c904d7a489a963468e53c72b6e"
+checksum = "e05a521c4b68e1a47b27f04915c3bfabee58d1c5f20ac30588a97fb784a3e919"
 dependencies = [
  "httpant-client",
  "httpant-core",
@@ -2128,9 +2128,9 @@ dependencies = [
 
 [[package]]
 name = "httpant-client"
-version = "0.7.10"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20bed04080ffba4e5eb3d2312a4c926c4c05042ca24377277bd39f686fdbcfdc"
+checksum = "80bdea1927ca6d129f79f10572db0d0fd6aae0a5c216e8d3570a8b1921e49424"
 dependencies = [
  "bytes",
  "http-body",
@@ -2143,9 +2143,9 @@ dependencies = [
 
 [[package]]
 name = "httpant-core"
-version = "0.7.10"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa8ff467712b0bb9cfd924576720c6e8233aa8965682d638c8e7d863142686f5"
+checksum = "c53182aecc984518d6cb148e2d58ff1be276b2b5521ef8bedfc0e70c6e53f726"
 dependencies = [
  "bytes",
  "http",
@@ -2159,14 +2159,15 @@ dependencies = [
 
 [[package]]
 name = "httpant-server"
-version = "0.7.10"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8936471381bb45522f5feecdab15a4952b3dcd450e99464b18b02107798ec908"
+checksum = "744f68a0aac89a3b6404c57a701b406d35746341c6926a878733bd6855309bfd"
 dependencies = [
  "http-body",
  "httpant-core",
  "hyper",
  "hyper-util",
+ "rlimit",
  "serde",
  "tokio",
  "tower",
@@ -4215,6 +4216,15 @@ name = "renderdoc-sys"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b30a45b0cd0bcca8037f3d0dc3421eaf95327a17cad11964fb8179b4fc4832"
+
+[[package]]
+name = "rlimit"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f35ee2729c56bb610f6dba436bf78135f728b7373bdffae2ec815b2d3eb98cc3"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "rpassword"
