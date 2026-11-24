@@ -4,6 +4,11 @@
 
 Bumps the `secretant` dependency of `configurant-secretant` from 0.2.1 to 0.2.4 (published 2026-11-22), and `configurant-web`'s `httpant` from 0.7.10 to 0.9.0 (row 32). No source change for either. Verified by `cargo check --all-targets` and the tests of both crates (adapter, README doctest, rotate; `configurant-web` 30 tests including the strict 403-with-unwanted-body test, configurant#111).
 
+The `portfolio` job in `.github/workflows/ci.yml` now calls the CodeRipper portfolio workflow at
+`dc45e3632ab9f471292458e5ccba5f375084a70a` (was `c72a6e0`, 0.47.5), as pm-ants asked on 2026-11-24. The lock already holds
+`url` 2.5.9 (RUSTSEC-2026-0592) and has no `cookie` entry (RUSTSEC-2026-0594), so no lock line changes and no
+advisory is ignored. Verified by the portfolio check's result on this PR.
+
 ## 0.8.7 — configurant-secretant README snippet is a compile-checked doctest; rotate test
 
 The `configurant-secretant` README snippet is now a `no_run` doctest (`cargo test -p configurant-secretant --doc`), so the next audit need not read it. It caught a real defect: the old snippet's `?` on `SourceFailure` (not a `std::error::Error`) never compiled; it now maps errors with `{e:?}` and shows the `Resolved::into_loader` step. `ReadUnlock::Os` is compiled but not executed (it needs the OS keyring). New test `a_rotation_is_a_new_version_and_the_next_fetch_sees_it` runs what `secretant rotate NAME` does in 0.2.1 (`describe`, then `put`) on a real `FileStore`: version 2, the adapter fetch sees it, version 1 is kept. The `secretant` CLI itself is not run. No API change.
