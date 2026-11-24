@@ -1,6 +1,6 @@
 [package]
 name = "configurant-secretant"
-version = "0.8.8"
+version = "0.8.9"
 edition = "2024"
 rust-version = "1.95"
 description = "SecretAnt as a ConfigurAnt secret source: source = \"secretant:<name>\" reads a secret from a SecretAnt store at load time."
@@ -11,9 +11,9 @@ keywords = ["configuration", "config", "secrets", "secretant", "schema"]
 categories = ["config"]
 
 [dependencies]
-configurant-secrets = { version = "0.8.8", path = "../configurant-secrets" }
+configurant-secrets = { version = "0.8.9", path = "../configurant-secrets" }
 secretant = "0.2.4"
 
 [dev-dependencies]
-configurant = { version = "0.8.8", path = "../.." }
+configurant = { version = "0.8.9", path = "../.." }
 tempfile = "3.27.0"
