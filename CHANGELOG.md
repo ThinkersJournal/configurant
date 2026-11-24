@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.8 — secretant 0.2.4, httpant 0.9.0
+
+Bumps the `secretant` dependency of `configurant-secretant` from 0.2.1 to 0.2.4 (published 2026-11-22), and `configurant-web`'s `httpant` from 0.7.10 to 0.9.0 (row 32). No source change for either. Verified by `cargo check --all-targets` and the tests of both crates (adapter, README doctest, rotate; `configurant-web` 30 tests including the strict 403-with-unwanted-body test, configurant#111).
+
 ## 0.8.7 — configurant-secretant README snippet is a compile-checked doctest; rotate test
 
 The `configurant-secretant` README snippet is now a `no_run` doctest (`cargo test -p configurant-secretant --doc`), so the next audit need not read it. It caught a real defect: the old snippet's `?` on `SourceFailure` (not a `std::error::Error`) never compiled; it now maps errors with `{e:?}` and shows the `Resolved::into_loader` step. `ReadUnlock::Os` is compiled but not executed (it needs the OS keyring). New test `a_rotation_is_a_new_version_and_the_next_fetch_sees_it` runs what `secretant rotate NAME` does in 0.2.1 (`describe`, then `put`) on a real `FileStore`: version 2, the adapter fetch sees it, version 1 is kept. The `secretant` CLI itself is not run. No API change.
